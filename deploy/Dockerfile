@@ -3,7 +3,7 @@
 FROM node:22-bookworm-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm install --no-audit --no-fund
 
 FROM deps AS build
 COPY . .
@@ -35,7 +35,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl tini \
   && npm install -g pm2@5
 
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev --no-audit --no-fund
 
 COPY --from=build /app/.output ./.output
 COPY --from=build /app/public ./public
