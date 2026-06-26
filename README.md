@@ -65,4 +65,3 @@ Ver guia completo: **[deploy/PRODUCTION.md](deploy/PRODUCTION.md)**
 cp deploy/env.production.example deploy/.env
 cd deploy && docker compose up -d --build
 ```
-
