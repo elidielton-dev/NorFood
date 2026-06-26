@@ -1,0 +1,324 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design System — Norfood SaaS Multitenant
+ * Fonte: Inter. Marca via --tenant-primary (TenantProvider).
+ * Tokens legados (--sage, --gold) apontam para a cor do tenant.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-gold: var(--gold);
+  --color-honey: var(--honey);
+  --color-blush: var(--blush);
+  --color-sage: var(--sage);
+
+  --font-display: "Inter", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+
+  --shadow-soft: 0 10px 30px -12px color-mix(in oklab, var(--tenant-primary) 22%, transparent);
+  --shadow-glow: 0 0 40px color-mix(in oklab, var(--tenant-accent) 28%, transparent);
+  --gradient-warm: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--tenant-primary) 12%, white),
+    color-mix(in oklab, var(--tenant-accent) 18%, white)
+  );
+  --gradient-sage: linear-gradient(
+    135deg,
+    var(--tenant-primary),
+    color-mix(in oklab, var(--tenant-primary) 72%, black)
+  );
+  --gestao-cream: var(--surface-muted);
+  --gestao-blush: color-mix(in oklab, var(--surface-muted) 90%, white);
+  --gestao-green: color-mix(in oklab, var(--tenant-primary) 78%, black);
+  --gestao-gold-deep: color-mix(in oklab, var(--tenant-accent) 72%, black);
+  --gestao-ink: var(--foreground);
+  --honey-line: var(--border);
+  --panel-surface: #ffffff;
+  --panel-muted: var(--surface-muted);
+  --honey-bg: var(--background);
+  --honey-bg-muted: var(--surface-muted);
+  --honey-accent-soft: color-mix(in oklab, var(--tenant-primary) 22%, white);
+  --honey-border-strong: var(--border);
+}
+
+:root {
+  --radius: 0.75rem;
+
+  --tenant-primary: #ff9100;
+  --tenant-secondary: #111111;
+  --tenant-accent: #ff5a00;
+
+  /* Aliases legados do fork → cor do tenant */
+  --sage: var(--tenant-primary);
+  --sage-deep: color-mix(in oklab, var(--tenant-primary) 72%, black);
+  --gold: var(--tenant-accent);
+  --honey: color-mix(in oklab, var(--tenant-accent) 55%, white);
+  --blush: #f6f7f9;
+  --blush-soft: #fafbfc;
+  --surface-muted: #f6f7f9;
+
+  --background: #f6f7f9;
+  --foreground: #111111;
+
+  --card: #ffffff;
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+
+  --primary: var(--tenant-primary);
+  --primary-foreground: #ffffff;
+
+  --secondary: #f3f4f6;
+  --secondary-foreground: #111111;
+
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7280;
+
+  --accent: color-mix(in oklab, var(--tenant-primary) 10%, white);
+  --accent-foreground: var(--tenant-secondary);
+
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  --border: #e5e7eb;
+  --input: #e5e7eb;
+  --ring: var(--tenant-primary);
+}
+
+.dark {
+  --tenant-primary: #ff9100;
+  --tenant-secondary: #f5f5f5;
+  --tenant-accent: #ff8f33;
+
+  --sage: var(--tenant-primary);
+  --sage-deep: color-mix(in oklab, var(--tenant-primary) 65%, black);
+  --gold: var(--tenant-accent);
+  --honey: color-mix(in oklab, var(--tenant-accent) 40%, #1a1a1a);
+  --blush: #1a1a1a;
+  --blush-soft: #141414;
+  --surface-muted: #1a1a1a;
+
+  --background: #111111;
+  --foreground: #f5f5f5;
+
+  --card: #1a1a1a;
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+
+  --primary: var(--tenant-primary);
+  --primary-foreground: #ffffff;
+
+  --secondary: #262626;
+  --secondary-foreground: var(--foreground);
+
+  --muted: #262626;
+  --muted-foreground: #a3a3a3;
+
+  --accent: color-mix(in oklab, var(--tenant-primary) 18%, #1a1a1a);
+  --accent-foreground: var(--foreground);
+
+  --destructive: #f87171;
+  --destructive-foreground: #111111;
+
+  --border: #2e2e2e;
+  --input: #2e2e2e;
+  --ring: var(--tenant-primary);
+
+  --panel-surface: #1a1a1a;
+  --honey-bg: var(--background);
+  --honey-bg-muted: var(--surface-muted);
+  --honey-accent-soft: color-mix(in oklab, var(--tenant-primary) 35%, #1a1a1a);
+  --honey-border-strong: var(--border);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html,
+  body {
+    background-color: var(--background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--tenant-primary) 22%, transparent) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--tenant-primary) 18%, transparent);
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--tenant-primary) 28%, transparent);
+  }
+}
+
+@utility text-gold {
+  color: var(--gold);
+}
+@utility bg-sage {
+  background-color: var(--sage);
+}
+@utility bg-blush {
+  background-color: var(--blush);
+}
+@utility bg-blush-soft {
+  background-color: var(--blush-soft);
+}
+@utility shadow-soft {
+  box-shadow: var(--shadow-soft);
+}
+@utility shadow-glow {
+  box-shadow: var(--shadow-glow);
+}
+@utility gradient-warm {
+  background-image: var(--gradient-warm);
+}
+@utility gradient-sage {
+  background-image: var(--gradient-sage);
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+@utility animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@utility animate-fade-up {
+  animation: fade-up 0.6s ease-out both;
+}
+
+@utility bg-panel-muted {
+  background-color: var(--panel-muted);
+}
+
+.kds-board {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.kds-board h1,
+.kds-board h2,
+.kds-board p,
+.kds-board button,
+.kds-board span {
+  font-family: var(--font-sans);
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Landing NorFood — tipografia inspirada em apps de delivery */
+.norfood-landing .font-display {
+  font-family: "Fredoka", "Inter", system-ui, sans-serif;
+}
+
+.norfood-landing a {
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+@keyframes landing-carousel-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.landing-carousel-enter {
+  animation: landing-carousel-in 0.45s ease-out both;
+}
+
+@keyframes landing-kds-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, #ff9100 0%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in oklab, #ff9100 18%, transparent);
+  }
+}
+
+.landing-kds-pulse {
+  animation: landing-kds-pulse 2.5s ease-in-out infinite;
+}

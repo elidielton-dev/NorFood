@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: abelha-e-mel-ops
+    runtime: node
+    plan: free
+    rootDir: .
+    buildCommand: npm install
+    startCommand: npm run demo:sync
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 24.15.0
+      - key: DEMO_SYNC_PORT
+        value: 10000

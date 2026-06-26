@@ -1,0 +1,57 @@
+import { AppState } from "../types";
+import { SERVICE_CITY_CONFIG } from "../lib/city-config";
+
+export const initialAppState: AppState = {
+  loggedIn: false,
+  rememberLogin: true,
+  rider: {
+    id: "demo-motoboy",
+    name: "Joao da Silva",
+    shortName: "Joao",
+    phone: "(11) 99999-9999",
+    avatar:
+      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80",
+    score: 4.9,
+    vehicle: "Honda CG 160",
+    plate: "ARC-1234",
+    online: true,
+    completedCount: 127,
+    successRate: 96,
+    greeting: "Bom dia, entregador!",
+    email: "joao@abelhaemel.local",
+    cep: SERVICE_CITY_CONFIG.cep,
+    address: "Rua Jose Estrela, 123",
+    neighborhood: "Centro",
+    city: SERVICE_CITY_CONFIG.city,
+    state: SERVICE_CITY_CONFIG.state,
+    emergencyPhone: SERVICE_CITY_CONFIG.supportPhone,
+    pixKey: "joao@abelhaemel.local",
+    supportPhone: SERVICE_CITY_CONFIG.supportPhone,
+    documents: {
+      cnh: "00011122233",
+      cnhExpiry: "2028-05-10",
+      vehicleDocument: "CRLV digital validado",
+    },
+    settings: {
+      darkModeReady: true,
+      notifyNewOrders: true,
+      notifyOccurrences: true,
+      autoOnlineAfterLogin: true,
+    },
+  },
+  deliveries: [],
+  incidents: [],
+  messages: [],
+  notifications: [],
+  earnings: {
+    today: 0,
+    week: 0,
+    month: 0,
+    fees: 0,
+    distance: 0,
+    additions: 0,
+    bonus: 0,
+    discounts: 0,
+    chart: [],
+  },
+};

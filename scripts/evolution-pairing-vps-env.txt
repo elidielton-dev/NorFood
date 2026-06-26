@@ -1,0 +1,13 @@
+# Correcao pairing count:0 / codigo rejeitado pelo WhatsApp (Evolution API na VPS)
+# Aplique no .env do docker-compose e reinicie: docker compose up -d --force-recreate
+
+CONFIG_SESSION_PHONE_CLIENT=Chrome
+CONFIG_SESSION_PHONE_NAME=Chrome
+
+# Evolution v2.2.x — versao WhatsApp Web (NAO e a versao do app 2.26.x no celular):
+# Jun/2026 atual: CONFIG_SESSION_PHONE_VERSION=2.3000.1042056473
+
+# Evolution v2.3+ — REMOVA CONFIG_SESSION_PHONE_VERSION (API busca versao sozinha)
+# Nao deixe versao antiga fixa — causa count:0 ou QR que nao aparece
+
+# Script na VPS: bash scripts/fix-evolution-pairing-vps.sh

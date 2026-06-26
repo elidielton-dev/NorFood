@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "Abelha & Mel Entregador",
+    "slug": "abelha-mel-entregador",
+    "version": "1.0.0",
+    "platforms": ["ios", "android", "web"],
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "abelha-mel-entregador",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.abelhaemel.entregador"
+    },
+    "android": {
+      "package": "com.abelhaemel.entregador",
+      "adaptiveIcon": {
+        "backgroundColor": "#FAF5EB",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "A Abelha & Mel usa sua localizacao para rastrear entregas em tempo real.",
+          "locationAlwaysPermission": "A Abelha & Mel usa sua localizacao em segundo plano para atualizar a rota do entregador.",
+          "locationWhenInUsePermission": "A Abelha & Mel usa sua localizacao para navegar ate o cliente."
+        }
+      ]
+    ],
+    "extra": {
+      "tracking": {
+        "storeLat": -8.0860251,
+        "storeLng": -37.6400307
+      }
+    },
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}
