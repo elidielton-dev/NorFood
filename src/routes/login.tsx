@@ -107,9 +107,6 @@ function LoginPage() {
           <Link to="/recuperar-senha" className="block hover:text-[#111111]">
             Recuperar senha
           </Link>
-          <Link to="/admin" className="block hover:text-[#111111]">
-            Admin da plataforma
-          </Link>
           <Link to="/" className="block hover:text-[#111111]">
             ← Voltar ao início
           </Link>
