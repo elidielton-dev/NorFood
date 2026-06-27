@@ -6,7 +6,7 @@ LOG_FILE="/tmp/expo.log"
 mkdir -p "$(dirname "$URL_FILE")"
 
 echo "Iniciando Expo Metro (tunnel)..."
-npx expo start --port 8081 --tunnel 2>&1 | tee "$LOG_FILE" &
+CI=0 npx expo start --port 8081 --tunnel 2>&1 | tee "$LOG_FILE" &
 EXPO_PID=$!
 
 echo "Aguardando URL do tunnel (ate 120s)..."

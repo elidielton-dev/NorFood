@@ -19,7 +19,7 @@ WORKDIR /app/mobile
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
   && rm -rf /var/lib/apt/lists/*
 
-ENV CI=""
+ENV CI=0
 EXPOSE 8081
 
 VOLUME ["/data"]
