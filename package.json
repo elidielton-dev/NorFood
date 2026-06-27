@@ -65,6 +65,8 @@
     "reset:whatsapp-cache": "node ./scripts/reset-whatsapp-cache.mjs",
     "rebuild:whatsapp": "node ./scripts/rebuild-whatsapp-from-evolution.mjs",
     "seed:tenants": "node ./scripts/seed-tenants.mjs",
+    "billing:report": "node ./scripts/billing-monthly-report.mjs",
+    "billing:generate": "node ./scripts/billing-monthly-report.mjs --generate",
     "format": "prettier --write ."
   },
   "dependencies": {

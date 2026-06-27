@@ -36,6 +36,12 @@ export function AdminShell({
               Empresas
             </Link>
             <Link
+              to="/admin/faturamento"
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[#6B7280] hover:bg-[#F6F7F9] hover:text-[#111111]"
+            >
+              Faturamento
+            </Link>
+            <Link
               to="/admin/nova"
               className="inline-flex items-center gap-1.5 rounded-lg bg-[#111111] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#333]"
             >

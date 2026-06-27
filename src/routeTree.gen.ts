@@ -23,7 +23,9 @@ import { Route as TTenantSlugRouteImport } from './routes/t.$tenantSlug'
 import { Route as LojaTenantSlugRouteImport } from './routes/loja.$tenantSlug'
 import { Route as EntregadorLoginRouteImport } from './routes/entregador.login'
 import { Route as CardapioTokenRouteImport } from './routes/cardapio.$token'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as AdminNovaRouteImport } from './routes/admin.nova'
+import { Route as AdminFaturamentoRouteImport } from './routes/admin.faturamento'
 import { Route as AdminTenantIdRouteImport } from './routes/admin.$tenantId'
 import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
 import { Route as AuthenticatedMotoboyRouteImport } from './routes/_authenticated/motoboy'
@@ -160,9 +162,19 @@ const CardapioTokenRoute = CardapioTokenRouteImport.update({
   path: '/cardapio/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminNovaRoute = AdminNovaRouteImport.update({
   id: '/nova',
   path: '/nova',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminFaturamentoRoute = AdminFaturamentoRouteImport.update({
+  id: '/faturamento',
+  path: '/faturamento',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminTenantIdRoute = AdminTenantIdRouteImport.update({
@@ -563,7 +575,9 @@ export interface FileRoutesByFullPath {
   '/motoboy': typeof AuthenticatedMotoboyRoute
   '/painel': typeof AuthenticatedPainelRouteWithChildren
   '/admin/$tenantId': typeof AdminTenantIdRoute
+  '/admin/faturamento': typeof AdminFaturamentoRoute
   '/admin/nova': typeof AdminNovaRoute
+  '/api/health': typeof ApiHealthRoute
   '/cardapio/$token': typeof CardapioTokenRoute
   '/entregador/login': typeof EntregadorLoginRoute
   '/loja/$tenantSlug': typeof LojaTenantSlugRoute
@@ -643,7 +657,9 @@ export interface FileRoutesByTo {
   '/mesa': typeof AuthenticatedMesaRoute
   '/motoboy': typeof AuthenticatedMotoboyRoute
   '/admin/$tenantId': typeof AdminTenantIdRoute
+  '/admin/faturamento': typeof AdminFaturamentoRoute
   '/admin/nova': typeof AdminNovaRoute
+  '/api/health': typeof ApiHealthRoute
   '/cardapio/$token': typeof CardapioTokenRoute
   '/entregador/login': typeof EntregadorLoginRoute
   '/loja/$tenantSlug': typeof LojaTenantSlugRoute
@@ -721,7 +737,9 @@ export interface FileRoutesById {
   '/_authenticated/motoboy': typeof AuthenticatedMotoboyRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRouteWithChildren
   '/admin/$tenantId': typeof AdminTenantIdRoute
+  '/admin/faturamento': typeof AdminFaturamentoRoute
   '/admin/nova': typeof AdminNovaRoute
+  '/api/health': typeof ApiHealthRoute
   '/cardapio/$token': typeof CardapioTokenRoute
   '/entregador/login': typeof EntregadorLoginRoute
   '/loja/$tenantSlug': typeof LojaTenantSlugRoute
@@ -805,7 +823,9 @@ export interface FileRouteTypes {
     | '/motoboy'
     | '/painel'
     | '/admin/$tenantId'
+    | '/admin/faturamento'
     | '/admin/nova'
+    | '/api/health'
     | '/cardapio/$token'
     | '/entregador/login'
     | '/loja/$tenantSlug'
@@ -885,7 +905,9 @@ export interface FileRouteTypes {
     | '/mesa'
     | '/motoboy'
     | '/admin/$tenantId'
+    | '/admin/faturamento'
     | '/admin/nova'
+    | '/api/health'
     | '/cardapio/$token'
     | '/entregador/login'
     | '/loja/$tenantSlug'
@@ -962,7 +984,9 @@ export interface FileRouteTypes {
     | '/_authenticated/motoboy'
     | '/_authenticated/painel'
     | '/admin/$tenantId'
+    | '/admin/faturamento'
     | '/admin/nova'
+    | '/api/health'
     | '/cardapio/$token'
     | '/entregador/login'
     | '/loja/$tenantSlug'
@@ -1042,6 +1066,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   RecuperarSenhaRoute: typeof RecuperarSenhaRoute
   SelecionarEmpresaRoute: typeof SelecionarEmpresaRoute
+  ApiHealthRoute: typeof ApiHealthRoute
   CardapioTokenRoute: typeof CardapioTokenRoute
   LojaTenantSlugRoute: typeof LojaTenantSlugRoute
   TTenantSlugRoute: typeof TTenantSlugRouteWithChildren
@@ -1151,11 +1176,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CardapioTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/nova': {
       id: '/admin/nova'
       path: '/nova'
       fullPath: '/admin/nova'
       preLoaderRoute: typeof AdminNovaRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/faturamento': {
+      id: '/admin/faturamento'
+      path: '/faturamento'
+      fullPath: '/admin/faturamento'
+      preLoaderRoute: typeof AdminFaturamentoRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/$tenantId': {
@@ -1901,12 +1940,14 @@ const AuthenticatedRouteRouteWithChildren =
 
 interface AdminRouteChildren {
   AdminTenantIdRoute: typeof AdminTenantIdRoute
+  AdminFaturamentoRoute: typeof AdminFaturamentoRoute
   AdminNovaRoute: typeof AdminNovaRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminTenantIdRoute: AdminTenantIdRoute,
+  AdminFaturamentoRoute: AdminFaturamentoRoute,
   AdminNovaRoute: AdminNovaRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
@@ -1949,6 +1990,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   RecuperarSenhaRoute: RecuperarSenhaRoute,
   SelecionarEmpresaRoute: SelecionarEmpresaRoute,
+  ApiHealthRoute: ApiHealthRoute,
   CardapioTokenRoute: CardapioTokenRoute,
   LojaTenantSlugRoute: LojaTenantSlugRoute,
   TTenantSlugRoute: TTenantSlugRouteWithChildren,

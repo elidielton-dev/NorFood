@@ -8,6 +8,8 @@ import {
 import { isValidTenantSlug, slugifyTenantName } from "@/lib/platform-admin/slug";
 import { assertCanCreateTenant } from "@/lib/platform/platform-limits";
 import { listFallbackTenants } from "@/lib/tenant/tenants-fallback";
+import { upsertTenantBillingRecord } from "@/lib/api/platform-billing.functions";
+import type { BillingModel, BillingPlanId } from "@/lib/platform/billing-plans";
 import type { TenantStatus } from "@/lib/tenant/types";
 
 export type AdminTenantRow = {
@@ -37,6 +39,8 @@ export type CreateTenantAdminPayload = {
   owner_email?: string;
   owner_name?: string;
   owner_password?: string;
+  billing_model?: BillingModel;
+  billing_plan?: BillingPlanId;
 };
 
 export type UpdateTenantAdminPayload = {
@@ -275,6 +279,11 @@ export const createTenantAdminServer = createServerFn({ method: "POST" })
       email: data.owner_email,
       name: data.owner_name,
       password: data.owner_password,
+    });
+
+    await upsertTenantBillingRecord(tenantId, {
+      billingModel: data.billing_model ?? "monthly",
+      plan: data.billing_plan ?? "pro",
     });
 
     const created = await getTenantAdminServer({ data: tenantId });
