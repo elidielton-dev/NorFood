@@ -23,6 +23,7 @@ import {
   GestaoTableHead,
   StatusPill,
 } from "@/components/gestao-ui";
+import { useTenantId } from "@/lib/tenant/tenant-context";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/painel/colaboradores")({
@@ -31,6 +32,7 @@ export const Route = createFileRoute("/_authenticated/painel/colaboradores")({
 
 function ColaboradoresPage() {
   const queryClient = useQueryClient();
+  const tenantId = useTenantId();
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<ColaboradorFormState>(createEmptyColaboradorForm());
   const [loadingColaboradorId, setLoadingColaboradorId] = useState<string | null>(null);
@@ -50,6 +52,7 @@ function ColaboradoresPage() {
           telefone: payload.telefone,
           password: payload.password || undefined,
           roles: payload.roles,
+          tenantId,
         },
       }),
     onSuccess: () => {

@@ -1,11 +1,11 @@
 import { Feather } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
-import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Linking, Pressable, Switch, Text, TextInput, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { RiderAvatar } from "../components/RiderAvatar";
 import { ScreenContainer } from "../components/ScreenContainer";
 import { StatusBadge } from "../components/StatusBadge";
 import { TenantBrandBar } from "../components/TenantBrandBar";
@@ -14,6 +14,7 @@ import { useTenantTheme } from "../hooks/useTenantTheme";
 import { SERVICE_CITY_CONFIG, getSupportedNeighborhoods, isSupportedCityCep } from "../lib/city-config";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { fetchAddressByCep, formatCep, normalizeCep } from "../lib/viacep";
+import { readImageBase64 } from "../lib/read-image-base64";
 
 type PanelKey =
   | "dados"
@@ -90,17 +91,20 @@ export function ProfileScreen() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.85,
+      base64: true,
     });
 
     if (result.canceled || !result.assets[0]?.uri) return;
+    const asset = result.assets[0];
+    const base64Content = asset.base64?.trim() ? asset.base64 : await readImageBase64(asset.uri);
 
     try {
       setUploadingAvatar(true);
-      await uploadAvatar(result.assets[0].uri);
+      await uploadAvatar(asset.uri, base64Content, asset.mimeType ?? "image/jpeg");
       Alert.alert("Foto atualizada", "Sua foto de perfil foi salva com sucesso.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Nao foi possivel enviar a foto.";
@@ -127,7 +131,7 @@ export function ProfileScreen() {
         }}
       >
         <Pressable onPress={() => void handlePickAvatar()} className="relative">
-          <Image source={rider.avatar} style={{ height: 92, width: 92, borderRadius: 46 }} contentFit="cover" />
+          <RiderAvatar uri={rider.avatar} name={rider.name} size={92} />
           <View
             className="absolute bottom-0 right-0 h-8 w-8 items-center justify-center rounded-full"
             style={{ backgroundColor: theme.primary, borderWidth: 2, borderColor: theme.backgroundElevated }}

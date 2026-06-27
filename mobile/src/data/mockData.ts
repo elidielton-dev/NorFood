@@ -13,8 +13,7 @@ export const initialAppState: AppState = {
     name: "Joao da Silva",
     shortName: "Joao",
     phone: "(11) 99999-9999",
-    avatar:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80",
+    avatar: "",
     score: 4.9,
     vehicle: "Honda CG 160",
     plate: "ARC-1234",

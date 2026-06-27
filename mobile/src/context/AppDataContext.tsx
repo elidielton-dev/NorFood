@@ -21,6 +21,7 @@ import {
   uploadRiderAvatar,
 } from "../data/riderApi";
 import { fetchRiderTenancies, fetchTenantSettings } from "../data/tenantApi";
+import { stripCacheBuster } from "../lib/avatar";
 import { loadActiveTenantId, loadAppState, saveActiveTenantId, saveAppState } from "../data/storage";
 import {
   AppNotification,
@@ -42,7 +43,7 @@ type AppDataContextValue = {
   logout: () => void;
   refresh: () => Promise<void>;
   selectTenant: (tenantId: string) => Promise<void>;
-  uploadAvatar: (localUri: string) => Promise<void>;
+  uploadAvatar: (localUri: string, base64Content?: string | null, mimeType?: string) => Promise<void>;
   updateProfile: (payload: Record<string, unknown>) => Promise<void>;
   setOnline: (value: boolean) => Promise<void>;
   acceptDelivery: (id: string) => Promise<void>;
@@ -131,6 +132,9 @@ export function AppDataProvider({ children }: PropsWithChildren) {
       rider: {
         ...current.rider,
         ...((remote as unknown as AppState).rider ?? {}),
+        avatar:
+          ((remote as unknown as AppState).rider?.avatar ?? "").trim() ||
+          current.rider.avatar,
       },
     }));
   }
@@ -153,6 +157,9 @@ export function AppDataProvider({ children }: PropsWithChildren) {
         rider: {
           ...current.rider,
           ...((remote as unknown as AppState).rider ?? {}),
+          avatar:
+            ((remote as unknown as AppState).rider?.avatar ?? "").trim() ||
+            current.rider.avatar,
         },
       }));
     } catch (error) {
@@ -299,8 +306,15 @@ export function AppDataProvider({ children }: PropsWithChildren) {
     setState((current) => ({ ...current, loggedIn: false, activeTenantId: null, tenant: null }));
   }
 
-  async function uploadAvatar(localUri: string) {
-    await uploadRiderAvatar(localUri);
+  async function uploadAvatar(localUri: string, base64Content?: string | null, mimeType?: string) {
+    const avatarUrl = await uploadRiderAvatar(localUri, base64Content, mimeType);
+    setState((current) => ({
+      ...current,
+      rider: {
+        ...current.rider,
+        avatar: stripCacheBuster(avatarUrl),
+      },
+    }));
     await syncRemoteState();
   }
 

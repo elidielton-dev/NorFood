@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { Image } from "expo-image";
+import { RiderAvatar } from "./RiderAvatar";
 import { Pressable, Text, View } from "react-native";
 import { useAppTheme } from "../styles/theme";
 import { PhoneStatusBar } from "./PhoneStatusBar";
@@ -58,8 +58,8 @@ export function HeaderMobile({
             >
               <Feather name={leftIcon} size={20} color={iconColor} />
             </Pressable>
-          ) : avatar ? (
-            <Image source={avatar} style={{ height: 48, width: 48, borderRadius: 24 }} contentFit="cover" />
+          ) : avatar !== undefined ? (
+            <RiderAvatar uri={avatar} name={title ?? greeting ?? "Entregador"} size={48} />
           ) : null}
           <View className="max-w-[220px]">
             {greeting ? (

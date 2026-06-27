@@ -1,10 +1,10 @@
 import { Feather } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import { Alert, Pressable, Text, View } from "react-native";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useState } from "react";
 import { HeaderMobile } from "../components/HeaderMobile";
+import { RiderAvatar } from "../components/RiderAvatar";
 import { TimelineEntrega } from "../components/TimelineEntrega";
 import { ScreenContainer } from "../components/ScreenContainer";
 import { useAppData } from "../context/AppDataContext";
@@ -74,11 +74,7 @@ export function DeliveryDetailsScreen() {
         }}
       >
         <View className="flex-row items-center gap-3">
-          <Image
-            source={state.rider.avatar}
-            style={{ height: 72, width: 72, borderRadius: 36 }}
-            contentFit="cover"
-          />
+          <RiderAvatar uri={state.rider.avatar} name={state.rider.name} size={72} />
           <View className="flex-1">
             <Text style={{ color: theme.text, fontFamily: "Manrope_800ExtraBold", fontSize: 20 }}>
               {state.rider.name}

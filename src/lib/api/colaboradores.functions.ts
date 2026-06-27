@@ -25,6 +25,7 @@ export type SaveColaboradorPayload = {
   telefone: string;
   password?: string;
   roles: StaffRole[];
+  tenantId?: string | null;
 };
 
 async function loadColaboradorRow(userId: string): Promise<ColaboradorRow | null> {
@@ -86,6 +87,66 @@ async function syncStaffRoles(userId: string, roles: StaffRole[]) {
     })),
   );
   if (insertError) throw insertError;
+}
+
+async function assertManagerTenantAccess(managerId: string, tenantId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("tenant_users")
+    .select("role")
+    .eq("tenant_id", tenantId)
+    .eq("user_id", managerId)
+    .eq("status", "active")
+    .in("role", ["owner", "admin", "gerente"])
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Voce nao tem permissao para gerenciar colaboradores nesta empresa.");
+}
+
+async function syncMotoboyTenantAccess(userId: string, tenantId: string, isMotoboy: boolean) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  if (!isMotoboy) {
+    await supabaseAdmin
+      .from("tenant_users")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .eq("user_id", userId)
+      .eq("role", "entregador");
+    return;
+  }
+
+  const { error: tenantUserError } = await supabaseAdmin.from("tenant_users").upsert(
+    {
+      tenant_id: tenantId,
+      user_id: userId,
+      role: "entregador",
+      status: "active",
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "tenant_id,user_id,role" },
+  );
+  if (tenantUserError) throw tenantUserError;
+
+  const { data: existingProfile, error: profileSelectError } = await supabaseAdmin
+    .from("entregador_perfis" as never)
+    .select("user_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (profileSelectError) throw profileSelectError;
+
+  const riderPatch: Record<string, unknown> = {
+    user_id: userId,
+    tenant_id: tenantId,
+  };
+  if (!existingProfile) {
+    riderPatch.avatar_url = null;
+  }
+
+  const { error: riderProfileError } = await supabaseAdmin
+    .from("entregador_perfis" as never)
+    .upsert(riderPatch, { onConflict: "user_id" });
+  if (riderProfileError) throw riderProfileError;
 }
 
 function validatePayload(payload: SaveColaboradorPayload, isCreate: boolean) {
@@ -182,6 +243,15 @@ export const saveColaboradorServer = createServerFn({ method: "POST" })
     const email = data.email.trim().toLowerCase();
     const telefone = formatPhone(data.telefone);
     const phoneDigits = normalizePhoneDigits(telefone);
+    const isMotoboy = data.roles.includes("motoboy");
+    const tenantId = data.tenantId?.trim() || null;
+
+    if (isMotoboy) {
+      if (!tenantId) {
+        throw new Error("Informe a empresa para cadastrar um entregador.");
+      }
+      await assertManagerTenantAccess(context.userId, tenantId);
+    }
 
     if (isCreate) {
       await assertPhoneAvailable(phoneDigits);
@@ -204,11 +274,15 @@ export const saveColaboradorServer = createServerFn({ method: "POST" })
         id: userId,
         nome,
         telefone,
+        ...(isMotoboy ? { avatar_url: null } : {}),
         updated_at: new Date().toISOString(),
       });
       if (profileError) throw profileError;
 
       await syncStaffRoles(userId, data.roles);
+      if (isMotoboy && tenantId) {
+        await syncMotoboyTenantAccess(userId, tenantId, true);
+      }
 
       const colaborador = await loadColaboradorRow(userId);
       if (!colaborador) throw new Error("Colaborador criado, mas nao foi possivel recarregar.");
@@ -239,6 +313,11 @@ export const saveColaboradorServer = createServerFn({ method: "POST" })
     }
 
     await syncStaffRoles(userId, data.roles);
+    if (tenantId) {
+      await syncMotoboyTenantAccess(userId, tenantId, isMotoboy);
+    } else if (isMotoboy) {
+      throw new Error("Informe a empresa para cadastrar um entregador.");
+    }
 
     const colaborador = await loadColaboradorRow(userId);
     if (!colaborador) throw new Error("Colaborador atualizado, mas nao foi possivel recarregar.");

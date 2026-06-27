@@ -16,6 +16,8 @@ import type {
   TenantSummary,
 } from "../types";
 import { initialAppState } from "./mockData";
+import { base64ToArrayBuffer, resolveAvatarUrl, stripCacheBuster, withCacheBuster } from "../lib/avatar";
+import { readImageBase64 } from "../lib/read-image-base64";
 
 type ProfileRow = {
   id: string;
@@ -432,12 +434,7 @@ function buildRiderProfile(
     riderProfile?.vehicle ?? metadata.vehicle ?? initialAppState.rider.vehicle,
   );
   const plate = String(riderProfile?.plate ?? metadata.plate ?? initialAppState.rider.plate);
-  const avatar = String(
-    riderProfile?.avatar_url ??
-      profile?.avatar_url ??
-      metadata.avatar_url ??
-      initialAppState.rider.avatar,
-  );
+  const avatar = resolveAvatarUrl(riderProfile?.avatar_url, profile?.avatar_url);
 
   return {
     id: user.id,
@@ -887,28 +884,35 @@ export async function updateRiderOnline(online: boolean) {
 export async function updateRiderProfile(payload: Record<string, unknown>) {
   const supabase = requireSupabase();
   const user = await getCurrentUser();
+  const avatarOnly = Object.keys(payload).length === 1 && typeof payload.avatarUrl === "string";
+  const cleanAvatarUrl =
+    typeof payload.avatarUrl === "string" ? stripCacheBuster(payload.avatarUrl) : undefined;
 
   const profilePatch: Record<string, unknown> = {};
   if (typeof payload.name === "string") profilePatch.nome = payload.name;
   if (typeof payload.phone === "string") profilePatch.telefone = payload.phone;
-  if (typeof payload.avatarUrl === "string") profilePatch.avatar_url = payload.avatarUrl;
+  if (cleanAvatarUrl) profilePatch.avatar_url = cleanAvatarUrl;
 
   if (Object.keys(profilePatch).length) {
-    const { error } = await supabase.from("profiles").upsert({
-      id: user.id,
-      ...profilePatch,
-    });
+    const { error } = await supabase.from("profiles").upsert(
+      {
+        id: user.id,
+        ...profilePatch,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id" },
+    );
     if (error) throw error;
   }
 
-  const riderPatch: Record<string, unknown> = { user_id: user.id, tenant_id: activeTenantId };
+  const riderPatch: Record<string, unknown> = {};
   if (typeof payload.cep === "string") riderPatch.cep = payload.cep;
   if (typeof payload.address === "string") riderPatch.address = payload.address;
   if (typeof payload.neighborhood === "string") riderPatch.neighborhood = payload.neighborhood;
   if (typeof payload.city === "string") riderPatch.city = payload.city;
   if (typeof payload.state === "string") riderPatch.state = payload.state;
   if (typeof payload.email === "string") riderPatch.pix_key = payload.email;
-  if (typeof payload.avatarUrl === "string") riderPatch.avatar_url = payload.avatarUrl;
+  if (cleanAvatarUrl) riderPatch.avatar_url = cleanAvatarUrl;
 
   const settings = payload.settings as Record<string, unknown> | undefined;
   if (settings) {
@@ -920,10 +924,37 @@ export async function updateRiderProfile(payload: Record<string, unknown>) {
       riderPatch.auto_online_after_login = settings.autoOnlineAfterLogin;
   }
 
-  if (Object.keys(riderPatch).length > 1) {
-    const { error } = await supabase.from(ENTREGADOR_PERFIS_TABLE).upsert(riderPatch);
-    if (error) throw error;
+  if (cleanAvatarUrl || Object.keys(riderPatch).length) {
+    riderPatch.user_id = user.id;
+    if (activeTenantId) riderPatch.tenant_id = activeTenantId;
+
+    const { error: upsertError } = await supabase
+      .from(ENTREGADOR_PERFIS_TABLE)
+      .upsert(riderPatch, { onConflict: "user_id" });
+    if (upsertError) throw upsertError;
+
+    if (cleanAvatarUrl) {
+      const { data: savedProfile, error: verifyError } = await supabase
+        .from(ENTREGADOR_PERFIS_TABLE)
+        .select("avatar_url")
+        .eq("user_id", user.id)
+        .maybeSingle<{ avatar_url: string | null }>();
+      if (verifyError) throw verifyError;
+      if (!savedProfile?.avatar_url) {
+        const { error: updateError } = await supabase
+          .from(ENTREGADOR_PERFIS_TABLE)
+          .update({
+            avatar_url: cleanAvatarUrl,
+            tenant_id: activeTenantId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", user.id);
+        if (updateError) throw updateError;
+      }
+    }
   }
+
+  if (avatarOnly) return;
 
   const updateUserPayload: {
     email?: string;
@@ -932,8 +963,6 @@ export async function updateRiderProfile(payload: Record<string, unknown>) {
     data: {
       nome: typeof payload.name === "string" ? payload.name : user.user_metadata?.nome,
       telefone: typeof payload.phone === "string" ? payload.phone : user.user_metadata?.telefone,
-      avatar_url:
-        typeof payload.avatarUrl === "string" ? payload.avatarUrl : user.user_metadata?.avatar_url,
     },
   };
 
@@ -1186,17 +1215,33 @@ export async function markNotificationsRead() {
   if (error) throw error;
 }
 
-export async function uploadRiderAvatar(localUri: string) {
+export async function uploadRiderAvatar(
+  localUri: string,
+  base64Content?: string | null,
+  mimeType = "image/jpeg",
+) {
   const supabase = requireSupabase();
   const user = await getCurrentUser();
-  const response = await fetch(localUri);
-  const blob = await response.blob();
-  const ext = localUri.split(".").pop()?.split("?")[0] ?? "jpg";
-  const contentType = blob.type || `image/${ext === "png" ? "png" : "jpeg"}`;
-  const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+  if (!activeTenantId) {
+    throw new Error("Selecione a empresa antes de alterar a foto.");
+  }
 
-  const { error: uploadError } = await supabase.storage.from("avatars").upload(path, blob, {
-    contentType,
+  const ext = mimeType.includes("png") ? "png" : mimeType.includes("webp") ? "webp" : "jpg";
+  const path = `${user.id}/avatar.${ext}`;
+
+  let uploadBody: ArrayBuffer;
+  if (base64Content?.trim()) {
+    uploadBody = base64ToArrayBuffer(base64Content);
+  } else {
+    uploadBody = base64ToArrayBuffer(await readImageBase64(localUri));
+  }
+
+  if (!uploadBody.byteLength) {
+    throw new Error("A imagem selecionada esta vazia. Tente outra foto.");
+  }
+
+  const { error: uploadError } = await supabase.storage.from("avatars").upload(path, uploadBody, {
+    contentType: mimeType,
     upsert: true,
   });
   if (uploadError) throw uploadError;
@@ -1206,5 +1251,18 @@ export async function uploadRiderAvatar(localUri: string) {
   } = supabase.storage.from("avatars").getPublicUrl(path);
 
   await updateRiderProfile({ avatarUrl: publicUrl });
-  return publicUrl;
+
+  const { data: savedProfile, error: verifyError } = await supabase
+    .from(ENTREGADOR_PERFIS_TABLE)
+    .select("avatar_url")
+    .eq("user_id", user.id)
+    .maybeSingle<{ avatar_url: string | null }>();
+  if (verifyError) throw verifyError;
+
+  const persistedUrl = resolveAvatarUrl(savedProfile?.avatar_url, publicUrl);
+  if (!persistedUrl) {
+    throw new Error("A foto foi enviada, mas nao persistiu no perfil. Tente novamente.");
+  }
+
+  return withCacheBuster(persistedUrl);
 }
