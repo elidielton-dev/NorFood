@@ -16,8 +16,9 @@ import { spawnSync } from "node:child_process";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const envPath = resolve(root, "deploy/.env");
 const deployFlag = process.argv.includes("--deploy");
-const accessToken = process.argv[2]?.trim();
-const publicKey = process.argv[3]?.trim();
+const positional = process.argv.slice(2).filter((arg) => arg !== "--deploy");
+const accessToken = positional[0]?.trim();
+const publicKey = positional[1]?.trim();
 
 function loadEnvText() {
   if (!existsSync(envPath)) {
