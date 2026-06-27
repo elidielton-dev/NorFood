@@ -4,8 +4,6 @@ import { useState } from "react";
 import { Pressable, Switch, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useNavigation } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { CardResumo } from "../components/CardResumo";
 import { FadeInView } from "../components/FadeInView";
 import { HeaderMobile } from "../components/HeaderMobile";
