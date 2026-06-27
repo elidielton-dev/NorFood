@@ -198,6 +198,25 @@ else {
   const sessionBody = await sessionRes.json();
   if (sessionBody.allowed) pass("Acesso admin API");
   else fail("Acesso admin API", JSON.stringify(sessionBody));
+
+  const billingRes = await fetch(
+    `${BASE}/api/platform-admin/billing?view=rows&year=${year}&month=${month}`,
+    { headers: { Authorization: `Bearer ${signIn.session.access_token}` } },
+  );
+  const billingContentType = billingRes.headers.get("content-type") ?? "";
+  const billingBody = billingContentType.includes("application/json")
+    ? await billingRes.json()
+    : null;
+  if (!billingRes.ok) {
+    fail(
+      "API faturamento /api/platform-admin/billing",
+      billingBody?.error ?? `HTTP ${billingRes.status}`,
+    );
+  } else if (!Array.isArray(billingBody) || billingBody.length === 0) {
+    fail("API faturamento /api/platform-admin/billing", "lista vazia");
+  } else {
+    pass("API faturamento /api/platform-admin/billing", `${billingBody.length} restaurante(s)`);
+  }
 }
 
 const failed = results.filter((r) => !r.ok);

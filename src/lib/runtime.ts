@@ -32,7 +32,7 @@ export function isProductionMode() {
 
 export function isBrowserDemoEnabled() {
   if (import.meta.env.VITE_DEMO_MODE === "true") return true;
-  if (import.meta.env.VITE_DEMO_MODE === "false") return isDemoSession();
+  if (import.meta.env.VITE_DEMO_MODE === "false") return false;
   if (!hasBrowserSupabaseConfig()) return true;
   return isDemoSession();
 }

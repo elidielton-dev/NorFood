@@ -5,7 +5,7 @@ import {
   listDemoAdminTenants,
   updateDemoAdminTenant,
 } from "@/lib/platform-admin/demo-tenants-store";
-import { isBrowserDemoEnabled } from "@/lib/runtime";
+import { isBrowserDemoEnabled, isProductionMode } from "@/lib/runtime";
 import { supabase } from "@/integrations/supabase/client";
 import { isPlatformAdminEmail } from "@/lib/platform-admin/emails";
 import {
@@ -19,6 +19,7 @@ import type { TenantStatus } from "@/lib/tenant/types";
 import type { BillingModel, BillingPlanId } from "@/lib/platform/billing-plans";
 
 export function useAdminTenantsSource() {
+  if (isProductionMode()) return false;
   return isBrowserDemoEnabled();
 }
 

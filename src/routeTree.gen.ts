@@ -35,6 +35,8 @@ import { Route as AuthenticatedPainelIndexRouteImport } from './routes/_authenti
 import { Route as TTenantSlugSplatRouteImport } from './routes/t.$tenantSlug.$'
 import { Route as ApiWhatsappWebhookRouteImport } from './routes/api/whatsapp/webhook'
 import { Route as ApiWabaWebhookRouteImport } from './routes/api/waba/webhook'
+import { Route as ApiPlatformAdminSessionRouteImport } from './routes/api/platform-admin/session'
+import { Route as ApiPlatformAdminBillingRouteImport } from './routes/api/platform-admin/billing'
 import { Route as ApiMercadoPagoWebhookRouteImport } from './routes/api/mercado-pago/webhook'
 import { Route as ApiCronAtendimentoHoursRouteImport } from './routes/api/cron/atendimento-hours'
 import { Route as AuthenticatedPainelWhatsappRouteImport } from './routes/_authenticated/painel.whatsapp'
@@ -222,6 +224,16 @@ const ApiWhatsappWebhookRoute = ApiWhatsappWebhookRouteImport.update({
 const ApiWabaWebhookRoute = ApiWabaWebhookRouteImport.update({
   id: '/api/waba/webhook',
   path: '/api/waba/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPlatformAdminSessionRoute = ApiPlatformAdminSessionRouteImport.update({
+  id: '/api/platform-admin/session',
+  path: '/api/platform-admin/session',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPlatformAdminBillingRoute = ApiPlatformAdminBillingRouteImport.update({
+  id: '/api/platform-admin/billing',
+  path: '/api/platform-admin/billing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiMercadoPagoWebhookRoute = ApiMercadoPagoWebhookRouteImport.update({
@@ -607,6 +619,8 @@ export interface FileRoutesByFullPath {
   '/painel/whatsapp': typeof AuthenticatedPainelWhatsappRoute
   '/api/cron/atendimento-hours': typeof ApiCronAtendimentoHoursRoute
   '/api/mercado-pago/webhook': typeof ApiMercadoPagoWebhookRoute
+  '/api/platform-admin/billing': typeof ApiPlatformAdminBillingRoute
+  '/api/platform-admin/session': typeof ApiPlatformAdminSessionRoute
   '/api/waba/webhook': typeof ApiWabaWebhookRoute
   '/api/whatsapp/webhook': typeof ApiWhatsappWebhookRoute
   '/t/$tenantSlug/$': typeof TTenantSlugSplatRoute
@@ -684,6 +698,8 @@ export interface FileRoutesByTo {
   '/painel/whatsapp': typeof AuthenticatedPainelWhatsappRoute
   '/api/cron/atendimento-hours': typeof ApiCronAtendimentoHoursRoute
   '/api/mercado-pago/webhook': typeof ApiMercadoPagoWebhookRoute
+  '/api/platform-admin/billing': typeof ApiPlatformAdminBillingRoute
+  '/api/platform-admin/session': typeof ApiPlatformAdminSessionRoute
   '/api/waba/webhook': typeof ApiWabaWebhookRoute
   '/api/whatsapp/webhook': typeof ApiWhatsappWebhookRoute
   '/t/$tenantSlug/$': typeof TTenantSlugSplatRoute
@@ -771,6 +787,8 @@ export interface FileRoutesById {
   '/_authenticated/painel/whatsapp': typeof AuthenticatedPainelWhatsappRoute
   '/api/cron/atendimento-hours': typeof ApiCronAtendimentoHoursRoute
   '/api/mercado-pago/webhook': typeof ApiMercadoPagoWebhookRoute
+  '/api/platform-admin/billing': typeof ApiPlatformAdminBillingRoute
+  '/api/platform-admin/session': typeof ApiPlatformAdminSessionRoute
   '/api/waba/webhook': typeof ApiWabaWebhookRoute
   '/api/whatsapp/webhook': typeof ApiWhatsappWebhookRoute
   '/t/$tenantSlug/$': typeof TTenantSlugSplatRoute
@@ -858,6 +876,8 @@ export interface FileRouteTypes {
     | '/painel/whatsapp'
     | '/api/cron/atendimento-hours'
     | '/api/mercado-pago/webhook'
+    | '/api/platform-admin/billing'
+    | '/api/platform-admin/session'
     | '/api/waba/webhook'
     | '/api/whatsapp/webhook'
     | '/t/$tenantSlug/$'
@@ -935,6 +955,8 @@ export interface FileRouteTypes {
     | '/painel/whatsapp'
     | '/api/cron/atendimento-hours'
     | '/api/mercado-pago/webhook'
+    | '/api/platform-admin/billing'
+    | '/api/platform-admin/session'
     | '/api/waba/webhook'
     | '/api/whatsapp/webhook'
     | '/t/$tenantSlug/$'
@@ -1021,6 +1043,8 @@ export interface FileRouteTypes {
     | '/_authenticated/painel/whatsapp'
     | '/api/cron/atendimento-hours'
     | '/api/mercado-pago/webhook'
+    | '/api/platform-admin/billing'
+    | '/api/platform-admin/session'
     | '/api/waba/webhook'
     | '/api/whatsapp/webhook'
     | '/t/$tenantSlug/$'
@@ -1085,6 +1109,8 @@ export interface RootRouteChildren {
   TTenantSlugRoute: typeof TTenantSlugRouteWithChildren
   ApiCronAtendimentoHoursRoute: typeof ApiCronAtendimentoHoursRoute
   ApiMercadoPagoWebhookRoute: typeof ApiMercadoPagoWebhookRoute
+  ApiPlatformAdminBillingRoute: typeof ApiPlatformAdminBillingRoute
+  ApiPlatformAdminSessionRoute: typeof ApiPlatformAdminSessionRoute
   ApiWabaWebhookRoute: typeof ApiWabaWebhookRoute
   ApiWhatsappWebhookRoute: typeof ApiWhatsappWebhookRoute
 }
@@ -1271,6 +1297,20 @@ declare module '@tanstack/react-router' {
       path: '/api/waba/webhook'
       fullPath: '/api/waba/webhook'
       preLoaderRoute: typeof ApiWabaWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/platform-admin/session': {
+      id: '/api/platform-admin/session'
+      path: '/api/platform-admin/session'
+      fullPath: '/api/platform-admin/session'
+      preLoaderRoute: typeof ApiPlatformAdminSessionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/platform-admin/billing': {
+      id: '/api/platform-admin/billing'
+      path: '/api/platform-admin/billing'
+      fullPath: '/api/platform-admin/billing'
+      preLoaderRoute: typeof ApiPlatformAdminBillingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/mercado-pago/webhook': {
@@ -2019,6 +2059,8 @@ const rootRouteChildren: RootRouteChildren = {
   TTenantSlugRoute: TTenantSlugRouteWithChildren,
   ApiCronAtendimentoHoursRoute: ApiCronAtendimentoHoursRoute,
   ApiMercadoPagoWebhookRoute: ApiMercadoPagoWebhookRoute,
+  ApiPlatformAdminBillingRoute: ApiPlatformAdminBillingRoute,
+  ApiPlatformAdminSessionRoute: ApiPlatformAdminSessionRoute,
   ApiWabaWebhookRoute: ApiWabaWebhookRoute,
   ApiWhatsappWebhookRoute: ApiWhatsappWebhookRoute,
 }

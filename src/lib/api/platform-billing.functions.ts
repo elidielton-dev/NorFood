@@ -89,6 +89,26 @@ function isDemoBackend() {
   );
 }
 
+function assertBillingBackend() {
+  if (isDemoBackend()) {
+    throw new Error(
+      "Faturamento indisponível: configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY no servidor.",
+    );
+  }
+}
+
+function formatUnknownError(error: unknown, fallback: string) {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object" && "message" in error) {
+    return String((error as { message: unknown }).message);
+  }
+  return fallback;
+}
+
+function throwSupabaseError(error: unknown, fallback: string): never {
+  throw new Error(formatUnknownError(error, fallback));
+}
+
 async function sumTenantSales(
   tenantId: string,
   periodStart: string,
@@ -106,7 +126,7 @@ async function sumTenantSales(
     .lte("created_at", endIso)
     .in("status", [...BILLABLE_ORDER_STATUSES]);
 
-  if (error) throw error;
+  if (error) throwSupabaseError(error, "Erro ao somar vendas do restaurante.");
 
   const rows = data ?? [];
   const gross = rows.reduce((sum, row) => sum + Number(row.total ?? 0), 0);
@@ -126,6 +146,224 @@ async function loadOwnerEmail(tenantId: string) {
   if (!data?.user_id) return null;
   const { data: userData } = await supabaseAdmin.auth.admin.getUserById(data.user_id);
   return userData.user?.email ?? null;
+}
+
+export async function loadAdminBillingRows(
+  year: number,
+  month: number,
+): Promise<AdminBillingTenantRow[]> {
+  assertBillingBackend();
+  const { periodStart, periodEnd } = getMonthPeriod(year, month);
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: tenants, error } = await supabaseAdmin
+    .from("tenants")
+    .select("id, name, slug, status")
+    .order("name");
+  if (error) throwSupabaseError(error, "Erro ao somar vendas do restaurante.");
+
+  const rows: AdminBillingTenantRow[] = [];
+
+  for (const tenant of tenants ?? []) {
+    const tenantId = String(tenant.id);
+    const { data: billing } = await supabaseAdmin
+      .from("tenant_billing")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+
+    const sales = await sumTenantSales(tenantId, periodStart, periodEnd);
+    const billingRow = billing as TenantBillingRow | null;
+    const trial = isInTrial(billingRow?.trial_ends_at);
+
+    let amountDue = 0;
+    if (billingRow) {
+      amountDue = calculateBillingAmount({
+        billingModel: billingRow.billing_model,
+        plan: billingRow.plan,
+        monthlyPrice: billingRow.monthly_price,
+        revenueSharePercent: billingRow.revenue_share_percent,
+        revenueShareMin: billingRow.revenue_share_min,
+        revenueShareCap: billingRow.revenue_share_cap,
+        grossSales: sales.gross,
+        inTrial: trial,
+      }).final;
+    }
+
+    rows.push({
+      tenant_id: tenantId,
+      tenant_name: String(tenant.name),
+      tenant_slug: String(tenant.slug),
+      tenant_status: String(tenant.status),
+      owner_email: await loadOwnerEmail(tenantId),
+      billing: billingRow,
+      period_gross_sales: sales.gross,
+      period_order_count: sales.orderCount,
+      period_amount_due: amountDue,
+      in_trial: trial,
+    });
+  }
+
+  return rows;
+}
+
+export function computeBillingSummary(rows: AdminBillingTenantRow[]) {
+  const mrr = rows
+    .filter((r) => r.billing?.billing_model === "monthly" && !r.in_trial)
+    .reduce((sum, r) => sum + Number(r.billing?.monthly_price ?? 0), 0);
+  const revenueShareDue = rows
+    .filter((r) => r.billing?.billing_model === "revenue_share" && !r.in_trial)
+    .reduce((sum, r) => sum + r.period_amount_due, 0);
+  const totalDue = rows.reduce((sum, r) => sum + r.period_amount_due, 0);
+  const inTrial = rows.filter((r) => r.in_trial).length;
+  const withoutBilling = rows.filter((r) => !r.billing).length;
+
+  return {
+    tenantCount: rows.length,
+    mrr,
+    revenueShareDue,
+    totalDue,
+    inTrial,
+    withoutBilling,
+  };
+}
+
+export async function loadBillingInvoicesForPeriod(
+  year: number,
+  month: number,
+): Promise<BillingInvoiceRow[]> {
+  assertBillingBackend();
+  const { periodStart, periodEnd } = getMonthPeriod(year, month);
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: invoices, error } = await supabaseAdmin
+    .from("tenant_billing_invoices")
+    .select("*")
+    .eq("period_start", periodStart)
+    .eq("period_end", periodEnd)
+    .order("final_amount", { ascending: false });
+  if (error) throwSupabaseError(error, "Erro ao somar vendas do restaurante.");
+
+  const tenantIds = [...new Set((invoices ?? []).map((i) => String(i.tenant_id)))];
+  const { data: tenants } = await supabaseAdmin
+    .from("tenants")
+    .select("id, name, slug")
+    .in("id", tenantIds.length ? tenantIds : ["00000000-0000-0000-0000-000000000000"]);
+
+  const tenantMap = new Map((tenants ?? []).map((t) => [String(t.id), t]));
+
+  return (invoices ?? []).map((inv) => {
+    const tenant = tenantMap.get(String(inv.tenant_id));
+    return {
+      id: String(inv.id),
+      tenant_id: String(inv.tenant_id),
+      tenant_name: String(tenant?.name ?? "—"),
+      tenant_slug: String(tenant?.slug ?? "—"),
+      period_start: String(inv.period_start),
+      period_end: String(inv.period_end),
+      billing_model: inv.billing_model as BillingModel,
+      plan: (inv.plan as BillingPlanId | null) ?? null,
+      gross_sales: Number(inv.gross_sales),
+      order_count: Number(inv.order_count),
+      revenue_share_percent:
+        inv.revenue_share_percent != null ? Number(inv.revenue_share_percent) : null,
+      calculated_amount: Number(inv.calculated_amount),
+      final_amount: Number(inv.final_amount),
+      status: String(inv.status),
+      mp_payment_id: (inv.mp_payment_id as string | null) ?? null,
+      mp_preference_id: (inv.mp_preference_id as string | null) ?? null,
+      mp_checkout_url: (inv.mp_checkout_url as string | null) ?? null,
+      mp_pix_qr_code: (inv.mp_pix_qr_code as string | null) ?? null,
+      mp_pix_qr_base64: (inv.mp_pix_qr_base64 as string | null) ?? null,
+      payment_method: (inv.payment_method as string | null) ?? null,
+      paid_at: (inv.paid_at as string | null) ?? null,
+    };
+  });
+}
+
+export async function generateBillingInvoicesForPeriod(
+  year: number,
+  month: number,
+  markPending = true,
+): Promise<{
+  created: number;
+  updated: number;
+  waived: number;
+  pending: number;
+  skippedNoBilling: number;
+}> {
+  assertBillingBackend();
+  const { periodStart, periodEnd } = getMonthPeriod(year, month);
+  const rows = await loadAdminBillingRows(year, month);
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  let created = 0;
+  let updated = 0;
+  let waived = 0;
+  let pending = 0;
+  let skippedNoBilling = 0;
+
+  for (const row of rows) {
+    if (!row.billing) {
+      skippedNoBilling += 1;
+      continue;
+    }
+
+    const calc = calculateBillingAmount({
+      billingModel: row.billing.billing_model,
+      plan: row.billing.plan,
+      monthlyPrice: row.billing.monthly_price,
+      revenueSharePercent: row.billing.revenue_share_percent,
+      revenueShareMin: row.billing.revenue_share_min,
+      revenueShareCap: row.billing.revenue_share_cap,
+      grossSales: row.period_gross_sales,
+      inTrial: row.in_trial,
+    });
+
+    const status = row.in_trial ? "waived" : markPending ? "pending" : "draft";
+    if (status === "waived") waived += 1;
+    if (status === "pending") pending += 1;
+
+    const payload = {
+      tenant_id: row.tenant_id,
+      period_start: periodStart,
+      period_end: periodEnd,
+      billing_model: row.billing.billing_model,
+      plan: row.billing.plan,
+      gross_sales: row.period_gross_sales,
+      order_count: row.period_order_count,
+      revenue_share_percent:
+        row.billing.billing_model === "revenue_share" ? row.billing.revenue_share_percent : null,
+      calculated_amount: calc.calculated,
+      final_amount: calc.final,
+      status,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: existing } = await supabaseAdmin
+      .from("tenant_billing_invoices")
+      .select("id, status")
+      .eq("tenant_id", row.tenant_id)
+      .eq("period_start", periodStart)
+      .eq("period_end", periodEnd)
+      .maybeSingle();
+
+    if (existing?.id) {
+      if (existing.status === "paid") continue;
+      const { error } = await supabaseAdmin
+        .from("tenant_billing_invoices")
+        .update(payload)
+        .eq("id", existing.id);
+      if (error) throwSupabaseError(error, "Erro ao somar vendas do restaurante.");
+      updated += 1;
+    } else {
+      const { error } = await supabaseAdmin.from("tenant_billing_invoices").insert(payload);
+      if (error) throwSupabaseError(error, "Erro ao somar vendas do restaurante.");
+      created += 1;
+    }
+  }
+
+  return { created, updated, waived, pending, skippedNoBilling };
 }
 
 export async function upsertTenantBillingRecord(
@@ -158,7 +396,7 @@ export async function upsertTenantBillingRecord(
   const { error } = await supabaseAdmin.from("tenant_billing").upsert(row, {
     onConflict: "tenant_id",
   });
-  if (error) throw error;
+  if (error) throwSupabaseError(error, "Erro ao somar vendas do restaurante.");
 }
 
 export async function markBillingInvoicePaid(
@@ -324,63 +562,11 @@ export const listAdminBillingServer = createServerFn({ method: "GET" })
   .middleware([requirePlatformAdmin])
   .validator((input: { year?: number; month?: number } | undefined) => input ?? {})
   .handler(async ({ data }): Promise<AdminBillingTenantRow[]> => {
-    if (isDemoBackend()) return [];
-
     const now = new Date();
-    const year = data.year ?? now.getFullYear();
-    const month = data.month ?? now.getMonth() + 1;
-    const { periodStart, periodEnd } = getMonthPeriod(year, month);
-
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: tenants, error } = await supabaseAdmin
-      .from("tenants")
-      .select("id, name, slug, status")
-      .order("name");
-    if (error) throw error;
-
-    const rows: AdminBillingTenantRow[] = [];
-
-    for (const tenant of tenants ?? []) {
-      const tenantId = String(tenant.id);
-      const { data: billing } = await supabaseAdmin
-        .from("tenant_billing")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .maybeSingle();
-
-      const sales = await sumTenantSales(tenantId, periodStart, periodEnd);
-      const billingRow = billing as TenantBillingRow | null;
-      const trial = isInTrial(billingRow?.trial_ends_at);
-
-      let amountDue = 0;
-      if (billingRow) {
-        amountDue = calculateBillingAmount({
-          billingModel: billingRow.billing_model,
-          plan: billingRow.plan,
-          monthlyPrice: billingRow.monthly_price,
-          revenueSharePercent: billingRow.revenue_share_percent,
-          revenueShareMin: billingRow.revenue_share_min,
-          revenueShareCap: billingRow.revenue_share_cap,
-          grossSales: sales.gross,
-          inTrial: trial,
-        }).final;
-      }
-
-      rows.push({
-        tenant_id: tenantId,
-        tenant_name: String(tenant.name),
-        tenant_slug: String(tenant.slug),
-        tenant_status: String(tenant.status),
-        owner_email: await loadOwnerEmail(tenantId),
-        billing: billingRow,
-        period_gross_sales: sales.gross,
-        period_order_count: sales.orderCount,
-        period_amount_due: amountDue,
-        in_trial: trial,
-      });
-    }
-
-    return rows;
+    return loadAdminBillingRows(
+      data.year ?? now.getFullYear(),
+      data.month ?? now.getMonth() + 1,
+    );
   });
 
 export const generateBillingInvoicesServer = createServerFn({ method: "POST" })
@@ -393,138 +579,18 @@ export const generateBillingInvoicesServer = createServerFn({ method: "POST" })
     pending: number;
     skippedNoBilling: number;
   }> => {
-    if (isDemoBackend()) throw new Error("Indisponível no modo demo.");
-
-    const { periodStart, periodEnd } = getMonthPeriod(data.year, data.month);
-    const rows = await listAdminBillingServer({ data: { year: data.year, month: data.month } });
-
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    let created = 0;
-    let updated = 0;
-    let waived = 0;
-    let pending = 0;
-    let skippedNoBilling = 0;
-
-    for (const row of rows) {
-      if (!row.billing) {
-        skippedNoBilling += 1;
-        continue;
-      }
-
-      const calc = calculateBillingAmount({
-        billingModel: row.billing.billing_model,
-        plan: row.billing.plan,
-        monthlyPrice: row.billing.monthly_price,
-        revenueSharePercent: row.billing.revenue_share_percent,
-        revenueShareMin: row.billing.revenue_share_min,
-        revenueShareCap: row.billing.revenue_share_cap,
-        grossSales: row.period_gross_sales,
-        inTrial: row.in_trial,
-      });
-
-      const status = row.in_trial ? "waived" : data.markPending ? "pending" : "draft";
-      if (status === "waived") waived += 1;
-      if (status === "pending") pending += 1;
-
-      const payload = {
-        tenant_id: row.tenant_id,
-        period_start: periodStart,
-        period_end: periodEnd,
-        billing_model: row.billing.billing_model,
-        plan: row.billing.plan,
-        gross_sales: row.period_gross_sales,
-        order_count: row.period_order_count,
-        revenue_share_percent:
-          row.billing.billing_model === "revenue_share"
-            ? row.billing.revenue_share_percent
-            : null,
-        calculated_amount: calc.calculated,
-        final_amount: calc.final,
-        status,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { data: existing } = await supabaseAdmin
-        .from("tenant_billing_invoices")
-        .select("id, status")
-        .eq("tenant_id", row.tenant_id)
-        .eq("period_start", periodStart)
-        .eq("period_end", periodEnd)
-        .maybeSingle();
-
-      if (existing?.id) {
-        if (existing.status === "paid") continue;
-        const { error } = await supabaseAdmin
-          .from("tenant_billing_invoices")
-          .update(payload)
-          .eq("id", existing.id);
-        if (error) throw error;
-        updated += 1;
-      } else {
-        const { error } = await supabaseAdmin.from("tenant_billing_invoices").insert(payload);
-        if (error) throw error;
-        created += 1;
-      }
-    }
-
-    return { created, updated, waived, pending, skippedNoBilling };
+    return generateBillingInvoicesForPeriod(data.year, data.month, data.markPending ?? true);
   });
 
 export const listBillingInvoicesServer = createServerFn({ method: "GET" })
   .middleware([requirePlatformAdmin])
   .validator((input: { year?: number; month?: number } | undefined) => input ?? {})
   .handler(async ({ data }): Promise<BillingInvoiceRow[]> => {
-    if (isDemoBackend()) return [];
-
     const now = new Date();
-    const year = data.year ?? now.getFullYear();
-    const month = data.month ?? now.getMonth() + 1;
-    const { periodStart, periodEnd } = getMonthPeriod(year, month);
-
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: invoices, error } = await supabaseAdmin
-      .from("tenant_billing_invoices")
-      .select("*")
-      .eq("period_start", periodStart)
-      .eq("period_end", periodEnd)
-      .order("final_amount", { ascending: false });
-    if (error) throw error;
-
-    const tenantIds = [...new Set((invoices ?? []).map((i) => String(i.tenant_id)))];
-    const { data: tenants } = await supabaseAdmin
-      .from("tenants")
-      .select("id, name, slug")
-      .in("id", tenantIds.length ? tenantIds : ["00000000-0000-0000-0000-000000000000"]);
-
-    const tenantMap = new Map((tenants ?? []).map((t) => [String(t.id), t]));
-
-    return (invoices ?? []).map((inv) => {
-      const tenant = tenantMap.get(String(inv.tenant_id));
-      return {
-        id: String(inv.id),
-        tenant_id: String(inv.tenant_id),
-        tenant_name: String(tenant?.name ?? "—"),
-        tenant_slug: String(tenant?.slug ?? "—"),
-        period_start: String(inv.period_start),
-        period_end: String(inv.period_end),
-        billing_model: inv.billing_model as BillingModel,
-        plan: (inv.plan as BillingPlanId | null) ?? null,
-        gross_sales: Number(inv.gross_sales),
-        order_count: Number(inv.order_count),
-        revenue_share_percent:
-          inv.revenue_share_percent != null ? Number(inv.revenue_share_percent) : null,
-        calculated_amount: Number(inv.calculated_amount),
-        final_amount: Number(inv.final_amount),
-        status: String(inv.status),
-        mp_payment_id: (inv.mp_payment_id as string | null) ?? null,
-        mp_preference_id: (inv.mp_preference_id as string | null) ?? null,
-        mp_checkout_url: (inv.mp_checkout_url as string | null) ?? null,
-        mp_pix_qr_code: (inv.mp_pix_qr_code as string | null) ?? null,
-        mp_pix_qr_base64: (inv.mp_pix_qr_base64 as string | null) ?? null,
-        payment_method: (inv.payment_method as string | null) ?? null,
-        paid_at: (inv.paid_at as string | null) ?? null,
-      };
-    });
+    return loadBillingInvoicesForPeriod(
+      data.year ?? now.getFullYear(),
+      data.month ?? now.getMonth() + 1,
+    );
   });
 
 export const updateBillingInvoiceStatusServer = createServerFn({ method: "POST" })
@@ -542,7 +608,7 @@ export const updateBillingInvoiceStatusServer = createServerFn({ method: "POST" 
       .from("tenant_billing_invoices")
       .update({ status: data.status, updated_at: new Date().toISOString() })
       .eq("id", data.invoiceId);
-    if (error) throw error;
+    if (error) throwSupabaseError(error, "Erro ao somar vendas do restaurante.");
     return { ok: true };
   });
 
@@ -565,7 +631,7 @@ export const upsertTenantBillingAdminServer = createServerFn({ method: "POST" })
         .from("tenant_billing")
         .update(patch)
         .eq("tenant_id", data.tenantId);
-      if (error) throw error;
+      if (error) throwSupabaseError(error, "Erro ao somar vendas do restaurante.");
     }
 
     return { ok: true };
@@ -575,25 +641,12 @@ export const getBillingSummaryServer = createServerFn({ method: "GET" })
   .middleware([requirePlatformAdmin])
   .validator((input: { year?: number; month?: number } | undefined) => input ?? {})
   .handler(async ({ data }) => {
-    const rows = await listAdminBillingServer({ data });
-    const mrr = rows
-      .filter((r) => r.billing?.billing_model === "monthly" && !r.in_trial)
-      .reduce((sum, r) => sum + Number(r.billing?.monthly_price ?? 0), 0);
-    const revenueShareDue = rows
-      .filter((r) => r.billing?.billing_model === "revenue_share" && !r.in_trial)
-      .reduce((sum, r) => sum + r.period_amount_due, 0);
-    const totalDue = rows.reduce((sum, r) => sum + r.period_amount_due, 0);
-    const inTrial = rows.filter((r) => r.in_trial).length;
-    const withoutBilling = rows.filter((r) => !r.billing).length;
-
-    return {
-      tenantCount: rows.length,
-      mrr,
-      revenueShareDue,
-      totalDue,
-      inTrial,
-      withoutBilling,
-    };
+    const now = new Date();
+    const rows = await loadAdminBillingRows(
+      data.year ?? now.getFullYear(),
+      data.month ?? now.getMonth() + 1,
+    );
+    return computeBillingSummary(rows);
   });
 
 async function assertUserCanManageTenant(userId: string, tenantId: string) {
@@ -604,7 +657,7 @@ async function assertUserCanManageTenant(userId: string, tenantId: string) {
     .eq("tenant_id", tenantId)
     .eq("user_id", userId)
     .maybeSingle();
-  if (error) throw error;
+  if (error) throwSupabaseError(error, "Erro ao somar vendas do restaurante.");
   const managerRoles = new Set(["owner", "admin", "gerente", "financeiro"]);
   if (!data || data.status !== "active" || !managerRoles.has(data.role)) {
     throw new Error("Sem permissao para gerenciar cobranca deste restaurante.");
@@ -618,7 +671,7 @@ async function resolveTenantIdBySlug(slug: string) {
     .select("id")
     .eq("slug", slug)
     .maybeSingle();
-  if (error) throw error;
+  if (error) throwSupabaseError(error, "Erro ao somar vendas do restaurante.");
   if (!data?.id) throw new Error("Restaurante nao encontrado.");
   return String(data.id);
 }

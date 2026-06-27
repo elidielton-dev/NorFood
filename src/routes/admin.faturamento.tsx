@@ -44,17 +44,22 @@ function AdminFaturamentoPage() {
 
   const periodKey = ["admin-billing", year, month, demo];
 
-  const { data: summary } = useQuery({
+  const { data: summary, isError: summaryError, error: summaryErr } = useQuery({
     queryKey: [...periodKey, "summary"],
     queryFn: () => fetchBillingSummary(year, month),
   });
 
-  const { data: rows = [], isLoading } = useQuery({
+  const {
+    data: rows = [],
+    isLoading,
+    isError: rowsError,
+    error: rowsErr,
+  } = useQuery({
     queryKey: [...periodKey, "rows"],
     queryFn: () => fetchAdminBillingRows(year, month),
   });
 
-  const { data: invoices = [] } = useQuery({
+  const { data: invoices = [], isError: invoicesError, error: invoicesErr } = useQuery({
     queryKey: [...periodKey, "invoices"],
     queryFn: () => fetchBillingInvoices(year, month),
   });
@@ -133,6 +138,13 @@ function AdminFaturamentoPage() {
         </div>
       ) : null}
 
+      {(summaryError || rowsError || invoicesError) && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+          {(rowsErr ?? summaryErr ?? invoicesErr)?.message ??
+            "Não foi possível carregar o faturamento. Tente recarregar a página."}
+        </div>
+      )}
+
       <div className="mb-6 flex flex-wrap items-end gap-3">
         <label className="block">
           <span className="mb-1 block text-xs font-medium text-[#6B7280]">Mês</span>
@@ -191,6 +203,13 @@ function AdminFaturamentoPage() {
                 </tr>
               </thead>
               <tbody>
+                {rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-10 text-center text-sm text-[#6B7280]">
+                      Nenhum restaurante encontrado para este período.
+                    </td>
+                  </tr>
+                ) : null}
                 {rows.map((row) => {
                   const invoice = invoiceByTenant.get(row.tenant_id);
                   return (

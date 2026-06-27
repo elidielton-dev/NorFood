@@ -145,9 +145,9 @@ export function getMonthPeriod(year: number, month: number) {
 /** Status de pedidos que contam para faturamento (% sobre vendas) */
 export const BILLABLE_ORDER_STATUSES = [
   "aberto",
-  "preparando",
+  "em_preparo",
   "pronto",
-  "saiu_entrega",
+  "em_entrega",
   "entregue",
-  "finalizado",
+  "aguardando_pagamento",
 ] as const;
