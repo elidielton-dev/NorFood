@@ -5,6 +5,7 @@ import {
   generateBillingInvoicesForPeriod,
   loadAdminBillingRows,
   loadBillingInvoicesForPeriod,
+  markBillingInvoicePaid,
 } from "@/lib/api/platform-billing.functions";
 
 function formatUnknownError(error: unknown, fallback: string) {
@@ -42,6 +43,14 @@ async function requireAdmin(request: Request) {
   return null;
 }
 
+type BillingPostBody = {
+  action?: "generate" | "mark-paid" | "checkout" | "pix";
+  year?: number;
+  month?: number;
+  markPending?: boolean;
+  invoiceId?: string;
+};
+
 export const Route = createFileRoute("/api/platform-admin/billing")({
   server: {
     handlers: {
@@ -73,28 +82,61 @@ export const Route = createFileRoute("/api/platform-admin/billing")({
         } catch (error) {
           const message = formatUnknownError(error, "Erro ao carregar faturamento.");
           console.error("[platform-admin/billing GET]", message, error);
-          return Response.json({ error: message }, { status: 500, headers: { "cache-control": "no-store" } });
+          return Response.json(
+            { error: message },
+            { status: 500, headers: { "cache-control": "no-store" } },
+          );
         }
       },
       POST: async ({ request }) => {
         const denied = await requireAdmin(request);
         if (denied) return denied;
 
-        let body: { year?: number; month?: number; markPending?: boolean } = {};
+        let body: BillingPostBody = {};
         try {
-          body = (await request.json()) as typeof body;
+          body = (await request.json()) as BillingPostBody;
         } catch {
           return Response.json({ error: "Corpo da requisição inválido." }, { status: 400 });
         }
 
-        const now = new Date();
-        const year = body.year ?? now.getFullYear();
-        const month = body.month ?? now.getMonth() + 1;
-        if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
-          return Response.json({ error: "Período inválido." }, { status: 400 });
-        }
+        const action = body.action ?? "generate";
 
         try {
+          if (action === "mark-paid") {
+            if (!body.invoiceId) {
+              return Response.json({ error: "invoiceId é obrigatório." }, { status: 400 });
+            }
+            await markBillingInvoicePaid(body.invoiceId, { paymentMethod: "manual" });
+            return Response.json({ ok: true }, { headers: { "cache-control": "no-store" } });
+          }
+
+          if (action === "checkout") {
+            if (!body.invoiceId) {
+              return Response.json({ error: "invoiceId é obrigatório." }, { status: 400 });
+            }
+            const { createPlatformBillingCheckout } =
+              await import("@/lib/api/platform-billing-mercadopago.server");
+            const result = await createPlatformBillingCheckout(body.invoiceId);
+            return Response.json(result, { headers: { "cache-control": "no-store" } });
+          }
+
+          if (action === "pix") {
+            if (!body.invoiceId) {
+              return Response.json({ error: "invoiceId é obrigatório." }, { status: 400 });
+            }
+            const { createPlatformBillingPix } =
+              await import("@/lib/api/platform-billing-mercadopago.server");
+            const result = await createPlatformBillingPix(body.invoiceId);
+            return Response.json(result, { headers: { "cache-control": "no-store" } });
+          }
+
+          const now = new Date();
+          const year = body.year ?? now.getFullYear();
+          const month = body.month ?? now.getMonth() + 1;
+          if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+            return Response.json({ error: "Período inválido." }, { status: 400 });
+          }
+
           const result = await generateBillingInvoicesForPeriod(
             year,
             month,
@@ -102,9 +144,12 @@ export const Route = createFileRoute("/api/platform-admin/billing")({
           );
           return Response.json(result, { headers: { "cache-control": "no-store" } });
         } catch (error) {
-          const message = formatUnknownError(error, "Erro ao gerar faturas.");
-          console.error("[platform-admin/billing POST]", message, error);
-          return Response.json({ error: message }, { status: 500, headers: { "cache-control": "no-store" } });
+          const message = formatUnknownError(error, "Erro ao processar faturamento.");
+          console.error(`[platform-admin/billing POST ${action}]`, message, error);
+          return Response.json(
+            { error: message },
+            { status: 500, headers: { "cache-control": "no-store" } },
+          );
         }
       },
     },

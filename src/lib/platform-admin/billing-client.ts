@@ -65,6 +65,13 @@ function billingApiUrl(view: "rows" | "summary" | "invoices", year: number, mont
   return `/api/platform-admin/billing?${params.toString()}`;
 }
 
+async function billingActionFetch<T>(body: Record<string, unknown>) {
+  return platformAdminBillingFetch<T>("/api/platform-admin/billing", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function fetchAdminBillingRows(year: number, month: number) {
   if (isBillingDemoBlocked()) return [];
   if (isProductionMode()) {
@@ -106,29 +113,43 @@ export async function fetchBillingInvoices(
 export async function generateBillingInvoices(year: number, month: number) {
   if (isBillingDemoBlocked()) throw new Error("Indisponível no modo demo.");
   if (isProductionMode()) {
-    return platformAdminBillingFetch<Awaited<ReturnType<typeof generateBillingInvoicesServer>>>(
-      "/api/platform-admin/billing",
-      {
-        method: "POST",
-        body: JSON.stringify({ year, month, markPending: true }),
-      },
-    );
+    return billingActionFetch<Awaited<ReturnType<typeof generateBillingInvoicesServer>>>({
+      action: "generate",
+      year,
+      month,
+      markPending: true,
+    });
   }
   return generateBillingInvoicesServer({ data: { year, month, markPending: true } });
 }
 
 export async function markInvoicePaid(invoiceId: string) {
   if (isBillingDemoBlocked()) throw new Error("Indisponível no modo demo.");
+  if (isProductionMode()) {
+    return billingActionFetch<{ ok: true }>({ action: "mark-paid", invoiceId });
+  }
   return updateBillingInvoiceStatusServer({ data: { invoiceId, status: "paid" } });
 }
 
 export async function createAdminBillingCheckout(invoiceId: string) {
   if (isBillingDemoBlocked()) throw new Error("Indisponível no modo demo.");
+  if (isProductionMode()) {
+    return billingActionFetch<Awaited<ReturnType<typeof adminPayBillingInvoiceCheckoutServer>>>({
+      action: "checkout",
+      invoiceId,
+    });
+  }
   return adminPayBillingInvoiceCheckoutServer({ data: { invoiceId } });
 }
 
 export async function createAdminBillingPix(invoiceId: string) {
   if (isBillingDemoBlocked()) throw new Error("Indisponível no modo demo.");
+  if (isProductionMode()) {
+    return billingActionFetch<Awaited<ReturnType<typeof adminPayBillingInvoicePixServer>>>({
+      action: "pix",
+      invoiceId,
+    });
+  }
   return adminPayBillingInvoicePixServer({ data: { invoiceId } });
 }
 

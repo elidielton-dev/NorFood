@@ -71,6 +71,8 @@
     "check:mp-env": "node ./scripts/check-mp-env.mjs",
     "validate:signup": "node ./scripts/validate-signup-production.mjs",
     "validate:billing": "node ./scripts/validate-billing-production.mjs",
+    "validate:billing:e2e": "node ./scripts/validate-billing-e2e.mjs",
+    "validate:billing:mp": "node ./scripts/validate-billing-mp.mjs",
     "fix:billing": "node ./scripts/fix-billing-production.mjs",
     "apply:billing-migrations": "node ./scripts/apply-billing-migrations.mjs",
     "format": "prettier --write ."

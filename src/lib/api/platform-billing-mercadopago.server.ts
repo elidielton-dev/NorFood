@@ -96,6 +96,21 @@ async function loadInvoice(invoiceId: string) {
   return data as InvoiceRow;
 }
 
+function isValidMercadoPagoEmail(email: string | null | undefined) {
+  if (!email) return false;
+  const normalized = email.trim().toLowerCase();
+  if (normalized.endsWith("@norfood.local")) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized);
+}
+
+function resolveFallbackPayerEmail() {
+  const fromEnv =
+    process.env.MP_PAYER_EMAIL?.trim() ||
+    process.env.PLATFORM_ADMIN_EMAILS?.split(",")[0]?.trim();
+  if (fromEnv && isValidMercadoPagoEmail(fromEnv)) return fromEnv;
+  return "financeiro@norfood.com.br";
+}
+
 async function loadTenantContext(tenantId: string) {
   const { data: tenant, error: tenantError } = await supabaseAdmin
     .from("tenants")
@@ -113,12 +128,15 @@ async function loadTenantContext(tenantId: string) {
     .limit(1)
     .maybeSingle();
 
-  let payerEmail = "financeiro@norfood.local";
+  let payerEmail = resolveFallbackPayerEmail();
   let payerName = String(tenant.name);
 
   if (ownerLink?.user_id) {
     const { data: userData } = await supabaseAdmin.auth.admin.getUserById(ownerLink.user_id);
-    payerEmail = userData.user?.email ?? payerEmail;
+    const ownerEmail = userData.user?.email ?? null;
+    if (isValidMercadoPagoEmail(ownerEmail)) {
+      payerEmail = ownerEmail!;
+    }
     payerName =
       (userData.user?.user_metadata?.name as string | undefined) ??
       userData.user?.user_metadata?.full_name ??
