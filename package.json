@@ -79,6 +79,7 @@
     "validate:billing:e2e": "node ./scripts/validate-billing-e2e.mjs",
     "validate:billing:mp": "node ./scripts/validate-billing-mp.mjs",
     "validate:system:e2e": "node ./scripts/validate-norfood-system-e2e.mjs",
+    "validate:loja-delivery-e2e": "node ./scripts/validate-loja-delivery-e2e.mjs",
     "validate:system:full": "node ./scripts/validate-system-full.mjs",
     "fix:system": "node ./scripts/fix-system-production.mjs",
     "migrate:motoboy-delivery-rpc": "node ./scripts/apply-motoboy-delivery-rpc.mjs",

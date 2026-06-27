@@ -98,11 +98,18 @@ async function rpcExists(name) {
 
 console.log("Aplicando RPCs motoboy (accept + avancar entrega)...");
 
+const castFixSql = readFileSync(
+  join(root, "supabase/migrations/20260627210000_fix_motoboy_avancar_pedido_status_cast.sql"),
+  "utf8",
+);
+
 if (await rpcExists("motoboy_avancar_entrega")) {
-  console.log("SKIP: motoboy_avancar_entrega já existe.");
+  console.log("motoboy_avancar_entrega existe — aplicando fix pedido_status cast...");
+  await applySql(castFixSql, "fix_motoboy_avancar_pedido_status_cast");
 } else {
   await applySql(rpcSql, "motoboy_delivery_actions");
   await applySql(fixSql, "fix_motoboy_queue_gap_fill");
+  await applySql(castFixSql, "fix_motoboy_avancar_pedido_status_cast");
   if (!(await rpcExists("motoboy_avancar_entrega"))) {
     console.error("RPC motoboy_avancar_entrega ainda ausente após apply.");
     process.exit(1);

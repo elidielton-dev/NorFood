@@ -13,18 +13,25 @@ const STAGE_MAP = {
   delivered: { entrega: "entregue", rota: "entregue", pedido: "entregue" },
 };
 
-export async function advanceMotoboyDelivery(client, deliveryId, stage) {
+function isPedidoStatusCastError(error) {
+  if (!error) return false;
+  const message = String(error.message ?? error);
+  return message.includes("pedido_status") && message.includes("text");
+}
+
+export async function advanceMotoboyDelivery(client, deliveryId, stage, adminClient = null) {
   const { error: rpcError } = await client.rpc("motoboy_avancar_entrega", {
     _entrega_id: deliveryId,
     _stage: stage,
   });
-  if (!rpcError) return;
-  if (!isMissingRpc(rpcError)) throw rpcError;
+  if (!rpcError) return { via: "rpc" };
+  if (!isMissingRpc(rpcError) && !isPedidoStatusCastError(rpcError)) throw rpcError;
 
+  const fallbackClient = isPedidoStatusCastError(rpcError) && adminClient ? adminClient : client;
   const mapped = STAGE_MAP[stage];
   if (!mapped) throw new Error(`invalid_stage: ${stage}`);
 
-  const { data: entrega, error: selectError } = await client
+  const { data: entrega, error: selectError } = await fallbackClient
     .from("entregas")
     .select("id, pedido_id, motoboy_id, saiu_em")
     .eq("id", deliveryId)
@@ -40,20 +47,27 @@ export async function advanceMotoboyDelivery(client, deliveryId, stage) {
     entregaUpdate.entregue_em = new Date().toISOString();
   }
 
-  const { error: entregaError } = await client.from("entregas").update(entregaUpdate).eq("id", deliveryId);
+  const { error: entregaError } = await fallbackClient
+    .from("entregas")
+    .update(entregaUpdate)
+    .eq("id", deliveryId);
   if (entregaError) throw entregaError;
 
-  const { error: rotaError } = await client
+  const { error: rotaError } = await fallbackClient
     .from("rotas_entrega")
     .update({ status: mapped.rota })
     .eq("pedido_id", entrega.pedido_id);
   if (rotaError) throw rotaError;
 
   if (mapped.pedido) {
-    const { error: pedidoError } = await client
+    const { error: pedidoError } = await fallbackClient
       .from("pedidos")
       .update({ status: mapped.pedido, updated_at: new Date().toISOString() })
       .eq("id", entrega.pedido_id);
     if (pedidoError) throw pedidoError;
   }
+
+  return {
+    via: isPedidoStatusCastError(rpcError) ? "admin_fallback_pedido_status_cast" : "fallback",
+  };
 }

@@ -845,6 +845,11 @@ function CardDoce({
   );
 }
 
+function useBrandName() {
+  const tenantCtx = useTenantOptional();
+  return tenantCtx?.tenant.name ?? "NorFood";
+}
+
 function DetalheDoce({
   doce,
   extras,
@@ -854,6 +859,7 @@ function DetalheDoce({
   extras: CatalogExtras | null;
   onVoltar: () => void;
 }) {
+  const brandName = useBrandName();
   const { adicionar } = useCarrinho();
   const variacoes = extras?.variacoesByProduto[doce.id] ?? [];
   const promo = extras?.promocoesByProduto[doce.id];
@@ -1024,6 +1030,7 @@ function Carrinho({
   onRequireProfile: () => void;
   onOrderCreated: (options?: { keepCheckoutVisible?: boolean }) => void;
 }) {
+  const brandName = useBrandName();
   const { itens, ajustar, remover, total, limpar } = useCarrinho();
   const mesaMode = Boolean(mesaToken);
   const [paymentMode, setPaymentMode] = useState<"online" | "delivery" | null>(null);

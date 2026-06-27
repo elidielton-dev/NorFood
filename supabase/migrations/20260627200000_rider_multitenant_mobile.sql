@@ -191,7 +191,7 @@ DECLARE
   _pedido_id UUID;
   _mapped_status TEXT;
   _mapped_rota TEXT;
-  _mapped_pedido TEXT;
+  _mapped_pedido public.pedido_status;
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'not_authenticated';
@@ -239,9 +239,9 @@ BEGIN
   END;
 
   _mapped_pedido := CASE _stage
-    WHEN 'picked_up' THEN 'em_entrega'
-    WHEN 'arrived_customer' THEN 'em_entrega'
-    WHEN 'delivered' THEN 'entregue'
+    WHEN 'picked_up' THEN 'em_entrega'::public.pedido_status
+    WHEN 'arrived_customer' THEN 'em_entrega'::public.pedido_status
+    WHEN 'delivered' THEN 'entregue'::public.pedido_status
     ELSE NULL
   END;
 
