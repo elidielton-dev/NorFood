@@ -1,10 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requirePlatformAdmin } from "@/lib/platform-admin/auth.server";
-import {
-  getUserEmail,
-  isPlatformAdminEmailOnServer,
-  isServerDemoAdminMode,
-} from "@/lib/platform-admin/auth.server";
+import { requirePlatformAdmin, isServerDemoAdminMode } from "@/lib/platform-admin/auth.server";
 import { isValidTenantSlug, slugifyTenantName } from "@/lib/platform-admin/slug";
 import { assertCanCreateTenant } from "@/lib/platform/platform-limits";
 import { listFallbackTenants } from "@/lib/tenant/tenants-fallback";
@@ -332,26 +327,9 @@ export const checkPlatformAdminAccessServer = createServerFn({ method: "GET" })
   });
 
 async function resolveAuthContextForCheck() {
-  const SUPABASE_URL = process.env.SUPABASE_URL;
-  const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
-  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) return;
-
   const { getRequest } = await import("@tanstack/react-start/server");
+  const { resolvePlatformAdminFromBearerToken } = await import("@/lib/platform-admin/auth.server");
   const request = getRequest();
-  const authHeader = request?.headers?.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) throw new Error("no auth");
-
-  const token = authHeader.replace("Bearer ", "");
-  const { createClient } = await import("@supabase/supabase-js");
-  const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
-  });
-  const { data } = await supabase.auth.getClaims(token);
-  if (!data?.claims?.sub) throw new Error("invalid");
-
-  const email =
-    (data.claims.email as string | undefined)?.toLowerCase() ??
-    (await getUserEmail(data.claims.sub));
-  if (!isPlatformAdminEmailOnServer(email)) throw new Error("not admin");
+  const session = await resolvePlatformAdminFromBearerToken(request?.headers?.get("authorization") ?? null);
+  if (!session.userId || !session.allowed) throw new Error("not admin");
 }

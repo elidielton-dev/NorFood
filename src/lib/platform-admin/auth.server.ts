@@ -25,6 +25,10 @@ function parseServerPlatformAdminEmails(): string[] {
     .filter(Boolean);
 }
 
+export function getSupabasePublishableKey(): string {
+  return process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "";
+}
+
 export function isPlatformAdminEmailOnServer(email: string | null | undefined): boolean {
   if (!email) return false;
   const normalized = email.toLowerCase();
@@ -35,7 +39,7 @@ export function isPlatformAdminEmailOnServer(email: string | null | undefined): 
 
 async function resolveAuthContext() {
   const SUPABASE_URL = process.env.SUPABASE_URL;
-  const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
+  const SUPABASE_PUBLISHABLE_KEY = getSupabasePublishableKey();
 
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     return { userId: "demo-admin", email: "demo@norfood.local" };
@@ -53,13 +57,43 @@ async function resolveAuthContext() {
     auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
   });
 
-  const { data, error } = await supabase.auth.getClaims(token);
-  if (error || !data?.claims?.sub) {
+  const { data: userData, error } = await supabase.auth.getUser(token);
+  if (error || !userData.user?.id) {
     throw new Error("Unauthorized: sessão inválida.");
   }
 
-  const email = (data.claims.email as string | undefined)?.toLowerCase() ?? null;
-  return { userId: data.claims.sub, email };
+  const email = userData.user.email?.toLowerCase() ?? null;
+  return { userId: userData.user.id, email };
+}
+
+export async function resolvePlatformAdminFromBearerToken(authHeader: string | null) {
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { allowed: false as const, email: null, userId: null };
+  }
+
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const SUPABASE_PUBLISHABLE_KEY = getSupabasePublishableKey();
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+    return { allowed: false as const, email: null, userId: null };
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+  const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
+
+  const { data: userData, error } = await supabase.auth.getUser(token);
+  if (error || !userData.user?.id) {
+    return { allowed: false as const, email: null, userId: null };
+  }
+
+  const email = userData.user.email?.toLowerCase() ?? null;
+  return {
+    allowed: isPlatformAdminEmailOnServer(email),
+    email,
+    userId: userData.user.id,
+  };
 }
 
 export const requirePlatformAdmin = createMiddleware({ type: "function" }).server(

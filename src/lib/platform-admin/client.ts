@@ -6,8 +6,9 @@ import {
   updateDemoAdminTenant,
 } from "@/lib/platform-admin/demo-tenants-store";
 import { isBrowserDemoEnabled } from "@/lib/runtime";
+import { supabase } from "@/integrations/supabase/client";
+import { isPlatformAdminEmail } from "@/lib/platform-admin/emails";
 import {
-  checkPlatformAdminAccessServer,
   createTenantAdminServer,
   getTenantAdminServer,
   listTenantsAdminServer,
@@ -20,12 +21,24 @@ export function useAdminTenantsSource() {
   return isBrowserDemoEnabled();
 }
 
-/** Valida admin da plataforma no servidor (usa PLATFORM_ADMIN_EMAILS em runtime). */
+/** Valida admin da plataforma (cliente + API runtime com PLATFORM_ADMIN_EMAILS). */
 export async function checkCurrentUserPlatformAdmin(): Promise<boolean> {
   if (isBrowserDemoEnabled()) return true;
+
+  const { data: userData } = await supabase.auth.getUser();
+  if (isPlatformAdminEmail(userData.user?.email)) return true;
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) return false;
+
   try {
-    const result = await checkPlatformAdminAccessServer();
-    return result.allowed;
+    const res = await fetch("/api/platform-admin/session", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return false;
+    const body = (await res.json()) as { allowed?: boolean };
+    return Boolean(body.allowed);
   } catch {
     return false;
   }
