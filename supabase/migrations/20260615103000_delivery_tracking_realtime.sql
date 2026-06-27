@@ -143,6 +143,32 @@ CREATE TRIGGER trg_pedidos_shift_queue
   AFTER UPDATE ON public.pedidos
   FOR EACH ROW EXECUTE FUNCTION public.shift_delivery_queue_after_completion();
 
-ALTER PUBLICATION supabase_realtime ADD TABLE public.entregadores_localizacao;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.rotas_entrega;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.pedidos;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'entregadores_localizacao'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.entregadores_localizacao;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'rotas_entrega'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.rotas_entrega;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'pedidos'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.pedidos;
+  END IF;
+END $$;

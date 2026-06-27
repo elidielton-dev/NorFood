@@ -134,10 +134,15 @@ DECLARE
   ];
 BEGIN
   FOREACH t IN ARRAY tables LOOP
-    EXECUTE format(
-      'ALTER TABLE public.%I ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES public.tenants(id)',
-      t
-    );
+    IF EXISTS (
+      SELECT 1 FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = t
+    ) THEN
+      EXECUTE format(
+        'ALTER TABLE public.%I ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES public.tenants(id)',
+        t
+      );
+    END IF;
   END LOOP;
 END $$;
 
@@ -181,11 +186,14 @@ CREATE INDEX IF NOT EXISTS idx_produtos_tenant ON public.produtos(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_pedidos_tenant ON public.pedidos(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_tenant_users_user ON public.tenant_users(user_id);
 
+DROP TRIGGER IF EXISTS trg_tenants_upd ON public.tenants;
 CREATE TRIGGER trg_tenants_upd BEFORE UPDATE ON public.tenants
   FOR EACH ROW EXECUTE FUNCTION public.tg_set_updated_at();
 
+DROP TRIGGER IF EXISTS trg_tenant_users_upd ON public.tenant_users;
 CREATE TRIGGER trg_tenant_users_upd BEFORE UPDATE ON public.tenant_users
   FOR EACH ROW EXECUTE FUNCTION public.tg_set_updated_at();
 
+DROP TRIGGER IF EXISTS trg_tenant_settings_upd ON public.tenant_settings;
 CREATE TRIGGER trg_tenant_settings_upd BEFORE UPDATE ON public.tenant_settings
   FOR EACH ROW EXECUTE FUNCTION public.tg_set_updated_at();
