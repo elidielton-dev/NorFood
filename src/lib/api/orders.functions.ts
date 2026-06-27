@@ -11,6 +11,7 @@ import {
 } from "@/lib/api/order-validation.server";
 
 type CreateDeliveryOrderPayload = {
+  tenantSlug?: string;
   customerName: string;
   customerPhone: string;
   customerEmail: string;
@@ -43,6 +44,11 @@ export const createDeliveryOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: CreateDeliveryOrderPayload) => input)
   .handler(async ({ data, context }) => {
+    if (data.tenantSlug) {
+      const { assertTenantOperationalBySlug } = await import("@/lib/tenant/tenant-access.server");
+      await assertTenantOperationalBySlug(data.tenantSlug);
+    }
+
     const config = await getOperationalConfig();
     if (!config.loja_aberta) {
       throw new Error("A loja esta fechada no momento. Tente novamente mais tarde.");

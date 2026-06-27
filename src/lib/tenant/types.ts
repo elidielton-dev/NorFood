@@ -23,12 +23,26 @@ export type Tenant = {
   status: TenantStatus;
   timezone: string;
   currency: string;
+  document_type?: "cnpj" | "cpf" | null;
+  document_number?: string | null;
+  legal_name?: string | null;
+  cep?: string | null;
+  city?: string | null;
+  state?: string | null;
+  neighborhood?: string | null;
+  street?: string | null;
+  street_number?: string | null;
 };
 
 export type TenantSettings = {
   phone: string | null;
   address: string | null;
   description: string | null;
+  cep?: string | null;
+  city?: string | null;
+  state?: string | null;
+  neighborhood?: string | null;
+  address_number?: string | null;
   delivery_fee_default: number;
   delivery_time_minutes: number;
   pedido_minimo: number;

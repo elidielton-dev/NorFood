@@ -14,7 +14,7 @@ export const fetchTenantBySlugServer = createServerFn({ method: "GET" })
         .from("tenants")
         .select("*")
         .eq("slug", slug)
-        .eq("status", "active")
+        .in("status", ["active", "trial"])
         .maybeSingle();
       if (error) {
         console.warn("[fetchTenantBySlugServer]", error.message);
@@ -45,6 +45,11 @@ export const fetchTenantSettingsServer = createServerFn({ method: "GET" })
         phone: data.phone,
         address: data.address,
         description: data.description,
+        cep: data.cep ?? null,
+        city: data.city ?? null,
+        state: data.state ?? null,
+        neighborhood: data.neighborhood ?? null,
+        address_number: data.address_number ?? null,
         delivery_fee_default: Number(data.delivery_fee_default),
         delivery_time_minutes: Number(data.delivery_time_minutes),
         pedido_minimo: Number(data.pedido_minimo),

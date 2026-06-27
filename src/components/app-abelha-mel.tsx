@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   ChevronDown,
@@ -91,6 +92,7 @@ import { fetchAddressByCep, formatCep, normalizeCep } from "@/lib/viacep";
 import { useTheme } from "@/hooks/use-theme";
 import { OrderTrackingMap } from "@/components/order-tracking-map-lazy";
 import { createDeliveryOrder } from "@/lib/api/orders.functions";
+import { getTenantAccessStatusServer } from "@/lib/api/platform-billing.functions";
 import { createMesaQrOrder, resolveMesaByToken } from "@/lib/api/mesa-order.functions";
 import { validateCouponServer } from "@/lib/api/coupons.functions";
 import { expirePendingMercadoPagoOrders } from "@/lib/api/mercado-pago.functions";
@@ -192,6 +194,14 @@ function Shell({
   const brandName = tenantCtx?.tenant.name ?? "NorFood";
   const brandColor = tenantCtx?.tenant.primary_color ?? "#FF9100";
   const brandLogo = tenantCtx?.tenant.logo_url ?? NORFOOD_LOGO_URL;
+  const tenantSlug = tenantCtx?.tenant.slug;
+
+  const { data: tenantAccess } = useQuery({
+    queryKey: ["tenant-access-loja", tenantSlug],
+    queryFn: () => getTenantAccessStatusServer({ data: tenantSlug! }),
+    enabled: Boolean(tenantSlug),
+    staleTime: 30_000,
+  });
 
   useEffect(() => {
     ensureDemoLocalCustomerAccount();
@@ -430,6 +440,11 @@ function Shell({
                 A loja está fechada no momento. Novos pedidos ficam temporariamente indisponíveis.
               </div>
             ) : null}
+            {tenantAccess && !tenantAccess.allowed ? (
+              <div className="mx-4 mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                {tenantAccess.message}
+              </div>
+            ) : null}
             {tab === "home" && (
               <Home
                 categories={catalogCategories}
@@ -446,10 +461,17 @@ function Shell({
               />
             )}
             {tab === "carrinho" && (
+              tenantAccess && !tenantAccess.allowed ? (
+                <div className="px-5 py-10 text-center text-sm text-muted-foreground">
+                  <p>{tenantAccess.message}</p>
+                  <p className="mt-2">O carrinho ficará disponível após regularizar o plano.</p>
+                </div>
+              ) : (
               <Carrinho
                 customer={customer}
                 mesaToken={mesaToken}
                 mesaInfo={mesaInfo}
+                tenantSlug={tenantSlug}
                 onRequireProfile={() => setTab("perfil")}
                 onOrderCreated={(options) => {
                   setOrdersVersion((value) => value + 1);
@@ -458,6 +480,7 @@ function Shell({
                   }
                 }}
               />
+              )
             )}
             {tab === "ofertas" && (
               <Placeholder
@@ -1021,12 +1044,14 @@ function Carrinho({
   customer,
   mesaToken,
   mesaInfo,
+  tenantSlug,
   onRequireProfile,
   onOrderCreated,
 }: {
   customer: CustomerAccount | null;
   mesaToken: string | null;
   mesaInfo: { numero: number; status: string } | null;
+  tenantSlug?: string;
   onRequireProfile: () => void;
   onOrderCreated: (options?: { keepCheckoutVisible?: boolean }) => void;
 }) {
@@ -1315,6 +1340,7 @@ function Carrinho({
 
       const pedido = (await createDeliveryOrder({
         data: {
+          tenantSlug,
           customerName: customer.name.trim(),
           customerPhone: customer.phone.trim(),
           customerEmail: customer.email.trim(),

@@ -1,4 +1,5 @@
 import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
+import { TenantOperationalGate } from "@/components/tenant/tenant-operational-gate";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
@@ -76,6 +77,7 @@ export function PainelShell({ tenantSlug, userRole }: PainelShellProps) {
 
   const firstLetter = email.charAt(0).toUpperCase() || getTenantInitials(tenant.name).charAt(0);
   const isAtendimentoInbox = location.pathname.includes("/atendimento");
+  const isPlanoPage = location.pathname.includes("/estabelecimento/plano");
 
   async function sair() {
     if (isSupabaseConfigured()) {
@@ -186,7 +188,9 @@ export function PainelShell({ tenantSlug, userRole }: PainelShellProps) {
                 Modo demonstração — dados locais para testes.
               </div>
             ) : null}
-            <Outlet />
+            <TenantOperationalGate mode="painel" allowWhenBlocked={isPlanoPage}>
+              <Outlet />
+            </TenantOperationalGate>
           </div>
         </main>
       </div>

@@ -71,6 +71,17 @@ export type RegisterRestaurantPayload = {
   billingModel: BillingModel;
   plan?: BillingPlanId;
   acceptedTerms: boolean;
+  documentType: "cnpj" | "cpf";
+  documentNumber: string;
+  legalName: string;
+  cep: string;
+  street: string;
+  streetNumber: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  ownerPhone?: string;
+  clientIp?: string;
 };
 
 export type UpsertTenantBillingPayload = {
@@ -393,6 +404,15 @@ export async function upsertTenantBillingRecord(
     row.monthly_price = null;
   }
 
+  const hasMp = Boolean(process.env.MP_ACCESS_TOKEN);
+  const skipVerify = process.env.SIGNUP_SKIP_PAYMENT_VERIFY === "true";
+  if (!skipVerify && hasMp) {
+    row.payment_status = "pending_verification";
+  } else {
+    row.signup_payment_verified_at = new Date().toISOString();
+    row.payment_status = "active";
+  }
+
   const { error } = await supabaseAdmin.from("tenant_billing").upsert(row, {
     onConflict: "tenant_id",
   });
@@ -464,7 +484,52 @@ export const registerRestaurantServer = createServerFn({ method: "POST" })
       throw new Error("Selecione um plano mensal.");
     }
 
+    const { validateDocument } = await import("@/lib/document-validation");
+    const { isDisposableEmail } = await import("@/lib/signup/disposable-email-domains");
+    const { assertSignupRateLimit, extractClientIp } = await import("@/lib/signup/rate-limit.server");
+    const { normalizeCep, formatCep } = await import("@/lib/viacep");
+
+    const doc = validateDocument(data.documentType, data.documentNumber);
+    if (!doc.ok) throw new Error(doc.error);
+
+    const cepDigits = normalizeCep(data.cep);
+    if (cepDigits.length !== 8) throw new Error("CEP inválido.");
+
+    if (!data.legalName.trim()) throw new Error("Informe a razão social ou nome completo.");
+    if (!data.street.trim() || !data.neighborhood.trim() || !data.city.trim() || !data.state.trim()) {
+      throw new Error("Preencha o endereço completo (rua, bairro, cidade e UF).");
+    }
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: authUser, error: authUserError } = await supabaseAdmin.auth.admin.getUserById(
+      context.userId,
+    );
+    if (authUserError) throw authUserError;
+    const email = authUser.user?.email?.trim().toLowerCase() ?? "";
+    if (!email) throw new Error("E-mail da conta não encontrado.");
+    if (!authUser.user?.email_confirmed_at) {
+      throw new Error(
+        "Confirme seu e-mail antes de criar o restaurante. Verifique a caixa de entrada e clique no link de confirmação.",
+      );
+    }
+    if (isDisposableEmail(email)) {
+      throw new Error("Use um e-mail permanente. E-mails temporários não são aceitos.");
+    }
+
+    const clientIp = data.clientIp?.trim() || "unknown";
+    await assertSignupRateLimit(clientIp, email);
+
+    const { data: existingDoc } = await supabaseAdmin
+      .from("tenants")
+      .select("id, slug, status")
+      .eq("document_number", doc.normalized)
+      .maybeSingle();
+    if (existingDoc) {
+      throw new Error(
+        `Já existe um restaurante cadastrado com este ${data.documentType.toUpperCase()}. Entre em contato com o suporte se precisar reativar.`,
+      );
+    }
 
     const { data: existingSlug } = await supabaseAdmin
       .from("tenants")
@@ -492,6 +557,8 @@ export const registerRestaurantServer = createServerFn({ method: "POST" })
 
     const tenantId = crypto.randomUUID();
     const name = data.restaurantName.trim();
+    const formattedCep = formatCep(cepDigits);
+    const fullAddress = [data.street.trim(), data.streetNumber.trim()].filter(Boolean).join(", ");
 
     const { error: tenantError } = await supabaseAdmin.from("tenants").insert({
       id: tenantId,
@@ -504,17 +571,54 @@ export const registerRestaurantServer = createServerFn({ method: "POST" })
       status: "trial",
       timezone: "America/Sao_Paulo",
       currency: "BRL",
+      document_type: data.documentType,
+      document_number: doc.normalized,
+      legal_name: data.legalName.trim(),
+      cep: formattedCep,
+      city: data.city.trim(),
+      state: data.state.trim().toUpperCase().slice(0, 2),
+      neighborhood: data.neighborhood.trim(),
+      street: data.street.trim(),
+      street_number: data.streetNumber.trim(),
     });
     if (tenantError) throw tenantError;
 
-    const { error: settingsError } = await supabaseAdmin
-      .from("tenant_settings")
-      .insert({ tenant_id: tenantId });
+    const { error: settingsError } = await supabaseAdmin.from("tenant_settings").insert({
+      tenant_id: tenantId,
+      address: fullAddress,
+      cep: formattedCep,
+      city: data.city.trim(),
+      state: data.state.trim().toUpperCase().slice(0, 2),
+      neighborhood: data.neighborhood.trim(),
+      address_number: data.streetNumber.trim(),
+      phone: data.ownerPhone?.trim() || null,
+    });
     if (settingsError) throw settingsError;
+
+    const ownerName =
+      (authUser.user?.user_metadata?.nome as string | undefined) ?? data.legalName.trim();
 
     await supabaseAdmin.from("profiles").upsert({
       id: context.userId,
+      nome: ownerName,
+      telefone: data.ownerPhone?.trim() || null,
       updated_at: new Date().toISOString(),
+    });
+
+    await supabaseAdmin.auth.admin.updateUserById(context.userId, {
+      user_metadata: {
+        ...authUser.user?.user_metadata,
+        nome: ownerName,
+        telefone: data.ownerPhone?.trim() ?? "",
+        cep: formattedCep,
+        address: data.street.trim(),
+        addressNumber: data.streetNumber.trim(),
+        neighborhood: data.neighborhood.trim(),
+        city: data.city.trim(),
+        stateCode: data.state.trim().toUpperCase().slice(0, 2),
+        documentType: data.documentType,
+        documentNumber: doc.normalized,
+      },
     });
 
     const { error: linkError } = await supabaseAdmin.from("tenant_users").upsert(
@@ -533,7 +637,29 @@ export const registerRestaurantServer = createServerFn({ method: "POST" })
       plan: data.plan ?? null,
     });
 
-    return { tenantId, slug, name };
+    const hasMp = Boolean(process.env.MP_ACCESS_TOKEN);
+    const skipVerify = process.env.SIGNUP_SKIP_PAYMENT_VERIFY === "true";
+    let requiresPaymentVerification = hasMp && !skipVerify;
+    let checkoutUrl: string | null = null;
+    let pixQrCode: string | null = null;
+    let pixQrCodeBase64: string | null = null;
+
+    if (requiresPaymentVerification) {
+      const { createSignupVerificationCheckout } =
+        await import("@/lib/api/platform-billing-signup.server");
+      const checkout = await createSignupVerificationCheckout(tenantId);
+      checkoutUrl = checkout.checkoutUrl;
+    }
+
+    return {
+      tenantId,
+      slug,
+      name,
+      requiresPaymentVerification,
+      checkoutUrl,
+      pixQrCode,
+      pixQrCodeBase64,
+    };
   });
 
 export const suggestRestaurantSlugServer = createServerFn({ method: "GET" })
@@ -858,4 +984,46 @@ export const adminPayBillingInvoicePixServer = createServerFn({ method: "POST" }
     const { createPlatformBillingPix } =
       await import("@/lib/api/platform-billing-mercadopago.server");
     return createPlatformBillingPix(data.invoiceId);
+  });
+
+export const getTenantAccessStatusServer = createServerFn({ method: "GET" })
+  .validator((tenantSlug: string) => tenantSlug)
+  .handler(async ({ data: tenantSlug }) => {
+    const { loadTenantAccessBySlug } = await import("@/lib/tenant/tenant-access.server");
+    const access = await loadTenantAccessBySlug(tenantSlug);
+    if (!access) {
+      return {
+        allowed: false,
+        reason: "suspended" as const,
+        message: "Restaurante não encontrado.",
+        canAccessBillingPage: false,
+        inTrial: false,
+        signupVerified: false,
+      };
+    }
+    return access;
+  });
+
+export const createSignupVerificationPixServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((tenantSlug: string) => tenantSlug)
+  .handler(async ({ data: tenantSlug, context }) => {
+    if (isDemoBackend()) throw new Error("Indisponível no modo demo.");
+    const tenantId = await resolveTenantIdBySlug(tenantSlug);
+    await assertUserCanManageTenant(context.userId, tenantId);
+    const { createSignupVerificationPix } =
+      await import("@/lib/api/platform-billing-signup.server");
+    return createSignupVerificationPix(tenantId);
+  });
+
+export const createSignupVerificationCheckoutServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((tenantSlug: string) => tenantSlug)
+  .handler(async ({ data: tenantSlug, context }) => {
+    if (isDemoBackend()) throw new Error("Indisponível no modo demo.");
+    const tenantId = await resolveTenantIdBySlug(tenantSlug);
+    await assertUserCanManageTenant(context.userId, tenantId);
+    const { createSignupVerificationCheckout } =
+      await import("@/lib/api/platform-billing-signup.server");
+    return createSignupVerificationCheckout(tenantId);
   });

@@ -25,6 +25,7 @@ import { Route as LojaTenantSlugRouteImport } from './routes/loja.$tenantSlug'
 import { Route as EntregadorLoginRouteImport } from './routes/entregador.login'
 import { Route as EntregadorExpoGoRouteImport } from './routes/entregador.expo-go'
 import { Route as CardapioTokenRouteImport } from './routes/cardapio.$token'
+import { Route as ApiSignupClientMetaRouteImport } from './routes/api/signup-client-meta'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as AdminNovaRouteImport } from './routes/admin.nova'
 import { Route as AdminFaturamentoRouteImport } from './routes/admin.faturamento'
@@ -177,6 +178,11 @@ const EntregadorExpoGoRoute = EntregadorExpoGoRouteImport.update({
 const CardapioTokenRoute = CardapioTokenRouteImport.update({
   id: '/cardapio/$token',
   path: '/cardapio/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSignupClientMetaRoute = ApiSignupClientMetaRouteImport.update({
+  id: '/api/signup-client-meta',
+  path: '/api/signup-client-meta',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
@@ -622,6 +628,7 @@ export interface FileRoutesByFullPath {
   '/admin/faturamento': typeof AdminFaturamentoRoute
   '/admin/nova': typeof AdminNovaRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/signup-client-meta': typeof ApiSignupClientMetaRoute
   '/cardapio/$token': typeof CardapioTokenRoute
   '/entregador/expo-go': typeof EntregadorExpoGoRoute
   '/entregador/login': typeof EntregadorLoginRoute
@@ -711,6 +718,7 @@ export interface FileRoutesByTo {
   '/admin/faturamento': typeof AdminFaturamentoRoute
   '/admin/nova': typeof AdminNovaRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/signup-client-meta': typeof ApiSignupClientMetaRoute
   '/cardapio/$token': typeof CardapioTokenRoute
   '/entregador/expo-go': typeof EntregadorExpoGoRoute
   '/entregador/login': typeof EntregadorLoginRoute
@@ -798,6 +806,7 @@ export interface FileRoutesById {
   '/admin/faturamento': typeof AdminFaturamentoRoute
   '/admin/nova': typeof AdminNovaRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/signup-client-meta': typeof ApiSignupClientMetaRoute
   '/cardapio/$token': typeof CardapioTokenRoute
   '/entregador/expo-go': typeof EntregadorExpoGoRoute
   '/entregador/login': typeof EntregadorLoginRoute
@@ -891,6 +900,7 @@ export interface FileRouteTypes {
     | '/admin/faturamento'
     | '/admin/nova'
     | '/api/health'
+    | '/api/signup-client-meta'
     | '/cardapio/$token'
     | '/entregador/expo-go'
     | '/entregador/login'
@@ -980,6 +990,7 @@ export interface FileRouteTypes {
     | '/admin/faturamento'
     | '/admin/nova'
     | '/api/health'
+    | '/api/signup-client-meta'
     | '/cardapio/$token'
     | '/entregador/expo-go'
     | '/entregador/login'
@@ -1066,6 +1077,7 @@ export interface FileRouteTypes {
     | '/admin/faturamento'
     | '/admin/nova'
     | '/api/health'
+    | '/api/signup-client-meta'
     | '/cardapio/$token'
     | '/entregador/expo-go'
     | '/entregador/login'
@@ -1153,6 +1165,7 @@ export interface RootRouteChildren {
   RecuperarSenhaRoute: typeof RecuperarSenhaRoute
   SelecionarEmpresaRoute: typeof SelecionarEmpresaRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  ApiSignupClientMetaRoute: typeof ApiSignupClientMetaRoute
   CardapioTokenRoute: typeof CardapioTokenRoute
   TTenantSlugRoute: typeof TTenantSlugRouteWithChildren
   ApiCronAtendimentoHoursRoute: typeof ApiCronAtendimentoHoursRoute
@@ -1276,6 +1289,13 @@ declare module '@tanstack/react-router' {
       path: '/cardapio/$token'
       fullPath: '/cardapio/$token'
       preLoaderRoute: typeof CardapioTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/signup-client-meta': {
+      id: '/api/signup-client-meta'
+      path: '/api/signup-client-meta'
+      fullPath: '/api/signup-client-meta'
+      preLoaderRoute: typeof ApiSignupClientMetaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/health': {
@@ -2146,6 +2166,7 @@ const rootRouteChildren: RootRouteChildren = {
   RecuperarSenhaRoute: RecuperarSenhaRoute,
   SelecionarEmpresaRoute: SelecionarEmpresaRoute,
   ApiHealthRoute: ApiHealthRoute,
+  ApiSignupClientMetaRoute: ApiSignupClientMetaRoute,
   CardapioTokenRoute: CardapioTokenRoute,
   TTenantSlugRoute: TTenantSlugRouteWithChildren,
   ApiCronAtendimentoHoursRoute: ApiCronAtendimentoHoursRoute,

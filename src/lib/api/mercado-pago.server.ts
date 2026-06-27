@@ -334,6 +334,12 @@ export async function syncMercadoPagoPayment(paymentId: string) {
     return syncPlatformBillingMercadoPagoPayment(payment);
   }
 
+  if (orderReference.startsWith("norfood-signup:")) {
+    const { syncSignupVerificationPayment } =
+      await import("@/lib/api/platform-billing-signup.server");
+    return syncSignupVerificationPayment(payment);
+  }
+
   return syncMercadoPagoPaymentToOrder(paymentId);
 }
 

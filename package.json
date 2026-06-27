@@ -75,6 +75,7 @@
     "setup:mp-production": "node ./scripts/setup-mp-production.mjs",
     "check:mp-env": "node ./scripts/check-mp-env.mjs",
     "validate:signup": "node ./scripts/validate-signup-production.mjs",
+    "enforce:trial-billing": "node ./scripts/enforce-trial-billing.mjs",
     "validate:billing": "node ./scripts/validate-billing-production.mjs",
     "validate:billing:e2e": "node ./scripts/validate-billing-e2e.mjs",
     "validate:billing:mp": "node ./scripts/validate-billing-mp.mjs",

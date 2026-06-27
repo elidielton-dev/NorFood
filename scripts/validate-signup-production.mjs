@@ -14,6 +14,29 @@ const stamp = Date.now().toString(36);
 const TEST_EMAIL = process.env.SIGNUP_TEST_EMAIL ?? `cadastro-teste-${stamp}@norfood.local`;
 const TEST_PASSWORD = process.env.SIGNUP_TEST_PASSWORD ?? "CadastroTest123!";
 const TEST_SLUG = `teste-${stamp}`;
+const TEST_CPF = `${String(Date.now()).slice(-9)}${String(Math.floor(Math.random() * 90) + 10)}`.slice(-11);
+
+function isValidCpf(cpf) {
+  if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += Number(cpf[i]) * (10 - i);
+  let d1 = (sum * 10) % 11;
+  if (d1 === 10) d1 = 0;
+  sum = 0;
+  for (let i = 0; i < 10; i++) sum += Number(cpf[i]) * (11 - i);
+  let d2 = (sum * 10) % 11;
+  if (d2 === 10) d2 = 0;
+  return cpf === cpf.slice(0, 9) + String(d1) + String(d2);
+}
+
+// Garante CPF válido para teste
+const validCpf = (() => {
+  let candidate = TEST_CPF;
+  while (!isValidCpf(candidate)) {
+    candidate = String(Number(candidate) + 1).padStart(11, "0").slice(-11);
+  }
+  return candidate;
+})();
 
 function loadEnv(path) {
   const env = {};
@@ -58,8 +81,9 @@ console.log("=== Validação cadastro Norfood ===");
 console.log("Site:", BASE);
 console.log("E-mail teste:", TEST_EMAIL);
 console.log("Slug teste:", TEST_SLUG);
+console.log("CPF teste:", validCpf);
 
-const routes = ["/cadastro", "/login", "/admin/nova"];
+const routes = ["/cadastro", "/login", "/api/signup-client-meta"];
 for (const route of routes) {
   const res = await fetch(`${BASE}${route}`, { redirect: "follow" });
   console.log(`GET ${route}:`, res.status);
@@ -95,10 +119,27 @@ const { error: tenantError } = await admin.from("tenants").insert({
   status: "trial",
   timezone: "America/Sao_Paulo",
   currency: "BRL",
+  document_type: "cpf",
+  document_number: validCpf,
+  legal_name: "Teste Cadastro Norfood",
+  cep: "01310-100",
+  city: "São Paulo",
+  state: "SP",
+  neighborhood: "Bela Vista",
+  street: "Av. Paulista",
+  street_number: "1000",
 });
 if (tenantError) throw tenantError;
 
-await admin.from("tenant_settings").insert({ tenant_id: tenantId });
+await admin.from("tenant_settings").insert({
+  tenant_id: tenantId,
+  cep: "01310-100",
+  city: "São Paulo",
+  state: "SP",
+  neighborhood: "Bela Vista",
+  address: "Av. Paulista, 1000",
+  address_number: "1000",
+});
 await admin.from("tenant_users").insert({
   tenant_id: tenantId,
   user_id: userId,
@@ -112,6 +153,7 @@ await admin.from("tenant_billing").insert({
   monthly_price: 79.9,
   trial_ends_at: new Date(Date.now() + 14 * 86400000).toISOString(),
   payment_status: "active",
+  signup_payment_verified_at: new Date().toISOString(),
   accepted_terms_at: new Date().toISOString(),
 });
 
