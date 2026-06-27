@@ -5,8 +5,6 @@ import { Toaster } from "@/components/ui/sonner";
 import { NorfoodLogo } from "@/components/brand/norfood-logo";
 import { PlanPicker, PlanSummary } from "@/components/billing/plan-picker";
 import {
-  createSignupVerificationCheckoutServer,
-  createSignupVerificationPixServer,
   registerRestaurantServer,
   suggestRestaurantSlugServer,
 } from "@/lib/api/platform-billing.functions";
@@ -24,7 +22,7 @@ export const Route = createFileRoute("/cadastro")({
   component: CadastroPage,
 });
 
-const STEPS = ["Plano", "Restaurante", "Endereço", "Conta", "Validar"] as const;
+const STEPS = ["Plano", "Restaurante", "Endereço", "Conta"] as const;
 
 function CadastroPage() {
   const [step, setStep] = useState(0);
@@ -49,10 +47,6 @@ function CadastroPage() {
   const [ownerPhone, setOwnerPhone] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [registeredSlug, setRegisteredSlug] = useState<string | null>(null);
-  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
-  const [pixData, setPixData] = useState<{ qrCode: string; qrCodeBase64: string } | null>(null);
-  const [requiresPayment, setRequiresPayment] = useState(false);
 
   useEffect(() => {
     if (!restaurantName.trim() || step < 1) return;
@@ -203,48 +197,10 @@ function CadastroPage() {
         headers,
       });
 
-      setRegisteredSlug(result.slug);
-      setRequiresPayment(result.requiresPaymentVerification);
-      setCheckoutUrl(result.checkoutUrl);
-      setStep(4);
-      toast.success(`Restaurante "${result.name}" criado!`);
-
-      if (!result.requiresPaymentVerification) {
-        window.location.href = tenantPath(result.slug, "estabelecimento/plano");
-      }
+      toast.success(`Restaurante "${result.name}" criado! Trial de 14 dias ativo.`);
+      window.location.href = tenantPath(result.slug, "estabelecimento/plano");
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Erro ao criar conta");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function startPixValidation() {
-    if (!registeredSlug) return;
-    setLoading(true);
-    try {
-      const headers = await getAuthHeaders();
-      if (!headers) throw new Error("Faça login novamente.");
-      const result = await createSignupVerificationPixServer({ data: registeredSlug, headers });
-      setPixData({ qrCode: result.qrCode, qrCodeBase64: result.qrCodeBase64 });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao gerar Pix");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function refreshCheckout() {
-    if (!registeredSlug) return;
-    setLoading(true);
-    try {
-      const headers = await getAuthHeaders();
-      if (!headers) throw new Error("Faça login novamente.");
-      const result = await createSignupVerificationCheckoutServer({ data: registeredSlug, headers });
-      setCheckoutUrl(result.checkoutUrl);
-      window.open(result.checkoutUrl, "_blank", "noopener,noreferrer");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao abrir checkout");
     } finally {
       setLoading(false);
     }
@@ -310,7 +266,7 @@ function CadastroPage() {
                   ? "Endereço e documento"
                   : step === 3
                     ? "Sua conta"
-                    : "Validar pagamento"}
+                    : ""}
           </h1>
 
           <form
@@ -514,97 +470,40 @@ function CadastroPage() {
                   />
                   <span>
                     Aceito os termos e o plano <PlanSummary billingModel={billingModel} plan={plan} />{" "}
-                    com 14 dias de trial. Um CNPJ/CPF só pode ter um restaurante. Validação simbólica
-                    de R$ 1,00 via Mercado Pago.
+                    com 14 dias de trial. Um CNPJ/CPF só pode ter um restaurante.
                   </span>
                 </label>
               </>
             ) : null}
 
-            {step === 4 && requiresPayment ? (
-              <div className="space-y-4 text-sm text-[#6B7280]">
-                <p>
-                  Para ativar o trial, valide seu método de pagamento com uma cobrança simbólica de{" "}
-                  <strong className="text-[#111111]">R$ 1,00</strong> (cartão ou Pix).
-                </p>
-                {checkoutUrl ? (
-                  <a
-                    href={checkoutUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex h-11 items-center justify-center rounded-lg bg-[#FF9100] font-medium text-white"
-                  >
-                    Pagar com cartão — R$ 1,00
-                  </a>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => void refreshCheckout()}
-                    disabled={loading}
-                    className="h-11 w-full rounded-lg bg-[#FF9100] font-medium text-white"
-                  >
-                    Gerar checkout cartão
-                  </button>
-                )}
+            <div className="flex gap-3 pt-2">
+              {step > 0 ? (
                 <button
                   type="button"
-                  onClick={() => void startPixValidation()}
-                  disabled={loading}
-                  className="h-11 w-full rounded-lg border border-[#E5E7EB] font-medium text-[#111111]"
+                  onClick={() => setStep((s) => s - 1)}
+                  className="h-11 flex-1 rounded-lg border border-[#E5E7EB] text-sm font-medium text-[#111111]"
                 >
-                  Validar via Pix — R$ 1,00
+                  Voltar
                 </button>
-                {pixData?.qrCodeBase64 ? (
-                  <div className="rounded-xl border border-[#E5E7EB] p-4 text-center">
-                    <img
-                      src={`data:image/png;base64,${pixData.qrCodeBase64}`}
-                      alt="QR Code Pix"
-                      className="mx-auto size-48"
-                    />
-                    <p className="mt-2 break-all text-xs">{pixData.qrCode}</p>
-                  </div>
-                ) : null}
-                {registeredSlug ? (
-                  <Link
-                    to={tenantPath(registeredSlug, "estabelecimento/plano")}
-                    className="block text-center text-sm font-medium text-[#FF9100]"
-                  >
-                    Já paguei — ir para o painel
-                  </Link>
-                ) : null}
-              </div>
-            ) : null}
-
-            {step < 4 ? (
-              <div className="flex gap-3 pt-2">
-                {step > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => setStep((s) => s - 1)}
-                    className="h-11 flex-1 rounded-lg border border-[#E5E7EB] text-sm font-medium text-[#111111]"
-                  >
-                    Voltar
-                  </button>
-                ) : null}
-                {step < 3 ? (
-                  <button
-                    type="button"
-                    onClick={nextStep}
-                    className="h-11 flex-1 rounded-lg bg-[#FF9100] text-sm font-medium text-white hover:bg-[#FF5C00]"
-                  >
-                    Continuar
-                  </button>
-                ) : (
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="h-11 flex-1 rounded-lg bg-[#FF9100] text-sm font-medium text-white hover:bg-[#FF5C00] disabled:opacity-60"
-                  >
-                    {loading ? "Criando..." : "Criar restaurante"}
-                  </button>
-                )}
-              </div>
-            ) : null}
+              ) : null}
+              {step < 3 ? (
+                <button
+                  type="button"
+                  onClick={nextStep}
+                  className="h-11 flex-1 rounded-lg bg-[#FF9100] text-sm font-medium text-white hover:bg-[#FF5C00]"
+                >
+                  Continuar
+                </button>
+              ) : step === 3 ? (
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="h-11 flex-1 rounded-lg bg-[#FF9100] text-sm font-medium text-white hover:bg-[#FF5C00] disabled:opacity-60"
+                >
+                  {loading ? "Criando..." : "Criar restaurante"}
+                </button>
+              ) : null}
+            </div>
           </form>
 
           <p className="mt-4 text-center text-sm text-[#6B7280]">

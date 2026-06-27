@@ -28,15 +28,9 @@ type BillingRow = {
   signup_payment_verified_at: string | null;
 } | null;
 
-export function evaluateTenantAccess(
-  tenant: TenantRow,
-  billing: BillingRow,
-  options?: { skipSignupVerification?: boolean },
-): TenantAccessStatus {
+export function evaluateTenantAccess(tenant: TenantRow, billing: BillingRow): TenantAccessStatus {
   const inTrial = isInTrial(billing?.trial_ends_at);
-  const signupVerified = Boolean(
-    billing?.signup_payment_verified_at || options?.skipSignupVerification,
-  );
+  const signupVerified = true;
   const canAccessBillingPage = true;
 
   if (tenant.status === "suspended") {
@@ -44,17 +38,6 @@ export function evaluateTenantAccess(
       allowed: false,
       reason: "suspended",
       message: "Restaurante suspenso. Regularize o plano em Estabelecimento → Plano.",
-      canAccessBillingPage,
-      inTrial,
-      signupVerified,
-    };
-  }
-
-  if (billing?.payment_status === "pending_verification" && !signupVerified) {
-    return {
-      allowed: false,
-      reason: "pending_verification",
-      message: "Valide seu método de pagamento (R$ 1,00) para ativar o restaurante.",
       canAccessBillingPage,
       inTrial,
       signupVerified,
@@ -110,10 +93,7 @@ export async function loadTenantAccessBySlug(slug: string): Promise<TenantAccess
     .eq("tenant_id", tenant.id)
     .maybeSingle();
 
-  const skipSignupVerification =
-    process.env.SIGNUP_SKIP_PAYMENT_VERIFY === "true" || !process.env.MP_ACCESS_TOKEN;
-
-  return evaluateTenantAccess(tenant, billing, { skipSignupVerification });
+  return evaluateTenantAccess(tenant, billing);
 }
 
 export async function assertTenantOperationalBySlug(slug: string) {
@@ -138,10 +118,7 @@ export async function assertTenantOperationalById(tenantId: string) {
     .eq("tenant_id", tenantId)
     .maybeSingle();
 
-  const skipSignupVerification =
-    process.env.SIGNUP_SKIP_PAYMENT_VERIFY === "true" || !process.env.MP_ACCESS_TOKEN;
-
-  const access = evaluateTenantAccess(tenant, billing, { skipSignupVerification });
+  const access = evaluateTenantAccess(tenant, billing);
   if (!access.allowed) throw new Error(access.message);
   return access;
 }
@@ -179,7 +156,7 @@ export async function enforceExpiredTrialSuspensions() {
       .limit(1)
       .maybeSingle();
 
-    const needsPayment = !paidInvoice && !billing.signup_payment_verified_at;
+    const needsPayment = !paidInvoice;
 
     if (needsPayment || billing.payment_status === "overdue") {
       await supabaseAdmin

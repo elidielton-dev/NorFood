@@ -392,6 +392,8 @@ export async function upsertTenantBillingRecord(
     billing_model: input.billingModel,
     trial_ends_at: input.trialEndsAt ?? addTrialDays(),
     accepted_terms_at: input.acceptedTermsAt ?? new Date().toISOString(),
+    signup_payment_verified_at: new Date().toISOString(),
+    payment_status: "active",
     updated_at: new Date().toISOString(),
   };
 
@@ -402,15 +404,6 @@ export async function upsertTenantBillingRecord(
   } else {
     row.plan = null;
     row.monthly_price = null;
-  }
-
-  const hasMp = Boolean(process.env.MP_ACCESS_TOKEN);
-  const skipVerify = process.env.SIGNUP_SKIP_PAYMENT_VERIFY === "true";
-  if (!skipVerify && hasMp) {
-    row.payment_status = "pending_verification";
-  } else {
-    row.signup_payment_verified_at = new Date().toISOString();
-    row.payment_status = "active";
   }
 
   const { error } = await supabaseAdmin.from("tenant_billing").upsert(row, {
@@ -637,29 +630,7 @@ export const registerRestaurantServer = createServerFn({ method: "POST" })
       plan: data.plan ?? null,
     });
 
-    const hasMp = Boolean(process.env.MP_ACCESS_TOKEN);
-    const skipVerify = process.env.SIGNUP_SKIP_PAYMENT_VERIFY === "true";
-    let requiresPaymentVerification = hasMp && !skipVerify;
-    let checkoutUrl: string | null = null;
-    let pixQrCode: string | null = null;
-    let pixQrCodeBase64: string | null = null;
-
-    if (requiresPaymentVerification) {
-      const { createSignupVerificationCheckout } =
-        await import("@/lib/api/platform-billing-signup.server");
-      const checkout = await createSignupVerificationCheckout(tenantId);
-      checkoutUrl = checkout.checkoutUrl;
-    }
-
-    return {
-      tenantId,
-      slug,
-      name,
-      requiresPaymentVerification,
-      checkoutUrl,
-      pixQrCode,
-      pixQrCodeBase64,
-    };
+    return { tenantId, slug, name };
   });
 
 export const suggestRestaurantSlugServer = createServerFn({ method: "GET" })
@@ -1002,28 +973,4 @@ export const getTenantAccessStatusServer = createServerFn({ method: "GET" })
       };
     }
     return access;
-  });
-
-export const createSignupVerificationPixServer = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .validator((tenantSlug: string) => tenantSlug)
-  .handler(async ({ data: tenantSlug, context }) => {
-    if (isDemoBackend()) throw new Error("Indisponível no modo demo.");
-    const tenantId = await resolveTenantIdBySlug(tenantSlug);
-    await assertUserCanManageTenant(context.userId, tenantId);
-    const { createSignupVerificationPix } =
-      await import("@/lib/api/platform-billing-signup.server");
-    return createSignupVerificationPix(tenantId);
-  });
-
-export const createSignupVerificationCheckoutServer = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .validator((tenantSlug: string) => tenantSlug)
-  .handler(async ({ data: tenantSlug, context }) => {
-    if (isDemoBackend()) throw new Error("Indisponível no modo demo.");
-    const tenantId = await resolveTenantIdBySlug(tenantSlug);
-    await assertUserCanManageTenant(context.userId, tenantId);
-    const { createSignupVerificationCheckout } =
-      await import("@/lib/api/platform-billing-signup.server");
-    return createSignupVerificationCheckout(tenantId);
   });
