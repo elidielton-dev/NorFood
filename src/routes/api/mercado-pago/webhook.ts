@@ -36,12 +36,25 @@ export const Route = createFileRoute("/api/mercado-pago/webhook")({
           });
         }
 
-        const result = await syncMercadoPagoPayment(paymentId);
-        return Response.json({
-          ok: true,
-          processed: true,
-          ...result,
-        });
+        try {
+          const result = await syncMercadoPagoPayment(paymentId);
+          return Response.json({
+            ok: true,
+            processed: true,
+            ...result,
+          });
+        } catch (syncError) {
+          const message =
+            syncError instanceof Error ? syncError.message : "Falha ao sincronizar pagamento.";
+          console.warn("[mercado-pago/webhook] sync skipped:", paymentId, message);
+          // Mercado Pago exige HTTP 200 para confirmar recebimento (inclui simulação id 123456).
+          return Response.json({
+            ok: true,
+            processed: false,
+            paymentId,
+            error: message,
+          });
+        }
       },
     },
   },
