@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SelecionarEmpresaRouteImport } from './routes/selecionar-empresa'
 import { Route as RecuperarSenhaRouteImport } from './routes/recuperar-senha'
+import { Route as LojaRouteImport } from './routes/loja'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as EntregadorRouteImport } from './routes/entregador'
 import { Route as CadastroRouteImport } from './routes/cadastro'
@@ -109,6 +110,11 @@ const RecuperarSenhaRoute = RecuperarSenhaRouteImport.update({
   path: '/recuperar-senha',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LojaRoute = LojaRouteImport.update({
+  id: '/loja',
+  path: '/loja',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -154,9 +160,9 @@ const TTenantSlugRoute = TTenantSlugRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const LojaTenantSlugRoute = LojaTenantSlugRouteImport.update({
-  id: '/loja/$tenantSlug',
-  path: '/loja/$tenantSlug',
-  getParentRoute: () => rootRouteImport,
+  id: '/$tenantSlug',
+  path: '/$tenantSlug',
+  getParentRoute: () => LojaRoute,
 } as any)
 const EntregadorLoginRoute = EntregadorLoginRouteImport.update({
   id: '/login',
@@ -606,6 +612,7 @@ export interface FileRoutesByFullPath {
   '/cadastro': typeof CadastroRoute
   '/entregador': typeof EntregadorRouteWithChildren
   '/login': typeof LoginRoute
+  '/loja': typeof LojaRouteWithChildren
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/selecionar-empresa': typeof SelecionarEmpresaRoute
   '/mesa': typeof AuthenticatedMesaRoute
@@ -695,6 +702,7 @@ export interface FileRoutesByTo {
   '/cadastro': typeof CadastroRoute
   '/entregador': typeof EntregadorRouteWithChildren
   '/login': typeof LoginRoute
+  '/loja': typeof LojaRouteWithChildren
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/selecionar-empresa': typeof SelecionarEmpresaRoute
   '/mesa': typeof AuthenticatedMesaRoute
@@ -780,6 +788,7 @@ export interface FileRoutesById {
   '/cadastro': typeof CadastroRoute
   '/entregador': typeof EntregadorRouteWithChildren
   '/login': typeof LoginRoute
+  '/loja': typeof LojaRouteWithChildren
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/selecionar-empresa': typeof SelecionarEmpresaRoute
   '/_authenticated/mesa': typeof AuthenticatedMesaRoute
@@ -872,6 +881,7 @@ export interface FileRouteTypes {
     | '/cadastro'
     | '/entregador'
     | '/login'
+    | '/loja'
     | '/recuperar-senha'
     | '/selecionar-empresa'
     | '/mesa'
@@ -961,6 +971,7 @@ export interface FileRouteTypes {
     | '/cadastro'
     | '/entregador'
     | '/login'
+    | '/loja'
     | '/recuperar-senha'
     | '/selecionar-empresa'
     | '/mesa'
@@ -1045,6 +1056,7 @@ export interface FileRouteTypes {
     | '/cadastro'
     | '/entregador'
     | '/login'
+    | '/loja'
     | '/recuperar-senha'
     | '/selecionar-empresa'
     | '/_authenticated/mesa'
@@ -1137,11 +1149,11 @@ export interface RootRouteChildren {
   CadastroRoute: typeof CadastroRoute
   EntregadorRoute: typeof EntregadorRouteWithChildren
   LoginRoute: typeof LoginRoute
+  LojaRoute: typeof LojaRouteWithChildren
   RecuperarSenhaRoute: typeof RecuperarSenhaRoute
   SelecionarEmpresaRoute: typeof SelecionarEmpresaRoute
   ApiHealthRoute: typeof ApiHealthRoute
   CardapioTokenRoute: typeof CardapioTokenRoute
-  LojaTenantSlugRoute: typeof LojaTenantSlugRoute
   TTenantSlugRoute: typeof TTenantSlugRouteWithChildren
   ApiCronAtendimentoHoursRoute: typeof ApiCronAtendimentoHoursRoute
   ApiEntregadorExpoGoUrlRoute: typeof ApiEntregadorExpoGoUrlRoute
@@ -1166,6 +1178,13 @@ declare module '@tanstack/react-router' {
       path: '/recuperar-senha'
       fullPath: '/recuperar-senha'
       preLoaderRoute: typeof RecuperarSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/loja': {
+      id: '/loja'
+      path: '/loja'
+      fullPath: '/loja'
+      preLoaderRoute: typeof LojaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -1233,10 +1252,10 @@ declare module '@tanstack/react-router' {
     }
     '/loja/$tenantSlug': {
       id: '/loja/$tenantSlug'
-      path: '/loja/$tenantSlug'
+      path: '/$tenantSlug'
       fullPath: '/loja/$tenantSlug'
       preLoaderRoute: typeof LojaTenantSlugRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof LojaRoute
     }
     '/entregador/login': {
       id: '/entregador/login'
@@ -2089,6 +2108,16 @@ const EntregadorRouteWithChildren = EntregadorRoute._addFileChildren(
   EntregadorRouteChildren,
 )
 
+interface LojaRouteChildren {
+  LojaTenantSlugRoute: typeof LojaTenantSlugRoute
+}
+
+const LojaRouteChildren: LojaRouteChildren = {
+  LojaTenantSlugRoute: LojaTenantSlugRoute,
+}
+
+const LojaRouteWithChildren = LojaRoute._addFileChildren(LojaRouteChildren)
+
 interface TTenantSlugRouteChildren {
   TTenantSlugSplatRoute: typeof TTenantSlugSplatRoute
   TTenantSlugEntregadoresRoute: typeof TTenantSlugEntregadoresRoute
@@ -2113,11 +2142,11 @@ const rootRouteChildren: RootRouteChildren = {
   CadastroRoute: CadastroRoute,
   EntregadorRoute: EntregadorRouteWithChildren,
   LoginRoute: LoginRoute,
+  LojaRoute: LojaRouteWithChildren,
   RecuperarSenhaRoute: RecuperarSenhaRoute,
   SelecionarEmpresaRoute: SelecionarEmpresaRoute,
   ApiHealthRoute: ApiHealthRoute,
   CardapioTokenRoute: CardapioTokenRoute,
-  LojaTenantSlugRoute: LojaTenantSlugRoute,
   TTenantSlugRoute: TTenantSlugRouteWithChildren,
   ApiCronAtendimentoHoursRoute: ApiCronAtendimentoHoursRoute,
   ApiEntregadorExpoGoUrlRoute: ApiEntregadorExpoGoUrlRoute,

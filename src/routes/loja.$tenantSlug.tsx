@@ -8,6 +8,13 @@ export const Route = createFileRoute("/loja/$tenantSlug")({
     const tenant = resolveTenantBySlug(params.tenantSlug);
     if (!tenant) throw redirect({ to: "/" });
   },
+  head: ({ params }) => ({
+    meta: [
+      { title: `Cardápio — ${params.tenantSlug}` },
+      { name: "description", content: "Peça delivery e acompanhe seu pedido em tempo real." },
+      { name: "theme-color", content: "#FF9100" },
+    ],
+  }),
   component: LojaPage,
 });
 

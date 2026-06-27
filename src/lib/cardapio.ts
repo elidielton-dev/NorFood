@@ -27,104 +27,109 @@ export type Doce = {
 };
 
 export const categoriasFallback: CategoriaCardapio[] = [
-  { id: "todos", nome: "Todos", emoji: "?" },
-  { id: "bolos", nome: "Bolos", emoji: "?" },
-  { id: "brigadeiros", nome: "Brigadeiros", emoji: "?" },
-  { id: "tortas", nome: "Tortas", emoji: "?" },
-  { id: "doces", nome: "Doces", emoji: "?" },
-  { id: "bebidas", nome: "Bebidas", emoji: "?" },
+  { id: "todos", nome: "Todos", emoji: "🍽️" },
+  { id: "pratos", nome: "Pratos", emoji: "🍛" },
+  { id: "lanches", nome: "Lanches", emoji: "🥪" },
+  { id: "bebidas", nome: "Bebidas", emoji: "🥤" },
+  { id: "sobremesas", nome: "Sobremesas", emoji: "🍰" },
+  { id: "combos", nome: "Combos", emoji: "⭐" },
 ];
 
 export const docesFallback: Doce[] = [
   {
-    id: "bolo-mel",
-    nome: "Bolo de Mel da Casa",
-    descricao: "Camadas fofinhas com calda de mel artesanal e creme de baunilha.",
-    preco: 12.9,
-    imagem: bolo,
-    categoria: "bolos",
-    tempoPreparoMin: 15,
-    calorias: 320,
+    id: "acaraje-especial",
+    nome: "Acarajé Especial",
+    descricao: "Baiana caprichada com vatapá, caruru e pimenta na medida.",
+    preco: 18.9,
+    imagem: mel,
+    categoria: "pratos",
+    tempoPreparoMin: 20,
+    calorias: 420,
     destaque: true,
     avaliacao: 4.9,
   },
   {
-    id: "brigadeiro-gold",
-    nome: "Brigadeiro Gold",
-    descricao: "Chocolate belga 70% com lascas de ouro comestivel.",
-    preco: 6.5,
+    id: "tapioca-recheada",
+    nome: "Tapioca Recheada",
+    descricao: "Massa fresca com queijo coalho, carne de sol e molho da casa.",
+    preco: 16.5,
     imagem: brigadeiro,
-    categoria: "brigadeiros",
-    tempoPreparoMin: 5,
-    calorias: 180,
+    categoria: "lanches",
+    tempoPreparoMin: 12,
+    calorias: 380,
     destaque: true,
     avaliacao: 4.8,
   },
   {
-    id: "cupcake-rosa",
-    nome: "Cupcake Rosa & Mel",
-    descricao: "Massa de baunilha, cobertura de buttercream rosa e perolas douradas.",
+    id: "moqueca-individual",
+    nome: "Moqueca Individual",
+    descricao: "Peixe fresco, leite de coco, pimentões e arroz soltinho.",
+    preco: 32.9,
+    imagem: bolo,
+    categoria: "pratos",
+    tempoPreparoMin: 25,
+    calorias: 510,
+    avaliacao: 4.9,
+  },
+  {
+    id: "suco-natural",
+    nome: "Suco Natural 500ml",
+    descricao: "Fruta da estação batida na hora, sem conservantes.",
     preco: 9.9,
     imagem: cupcake,
-    categoria: "doces",
-    tempoPreparoMin: 8,
-    calorias: 260,
+    categoria: "bebidas",
+    tempoPreparoMin: 5,
+    calorias: 120,
     avaliacao: 4.7,
   },
   {
-    id: "doce-mel-flor",
-    nome: "Flor de Mel",
-    descricao: "Doce artesanal em formato de flor com mel puro de abelhas.",
-    preco: 7.5,
-    imagem: mel,
-    categoria: "doces",
-    tempoPreparoMin: 5,
-    calorias: 150,
-    avaliacao: 5,
-  },
-  {
-    id: "torta-morango",
-    nome: "Torta de Morango",
-    descricao: "Base crocante, creme aveludado, morangos frescos e fio de mel.",
-    preco: 14.9,
+    id: "combo-almoco",
+    nome: "Combo Almoço",
+    descricao: "Prato do dia, acompanhamento, salada e bebida.",
+    preco: 29.9,
     imagem: torta,
-    categoria: "tortas",
-    tempoPreparoMin: 20,
-    calorias: 280,
+    categoria: "combos",
+    tempoPreparoMin: 18,
+    calorias: 680,
     destaque: true,
     avaliacao: 4.9,
   },
   {
-    id: "macaron-rosa",
-    nome: "Macaron Rosa & Ouro",
-    descricao: "Trio de macarons com recheio de framboesa e detalhes em ouro.",
-    preco: 18,
+    id: "sobremesa-casa",
+    nome: "Sobremesa da Casa",
+    descricao: "Doce regional servido conforme disponibilidade do dia.",
+    preco: 12.9,
     imagem: macaron,
-    categoria: "doces",
-    tempoPreparoMin: 10,
-    calorias: 210,
+    categoria: "sobremesas",
+    tempoPreparoMin: 8,
+    calorias: 260,
     avaliacao: 4.8,
   },
 ];
 
 const categoryImageMap: Record<string, string> = {
+  pratos: bolo,
+  lanches: brigadeiro,
+  bebidas: cupcake,
+  sobremesas: macaron,
+  combos: torta,
   bolos: bolo,
   brigadeiros: brigadeiro,
   tortas: torta,
   doces: mel,
-  bebidas: cupcake,
 };
 
 export function inferCategoryEmoji(nome: string) {
   const normalized = nome.trim().toLowerCase();
-  if (normalized.includes("bolo")) return "?";
-  if (normalized.includes("brigade")) return "?";
-  if (normalized.includes("torta")) return "?";
-  if (normalized.includes("beb")) return "?";
-  return "?";
+  if (normalized.includes("bebida") || normalized.includes("suco")) return "🥤";
+  if (normalized.includes("combo")) return "⭐";
+  if (normalized.includes("sobremesa") || normalized.includes("doce")) return "🍰";
+  if (normalized.includes("lanche") || normalized.includes("tapioca")) return "🥪";
+  if (normalized.includes("prato") || normalized.includes("moqueca")) return "🍛";
+  return "🍽️";
 }
 
-export function inferCategorySlug(nome: string) {
+export function inferCategorySlug(nome: string): CategoriaId {
   const normalized = nome
     .trim()
     .toLowerCase()
@@ -133,16 +138,23 @@ export function inferCategorySlug(nome: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-  if (normalized.includes("bolo")) return "bolos";
-  if (normalized.includes("brigade")) return "brigadeiros";
-  if (normalized.includes("torta")) return "tortas";
-  if (normalized.includes("beb")) return "bebidas";
-  return normalized || "doces";
+  if (normalized.includes("bebida") || normalized.includes("suco")) return "bebidas";
+  if (normalized.includes("combo")) return "combos";
+  if (normalized.includes("sobremesa")) return "sobremesas";
+  if (normalized.includes("lanche") || normalized.includes("tapioca")) return "lanches";
+  if (
+    normalized.includes("prato") ||
+    normalized.includes("moqueca") ||
+    normalized.includes("acaraje")
+  ) {
+    return "pratos";
+  }
+  return normalized || "pratos";
 }
 
 export function resolveProductImage(categoria: string, imageUrl?: string | null) {
   if (imageUrl) return imageUrl;
-  return categoryImageMap[categoria] ?? macaron;
+  return categoryImageMap[categoria] ?? bolo;
 }
 
 export const formatBRL = (n: number) =>

@@ -552,7 +552,7 @@ function CatalogSearchPanel({
       <DialogContent className="top-[8%] max-h-[84vh] max-w-md translate-y-0 gap-0 overflow-hidden rounded-3xl p-0">
         <DialogHeader className="border-b border-border px-5 pb-4 pt-5 text-left">
           <DialogTitle className="font-display text-xl">Buscar no cardapio</DialogTitle>
-          <DialogDescription>Digite o nome do doce ou bebida.</DialogDescription>
+          <DialogDescription>Busque pelo nome do item no cardápio.</DialogDescription>
         </DialogHeader>
         <div className="px-5 pt-4">
           <div className="flex items-center gap-2 rounded-full border border-border bg-card px-4 py-3 shadow-soft">
@@ -561,7 +561,7 @@ function CatalogSearchPanel({
               ref={inputRef}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Ex.: brigadeiro, bolo, mel..."
+              placeholder="Ex.: acarajé, combo, suco..."
               className="w-full bg-transparent text-sm outline-none"
             />
           </div>
@@ -1388,10 +1388,10 @@ function Carrinho({
   if (itens.length === 0) {
     return (
       <main className="px-5 py-16 text-center animate-fade-up">
-        <div className="mb-3 text-6xl animate-float">Mel</div>
+        <div className="mb-3 text-6xl animate-float">🛒</div>
         <h2 className="font-display text-2xl">Seu carrinho esta vazio</h2>
         <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">
-          Que tal comecar com um Brigadeiro Gold?
+          Explore o cardápio e adicione seus itens favoritos.
         </p>
         {orderNumber ? (
           <CartTrackingSection
@@ -2715,7 +2715,7 @@ function BottomNav({
 function Placeholder({ titulo, subtitulo }: { titulo: string; subtitulo: string }) {
   return (
     <main className="px-5 py-16 text-center animate-fade-up">
-      <div className="mb-3 text-6xl animate-float">Mel</div>
+      <div className="mb-3 text-6xl animate-float">🍽️</div>
       <h2 className="font-display text-2xl">{titulo}</h2>
       <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">{subtitulo}</p>
     </main>
