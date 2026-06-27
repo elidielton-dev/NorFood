@@ -1,4 +1,4 @@
-import { createFileRoute, redirect, Outlet } from "@tanstack/react-router";
+import { createFileRoute, redirect, Outlet, useLocation } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchCurrentUserRoles, isStaffRole } from "@/lib/auth-roles";
 import { fetchUserTenantsServer } from "@/lib/api/tenant.functions";
@@ -16,8 +16,13 @@ export const Route = createFileRoute("/t/$tenantSlug")({
       throw redirect({ to: "/" });
     }
 
+    const isPublicEntregadores = /\/entregadores\/?$/.test(location.pathname);
+    if (isPublicEntregadores) {
+      return { userRole: null, publicEntregadores: true as const };
+    }
+
     if (!hasBrowserSupabaseConfig() && isBrowserDemoEnabled()) {
-      return { userRole: "admin" as TenantRole };
+      return { userRole: "admin" as TenantRole, publicEntregadores: false as const };
     }
 
     const { data: session } = await supabase.auth.getSession();
@@ -32,16 +37,16 @@ export const Route = createFileRoute("/t/$tenantSlug")({
     const membership = memberships.find((m) => m.tenant.slug === params.tenantSlug);
 
     if (membership && isTenantStaffRole(membership.role)) {
-      return { userRole: membership.role as TenantRole };
+      return { userRole: membership.role as TenantRole, publicEntregadores: false as const };
     }
 
     if (isBrowserDemoEnabled()) {
-      return { userRole: "admin" as TenantRole };
+      return { userRole: "admin" as TenantRole, publicEntregadores: false as const };
     }
 
     const legacyRoles = await fetchCurrentUserRoles();
     if (isStaffRole(legacyRoles)) {
-      return { userRole: "admin" as TenantRole };
+      return { userRole: "admin" as TenantRole, publicEntregadores: false as const };
     }
 
     throw redirect({ to: "/" });
@@ -51,11 +56,22 @@ export const Route = createFileRoute("/t/$tenantSlug")({
 
 function TenantPainelLayout() {
   const { tenantSlug } = Route.useParams();
-  const { userRole } = Route.useRouteContext();
+  const { userRole, publicEntregadores } = Route.useRouteContext();
+  const location = useLocation();
+  const isPublicEntregadores =
+    publicEntregadores || /\/entregadores\/?$/.test(location.pathname);
+
+  if (isPublicEntregadores) {
+    return (
+      <TenantProvider slug={tenantSlug}>
+        <Outlet />
+      </TenantProvider>
+    );
+  }
 
   return (
     <TenantProvider slug={tenantSlug}>
-      <PainelShell tenantSlug={tenantSlug} userRole={userRole} />
+      <PainelShell tenantSlug={tenantSlug} userRole={userRole!} />
     </TenantProvider>
   );
 }

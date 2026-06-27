@@ -149,7 +149,6 @@ export const TENANT_PAINEL_REGISTRY: Record<string, ComponentType> = {
   ),
   caixa: painelPage(() => import("@/routes/_authenticated/painel.financeiro.index")),
   fidelidade: painelPage(() => import("@/routes/_authenticated/painel.clientes")),
-  entregadores: painelPage(() => import("@/routes/_authenticated/painel.delivery")),
   entregador: painelPage(() => import("@/routes/_authenticated/painel.delivery")),
 };
 

@@ -22,6 +22,7 @@ import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as TTenantSlugRouteImport } from './routes/t.$tenantSlug'
 import { Route as LojaTenantSlugRouteImport } from './routes/loja.$tenantSlug'
 import { Route as EntregadorLoginRouteImport } from './routes/entregador.login'
+import { Route as EntregadorExpoGoRouteImport } from './routes/entregador.expo-go'
 import { Route as CardapioTokenRouteImport } from './routes/cardapio.$token'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as AdminNovaRouteImport } from './routes/admin.nova'
@@ -32,12 +33,14 @@ import { Route as AuthenticatedMotoboyRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedMesaRouteImport } from './routes/_authenticated/mesa'
 import { Route as TTenantSlugIndexRouteImport } from './routes/t.$tenantSlug.index'
 import { Route as AuthenticatedPainelIndexRouteImport } from './routes/_authenticated/painel.index'
+import { Route as TTenantSlugEntregadoresRouteImport } from './routes/t.$tenantSlug.entregadores'
 import { Route as TTenantSlugSplatRouteImport } from './routes/t.$tenantSlug.$'
 import { Route as ApiWhatsappWebhookRouteImport } from './routes/api/whatsapp/webhook'
 import { Route as ApiWabaWebhookRouteImport } from './routes/api/waba/webhook'
 import { Route as ApiPlatformAdminSessionRouteImport } from './routes/api/platform-admin/session'
 import { Route as ApiPlatformAdminBillingRouteImport } from './routes/api/platform-admin/billing'
 import { Route as ApiMercadoPagoWebhookRouteImport } from './routes/api/mercado-pago/webhook'
+import { Route as ApiEntregadorExpoGoUrlRouteImport } from './routes/api/entregador/expo-go-url'
 import { Route as ApiCronAtendimentoHoursRouteImport } from './routes/api/cron/atendimento-hours'
 import { Route as AuthenticatedPainelWhatsappRouteImport } from './routes/_authenticated/painel.whatsapp'
 import { Route as AuthenticatedPainelRelatoriosRouteImport } from './routes/_authenticated/painel.relatorios'
@@ -160,6 +163,11 @@ const EntregadorLoginRoute = EntregadorLoginRouteImport.update({
   path: '/login',
   getParentRoute: () => EntregadorRoute,
 } as any)
+const EntregadorExpoGoRoute = EntregadorExpoGoRouteImport.update({
+  id: '/expo-go',
+  path: '/expo-go',
+  getParentRoute: () => EntregadorRoute,
+} as any)
 const CardapioTokenRoute = CardapioTokenRouteImport.update({
   id: '/cardapio/$token',
   path: '/cardapio/$token',
@@ -211,6 +219,11 @@ const AuthenticatedPainelIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedPainelRoute,
   } as any)
+const TTenantSlugEntregadoresRoute = TTenantSlugEntregadoresRouteImport.update({
+  id: '/entregadores',
+  path: '/entregadores',
+  getParentRoute: () => TTenantSlugRoute,
+} as any)
 const TTenantSlugSplatRoute = TTenantSlugSplatRouteImport.update({
   id: '/$',
   path: '/$',
@@ -239,6 +252,11 @@ const ApiPlatformAdminBillingRoute = ApiPlatformAdminBillingRouteImport.update({
 const ApiMercadoPagoWebhookRoute = ApiMercadoPagoWebhookRouteImport.update({
   id: '/api/mercado-pago/webhook',
   path: '/api/mercado-pago/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiEntregadorExpoGoUrlRoute = ApiEntregadorExpoGoUrlRouteImport.update({
+  id: '/api/entregador/expo-go-url',
+  path: '/api/entregador/expo-go-url',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCronAtendimentoHoursRoute = ApiCronAtendimentoHoursRouteImport.update({
@@ -598,6 +616,7 @@ export interface FileRoutesByFullPath {
   '/admin/nova': typeof AdminNovaRoute
   '/api/health': typeof ApiHealthRoute
   '/cardapio/$token': typeof CardapioTokenRoute
+  '/entregador/expo-go': typeof EntregadorExpoGoRoute
   '/entregador/login': typeof EntregadorLoginRoute
   '/loja/$tenantSlug': typeof LojaTenantSlugRoute
   '/t/$tenantSlug': typeof TTenantSlugRouteWithChildren
@@ -618,12 +637,14 @@ export interface FileRoutesByFullPath {
   '/painel/relatorios': typeof AuthenticatedPainelRelatoriosRouteWithChildren
   '/painel/whatsapp': typeof AuthenticatedPainelWhatsappRoute
   '/api/cron/atendimento-hours': typeof ApiCronAtendimentoHoursRoute
+  '/api/entregador/expo-go-url': typeof ApiEntregadorExpoGoUrlRoute
   '/api/mercado-pago/webhook': typeof ApiMercadoPagoWebhookRoute
   '/api/platform-admin/billing': typeof ApiPlatformAdminBillingRoute
   '/api/platform-admin/session': typeof ApiPlatformAdminSessionRoute
   '/api/waba/webhook': typeof ApiWabaWebhookRoute
   '/api/whatsapp/webhook': typeof ApiWhatsappWebhookRoute
   '/t/$tenantSlug/$': typeof TTenantSlugSplatRoute
+  '/t/$tenantSlug/entregadores': typeof TTenantSlugEntregadoresRoute
   '/painel/': typeof AuthenticatedPainelIndexRoute
   '/t/$tenantSlug/': typeof TTenantSlugIndexRoute
   '/painel/atendimento/automacoes': typeof AuthenticatedPainelAtendimentoAutomacoesRoute
@@ -683,6 +704,7 @@ export interface FileRoutesByTo {
   '/admin/nova': typeof AdminNovaRoute
   '/api/health': typeof ApiHealthRoute
   '/cardapio/$token': typeof CardapioTokenRoute
+  '/entregador/expo-go': typeof EntregadorExpoGoRoute
   '/entregador/login': typeof EntregadorLoginRoute
   '/loja/$tenantSlug': typeof LojaTenantSlugRoute
   '/admin': typeof AdminIndexRoute
@@ -697,12 +719,14 @@ export interface FileRoutesByTo {
   '/painel/produtos': typeof AuthenticatedPainelProdutosRouteWithChildren
   '/painel/whatsapp': typeof AuthenticatedPainelWhatsappRoute
   '/api/cron/atendimento-hours': typeof ApiCronAtendimentoHoursRoute
+  '/api/entregador/expo-go-url': typeof ApiEntregadorExpoGoUrlRoute
   '/api/mercado-pago/webhook': typeof ApiMercadoPagoWebhookRoute
   '/api/platform-admin/billing': typeof ApiPlatformAdminBillingRoute
   '/api/platform-admin/session': typeof ApiPlatformAdminSessionRoute
   '/api/waba/webhook': typeof ApiWabaWebhookRoute
   '/api/whatsapp/webhook': typeof ApiWhatsappWebhookRoute
   '/t/$tenantSlug/$': typeof TTenantSlugSplatRoute
+  '/t/$tenantSlug/entregadores': typeof TTenantSlugEntregadoresRoute
   '/painel': typeof AuthenticatedPainelIndexRoute
   '/t/$tenantSlug': typeof TTenantSlugIndexRoute
   '/painel/atendimento/automacoes': typeof AuthenticatedPainelAtendimentoAutomacoesRoute
@@ -766,6 +790,7 @@ export interface FileRoutesById {
   '/admin/nova': typeof AdminNovaRoute
   '/api/health': typeof ApiHealthRoute
   '/cardapio/$token': typeof CardapioTokenRoute
+  '/entregador/expo-go': typeof EntregadorExpoGoRoute
   '/entregador/login': typeof EntregadorLoginRoute
   '/loja/$tenantSlug': typeof LojaTenantSlugRoute
   '/t/$tenantSlug': typeof TTenantSlugRouteWithChildren
@@ -786,12 +811,14 @@ export interface FileRoutesById {
   '/_authenticated/painel/relatorios': typeof AuthenticatedPainelRelatoriosRouteWithChildren
   '/_authenticated/painel/whatsapp': typeof AuthenticatedPainelWhatsappRoute
   '/api/cron/atendimento-hours': typeof ApiCronAtendimentoHoursRoute
+  '/api/entregador/expo-go-url': typeof ApiEntregadorExpoGoUrlRoute
   '/api/mercado-pago/webhook': typeof ApiMercadoPagoWebhookRoute
   '/api/platform-admin/billing': typeof ApiPlatformAdminBillingRoute
   '/api/platform-admin/session': typeof ApiPlatformAdminSessionRoute
   '/api/waba/webhook': typeof ApiWabaWebhookRoute
   '/api/whatsapp/webhook': typeof ApiWhatsappWebhookRoute
   '/t/$tenantSlug/$': typeof TTenantSlugSplatRoute
+  '/t/$tenantSlug/entregadores': typeof TTenantSlugEntregadoresRoute
   '/_authenticated/painel/': typeof AuthenticatedPainelIndexRoute
   '/t/$tenantSlug/': typeof TTenantSlugIndexRoute
   '/_authenticated/painel/atendimento/automacoes': typeof AuthenticatedPainelAtendimentoAutomacoesRoute
@@ -855,6 +882,7 @@ export interface FileRouteTypes {
     | '/admin/nova'
     | '/api/health'
     | '/cardapio/$token'
+    | '/entregador/expo-go'
     | '/entregador/login'
     | '/loja/$tenantSlug'
     | '/t/$tenantSlug'
@@ -875,12 +903,14 @@ export interface FileRouteTypes {
     | '/painel/relatorios'
     | '/painel/whatsapp'
     | '/api/cron/atendimento-hours'
+    | '/api/entregador/expo-go-url'
     | '/api/mercado-pago/webhook'
     | '/api/platform-admin/billing'
     | '/api/platform-admin/session'
     | '/api/waba/webhook'
     | '/api/whatsapp/webhook'
     | '/t/$tenantSlug/$'
+    | '/t/$tenantSlug/entregadores'
     | '/painel/'
     | '/t/$tenantSlug/'
     | '/painel/atendimento/automacoes'
@@ -940,6 +970,7 @@ export interface FileRouteTypes {
     | '/admin/nova'
     | '/api/health'
     | '/cardapio/$token'
+    | '/entregador/expo-go'
     | '/entregador/login'
     | '/loja/$tenantSlug'
     | '/admin'
@@ -954,12 +985,14 @@ export interface FileRouteTypes {
     | '/painel/produtos'
     | '/painel/whatsapp'
     | '/api/cron/atendimento-hours'
+    | '/api/entregador/expo-go-url'
     | '/api/mercado-pago/webhook'
     | '/api/platform-admin/billing'
     | '/api/platform-admin/session'
     | '/api/waba/webhook'
     | '/api/whatsapp/webhook'
     | '/t/$tenantSlug/$'
+    | '/t/$tenantSlug/entregadores'
     | '/painel'
     | '/t/$tenantSlug'
     | '/painel/atendimento/automacoes'
@@ -1022,6 +1055,7 @@ export interface FileRouteTypes {
     | '/admin/nova'
     | '/api/health'
     | '/cardapio/$token'
+    | '/entregador/expo-go'
     | '/entregador/login'
     | '/loja/$tenantSlug'
     | '/t/$tenantSlug'
@@ -1042,12 +1076,14 @@ export interface FileRouteTypes {
     | '/_authenticated/painel/relatorios'
     | '/_authenticated/painel/whatsapp'
     | '/api/cron/atendimento-hours'
+    | '/api/entregador/expo-go-url'
     | '/api/mercado-pago/webhook'
     | '/api/platform-admin/billing'
     | '/api/platform-admin/session'
     | '/api/waba/webhook'
     | '/api/whatsapp/webhook'
     | '/t/$tenantSlug/$'
+    | '/t/$tenantSlug/entregadores'
     | '/_authenticated/painel/'
     | '/t/$tenantSlug/'
     | '/_authenticated/painel/atendimento/automacoes'
@@ -1108,6 +1144,7 @@ export interface RootRouteChildren {
   LojaTenantSlugRoute: typeof LojaTenantSlugRoute
   TTenantSlugRoute: typeof TTenantSlugRouteWithChildren
   ApiCronAtendimentoHoursRoute: typeof ApiCronAtendimentoHoursRoute
+  ApiEntregadorExpoGoUrlRoute: typeof ApiEntregadorExpoGoUrlRoute
   ApiMercadoPagoWebhookRoute: typeof ApiMercadoPagoWebhookRoute
   ApiPlatformAdminBillingRoute: typeof ApiPlatformAdminBillingRoute
   ApiPlatformAdminSessionRoute: typeof ApiPlatformAdminSessionRoute
@@ -1208,6 +1245,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EntregadorLoginRouteImport
       parentRoute: typeof EntregadorRoute
     }
+    '/entregador/expo-go': {
+      id: '/entregador/expo-go'
+      path: '/expo-go'
+      fullPath: '/entregador/expo-go'
+      preLoaderRoute: typeof EntregadorExpoGoRouteImport
+      parentRoute: typeof EntregadorRoute
+    }
     '/cardapio/$token': {
       id: '/cardapio/$token'
       path: '/cardapio/$token'
@@ -1278,6 +1322,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPainelIndexRouteImport
       parentRoute: typeof AuthenticatedPainelRoute
     }
+    '/t/$tenantSlug/entregadores': {
+      id: '/t/$tenantSlug/entregadores'
+      path: '/entregadores'
+      fullPath: '/t/$tenantSlug/entregadores'
+      preLoaderRoute: typeof TTenantSlugEntregadoresRouteImport
+      parentRoute: typeof TTenantSlugRoute
+    }
     '/t/$tenantSlug/$': {
       id: '/t/$tenantSlug/$'
       path: '/$'
@@ -1318,6 +1369,13 @@ declare module '@tanstack/react-router' {
       path: '/api/mercado-pago/webhook'
       fullPath: '/api/mercado-pago/webhook'
       preLoaderRoute: typeof ApiMercadoPagoWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/entregador/expo-go-url': {
+      id: '/api/entregador/expo-go-url'
+      path: '/api/entregador/expo-go-url'
+      fullPath: '/api/entregador/expo-go-url'
+      preLoaderRoute: typeof ApiEntregadorExpoGoUrlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/cron/atendimento-hours': {
@@ -2018,10 +2076,12 @@ const AdminRouteChildren: AdminRouteChildren = {
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface EntregadorRouteChildren {
+  EntregadorExpoGoRoute: typeof EntregadorExpoGoRoute
   EntregadorLoginRoute: typeof EntregadorLoginRoute
 }
 
 const EntregadorRouteChildren: EntregadorRouteChildren = {
+  EntregadorExpoGoRoute: EntregadorExpoGoRoute,
   EntregadorLoginRoute: EntregadorLoginRoute,
 }
 
@@ -2031,11 +2091,13 @@ const EntregadorRouteWithChildren = EntregadorRoute._addFileChildren(
 
 interface TTenantSlugRouteChildren {
   TTenantSlugSplatRoute: typeof TTenantSlugSplatRoute
+  TTenantSlugEntregadoresRoute: typeof TTenantSlugEntregadoresRoute
   TTenantSlugIndexRoute: typeof TTenantSlugIndexRoute
 }
 
 const TTenantSlugRouteChildren: TTenantSlugRouteChildren = {
   TTenantSlugSplatRoute: TTenantSlugSplatRoute,
+  TTenantSlugEntregadoresRoute: TTenantSlugEntregadoresRoute,
   TTenantSlugIndexRoute: TTenantSlugIndexRoute,
 }
 
@@ -2058,6 +2120,7 @@ const rootRouteChildren: RootRouteChildren = {
   LojaTenantSlugRoute: LojaTenantSlugRoute,
   TTenantSlugRoute: TTenantSlugRouteWithChildren,
   ApiCronAtendimentoHoursRoute: ApiCronAtendimentoHoursRoute,
+  ApiEntregadorExpoGoUrlRoute: ApiEntregadorExpoGoUrlRoute,
   ApiMercadoPagoWebhookRoute: ApiMercadoPagoWebhookRoute,
   ApiPlatformAdminBillingRoute: ApiPlatformAdminBillingRoute,
   ApiPlatformAdminSessionRoute: ApiPlatformAdminSessionRoute,
