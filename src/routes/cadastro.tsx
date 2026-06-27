@@ -13,8 +13,8 @@ import type { BillingModel, BillingPlanId } from "@/lib/platform/billing-plans";
 import type { DocumentType } from "@/lib/document-validation";
 import { formatDocument, validateDocument } from "@/lib/document-validation";
 import { fetchAddressByCep, formatCep, normalizeCep } from "@/lib/viacep";
+import { formatBrazilPhone, validateBrazilMobilePhone } from "@/lib/signup/signup-phone";
 import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
-import { tenantPath } from "@/lib/tenant/painel-routes";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/cadastro")({
@@ -131,6 +131,12 @@ function CadastroPage() {
       return;
     }
 
+    const phone = validateBrazilMobilePhone(ownerPhone);
+    if (!phone.ok) {
+      toast.error(phone.error);
+      return;
+    }
+
     setLoading(true);
     try {
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
@@ -191,14 +197,14 @@ function CadastroPage() {
           neighborhood: neighborhood.trim(),
           city: city.trim(),
           state: state.trim(),
-          ownerPhone: ownerPhone.trim(),
+          ownerPhone: phone.formatted,
           clientIp: meta.ip ?? "unknown",
         },
         headers,
       });
 
-      toast.success(`Restaurante "${result.name}" criado! Trial de 14 dias ativo.`);
-      window.location.href = tenantPath(result.slug, "estabelecimento/plano");
+      toast.success(`Cadastro de "${result.name}" enviado! Aguarde a aprovação.`);
+      window.location.href = `/cadastro/aguardando/${result.slug}`;
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Erro ao criar conta");
     } finally {
@@ -439,9 +445,9 @@ function CadastroPage() {
                 <input
                   required
                   type="tel"
-                  placeholder="WhatsApp / telefone"
+                  placeholder="WhatsApp / telefone com DDD"
                   value={ownerPhone}
-                  onChange={(e) => setOwnerPhone(e.target.value)}
+                  onChange={(e) => setOwnerPhone(formatBrazilPhone(e.target.value))}
                   className={inputClass}
                 />
                 <input
@@ -470,7 +476,7 @@ function CadastroPage() {
                   />
                   <span>
                     Aceito os termos e o plano <PlanSummary billingModel={billingModel} plan={plan} />{" "}
-                    com 14 dias de trial. Um CNPJ/CPF só pode ter um restaurante.
+                    com 14 dias de trial após aprovação. Um CNPJ/CPF só pode ter um restaurante.
                   </span>
                 </label>
               </>
@@ -500,7 +506,7 @@ function CadastroPage() {
                   disabled={loading}
                   className="h-11 flex-1 rounded-lg bg-[#FF9100] text-sm font-medium text-white hover:bg-[#FF5C00] disabled:opacity-60"
                 >
-                  {loading ? "Criando..." : "Criar restaurante"}
+                  {loading ? "Enviando..." : "Finalizar cadastro"}
                 </button>
               ) : null}
             </div>

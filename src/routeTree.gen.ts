@@ -29,6 +29,7 @@ import { Route as ApiSignupClientMetaRouteImport } from './routes/api/signup-cli
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as AdminNovaRouteImport } from './routes/admin.nova'
 import { Route as AdminFaturamentoRouteImport } from './routes/admin.faturamento'
+import { Route as AdminAprovacoesRouteImport } from './routes/admin.aprovacoes'
 import { Route as AdminTenantIdRouteImport } from './routes/admin.$tenantId'
 import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
 import { Route as AuthenticatedMotoboyRouteImport } from './routes/_authenticated/motoboy'
@@ -37,6 +38,7 @@ import { Route as TTenantSlugIndexRouteImport } from './routes/t.$tenantSlug.ind
 import { Route as AuthenticatedPainelIndexRouteImport } from './routes/_authenticated/painel.index'
 import { Route as TTenantSlugEntregadoresRouteImport } from './routes/t.$tenantSlug.entregadores'
 import { Route as TTenantSlugSplatRouteImport } from './routes/t.$tenantSlug.$'
+import { Route as CadastroAguardandoSlugRouteImport } from './routes/cadastro.aguardando.$slug'
 import { Route as ApiWhatsappWebhookRouteImport } from './routes/api/whatsapp/webhook'
 import { Route as ApiWabaWebhookRouteImport } from './routes/api/waba/webhook'
 import { Route as ApiPlatformAdminSessionRouteImport } from './routes/api/platform-admin/session'
@@ -200,6 +202,11 @@ const AdminFaturamentoRoute = AdminFaturamentoRouteImport.update({
   path: '/faturamento',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAprovacoesRoute = AdminAprovacoesRouteImport.update({
+  id: '/aprovacoes',
+  path: '/aprovacoes',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminTenantIdRoute = AdminTenantIdRouteImport.update({
   id: '/$tenantId',
   path: '/$tenantId',
@@ -240,6 +247,11 @@ const TTenantSlugSplatRoute = TTenantSlugSplatRouteImport.update({
   id: '/$',
   path: '/$',
   getParentRoute: () => TTenantSlugRoute,
+} as any)
+const CadastroAguardandoSlugRoute = CadastroAguardandoSlugRouteImport.update({
+  id: '/aguardando/$slug',
+  path: '/aguardando/$slug',
+  getParentRoute: () => CadastroRoute,
 } as any)
 const ApiWhatsappWebhookRoute = ApiWhatsappWebhookRouteImport.update({
   id: '/api/whatsapp/webhook',
@@ -615,7 +627,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
-  '/cadastro': typeof CadastroRoute
+  '/cadastro': typeof CadastroRouteWithChildren
   '/entregador': typeof EntregadorRouteWithChildren
   '/login': typeof LoginRoute
   '/loja': typeof LojaRouteWithChildren
@@ -625,6 +637,7 @@ export interface FileRoutesByFullPath {
   '/motoboy': typeof AuthenticatedMotoboyRoute
   '/painel': typeof AuthenticatedPainelRouteWithChildren
   '/admin/$tenantId': typeof AdminTenantIdRoute
+  '/admin/aprovacoes': typeof AdminAprovacoesRoute
   '/admin/faturamento': typeof AdminFaturamentoRoute
   '/admin/nova': typeof AdminNovaRoute
   '/api/health': typeof ApiHealthRoute
@@ -657,6 +670,7 @@ export interface FileRoutesByFullPath {
   '/api/platform-admin/session': typeof ApiPlatformAdminSessionRoute
   '/api/waba/webhook': typeof ApiWabaWebhookRoute
   '/api/whatsapp/webhook': typeof ApiWhatsappWebhookRoute
+  '/cadastro/aguardando/$slug': typeof CadastroAguardandoSlugRoute
   '/t/$tenantSlug/$': typeof TTenantSlugSplatRoute
   '/t/$tenantSlug/entregadores': typeof TTenantSlugEntregadoresRoute
   '/painel/': typeof AuthenticatedPainelIndexRoute
@@ -706,7 +720,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/cadastro': typeof CadastroRoute
+  '/cadastro': typeof CadastroRouteWithChildren
   '/entregador': typeof EntregadorRouteWithChildren
   '/login': typeof LoginRoute
   '/loja': typeof LojaRouteWithChildren
@@ -715,6 +729,7 @@ export interface FileRoutesByTo {
   '/mesa': typeof AuthenticatedMesaRoute
   '/motoboy': typeof AuthenticatedMotoboyRoute
   '/admin/$tenantId': typeof AdminTenantIdRoute
+  '/admin/aprovacoes': typeof AdminAprovacoesRoute
   '/admin/faturamento': typeof AdminFaturamentoRoute
   '/admin/nova': typeof AdminNovaRoute
   '/api/health': typeof ApiHealthRoute
@@ -741,6 +756,7 @@ export interface FileRoutesByTo {
   '/api/platform-admin/session': typeof ApiPlatformAdminSessionRoute
   '/api/waba/webhook': typeof ApiWabaWebhookRoute
   '/api/whatsapp/webhook': typeof ApiWhatsappWebhookRoute
+  '/cadastro/aguardando/$slug': typeof CadastroAguardandoSlugRoute
   '/t/$tenantSlug/$': typeof TTenantSlugSplatRoute
   '/t/$tenantSlug/entregadores': typeof TTenantSlugEntregadoresRoute
   '/painel': typeof AuthenticatedPainelIndexRoute
@@ -793,7 +809,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
-  '/cadastro': typeof CadastroRoute
+  '/cadastro': typeof CadastroRouteWithChildren
   '/entregador': typeof EntregadorRouteWithChildren
   '/login': typeof LoginRoute
   '/loja': typeof LojaRouteWithChildren
@@ -803,6 +819,7 @@ export interface FileRoutesById {
   '/_authenticated/motoboy': typeof AuthenticatedMotoboyRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRouteWithChildren
   '/admin/$tenantId': typeof AdminTenantIdRoute
+  '/admin/aprovacoes': typeof AdminAprovacoesRoute
   '/admin/faturamento': typeof AdminFaturamentoRoute
   '/admin/nova': typeof AdminNovaRoute
   '/api/health': typeof ApiHealthRoute
@@ -835,6 +852,7 @@ export interface FileRoutesById {
   '/api/platform-admin/session': typeof ApiPlatformAdminSessionRoute
   '/api/waba/webhook': typeof ApiWabaWebhookRoute
   '/api/whatsapp/webhook': typeof ApiWhatsappWebhookRoute
+  '/cadastro/aguardando/$slug': typeof CadastroAguardandoSlugRoute
   '/t/$tenantSlug/$': typeof TTenantSlugSplatRoute
   '/t/$tenantSlug/entregadores': typeof TTenantSlugEntregadoresRoute
   '/_authenticated/painel/': typeof AuthenticatedPainelIndexRoute
@@ -897,6 +915,7 @@ export interface FileRouteTypes {
     | '/motoboy'
     | '/painel'
     | '/admin/$tenantId'
+    | '/admin/aprovacoes'
     | '/admin/faturamento'
     | '/admin/nova'
     | '/api/health'
@@ -929,6 +948,7 @@ export interface FileRouteTypes {
     | '/api/platform-admin/session'
     | '/api/waba/webhook'
     | '/api/whatsapp/webhook'
+    | '/cadastro/aguardando/$slug'
     | '/t/$tenantSlug/$'
     | '/t/$tenantSlug/entregadores'
     | '/painel/'
@@ -987,6 +1007,7 @@ export interface FileRouteTypes {
     | '/mesa'
     | '/motoboy'
     | '/admin/$tenantId'
+    | '/admin/aprovacoes'
     | '/admin/faturamento'
     | '/admin/nova'
     | '/api/health'
@@ -1013,6 +1034,7 @@ export interface FileRouteTypes {
     | '/api/platform-admin/session'
     | '/api/waba/webhook'
     | '/api/whatsapp/webhook'
+    | '/cadastro/aguardando/$slug'
     | '/t/$tenantSlug/$'
     | '/t/$tenantSlug/entregadores'
     | '/painel'
@@ -1074,6 +1096,7 @@ export interface FileRouteTypes {
     | '/_authenticated/motoboy'
     | '/_authenticated/painel'
     | '/admin/$tenantId'
+    | '/admin/aprovacoes'
     | '/admin/faturamento'
     | '/admin/nova'
     | '/api/health'
@@ -1106,6 +1129,7 @@ export interface FileRouteTypes {
     | '/api/platform-admin/session'
     | '/api/waba/webhook'
     | '/api/whatsapp/webhook'
+    | '/cadastro/aguardando/$slug'
     | '/t/$tenantSlug/$'
     | '/t/$tenantSlug/entregadores'
     | '/_authenticated/painel/'
@@ -1158,7 +1182,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AdminRoute: typeof AdminRouteWithChildren
   AuthRoute: typeof AuthRoute
-  CadastroRoute: typeof CadastroRoute
+  CadastroRoute: typeof CadastroRouteWithChildren
   EntregadorRoute: typeof EntregadorRouteWithChildren
   LoginRoute: typeof LoginRoute
   LojaRoute: typeof LojaRouteWithChildren
@@ -1319,6 +1343,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminFaturamentoRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/aprovacoes': {
+      id: '/admin/aprovacoes'
+      path: '/aprovacoes'
+      fullPath: '/admin/aprovacoes'
+      preLoaderRoute: typeof AdminAprovacoesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/$tenantId': {
       id: '/admin/$tenantId'
       path: '/$tenantId'
@@ -1374,6 +1405,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/t/$tenantSlug/$'
       preLoaderRoute: typeof TTenantSlugSplatRouteImport
       parentRoute: typeof TTenantSlugRoute
+    }
+    '/cadastro/aguardando/$slug': {
+      id: '/cadastro/aguardando/$slug'
+      path: '/aguardando/$slug'
+      fullPath: '/cadastro/aguardando/$slug'
+      preLoaderRoute: typeof CadastroAguardandoSlugRouteImport
+      parentRoute: typeof CadastroRoute
     }
     '/api/whatsapp/webhook': {
       id: '/api/whatsapp/webhook'
@@ -2100,6 +2138,7 @@ const AuthenticatedRouteRouteWithChildren =
 
 interface AdminRouteChildren {
   AdminTenantIdRoute: typeof AdminTenantIdRoute
+  AdminAprovacoesRoute: typeof AdminAprovacoesRoute
   AdminFaturamentoRoute: typeof AdminFaturamentoRoute
   AdminNovaRoute: typeof AdminNovaRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -2107,12 +2146,25 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminTenantIdRoute: AdminTenantIdRoute,
+  AdminAprovacoesRoute: AdminAprovacoesRoute,
   AdminFaturamentoRoute: AdminFaturamentoRoute,
   AdminNovaRoute: AdminNovaRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
+interface CadastroRouteChildren {
+  CadastroAguardandoSlugRoute: typeof CadastroAguardandoSlugRoute
+}
+
+const CadastroRouteChildren: CadastroRouteChildren = {
+  CadastroAguardandoSlugRoute: CadastroAguardandoSlugRoute,
+}
+
+const CadastroRouteWithChildren = CadastroRoute._addFileChildren(
+  CadastroRouteChildren,
+)
 
 interface EntregadorRouteChildren {
   EntregadorExpoGoRoute: typeof EntregadorExpoGoRoute
@@ -2159,7 +2211,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AdminRoute: AdminRouteWithChildren,
   AuthRoute: AuthRoute,
-  CadastroRoute: CadastroRoute,
+  CadastroRoute: CadastroRouteWithChildren,
   EntregadorRoute: EntregadorRouteWithChildren,
   LoginRoute: LoginRoute,
   LojaRoute: LojaRouteWithChildren,

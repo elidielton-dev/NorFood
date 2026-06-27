@@ -3,6 +3,7 @@ import { isInTrial } from "@/lib/platform/billing-plans";
 export type TenantAccessReason =
   | "ok"
   | "suspended"
+  | "pending_approval"
   | "pending_verification"
   | "trial_expired"
   | "overdue";
@@ -31,7 +32,19 @@ type BillingRow = {
 export function evaluateTenantAccess(tenant: TenantRow, billing: BillingRow): TenantAccessStatus {
   const inTrial = isInTrial(billing?.trial_ends_at);
   const signupVerified = true;
-  const canAccessBillingPage = true;
+  const canAccessBillingPage = tenant.status !== "pending";
+
+  if (tenant.status === "pending") {
+    return {
+      allowed: false,
+      reason: "pending_approval",
+      message:
+        "Seu cadastro está em análise. Em algumas horas você receberá e-mail e WhatsApp quando o acesso for liberado.",
+      canAccessBillingPage: false,
+      inTrial,
+      signupVerified,
+    };
+  }
 
   if (tenant.status === "suspended") {
     return {

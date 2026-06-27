@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Building2, ExternalLink, Plus, Search } from "lucide-react";
+import { Building2, Clock3, ExternalLink, Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { AdminShell, AdminStatCard } from "@/components/admin/admin-shell";
 import { fetchAdminTenants, fetchPlatformCapacity, useAdminTenantsSource } from "@/lib/platform-admin/client";
@@ -15,12 +15,14 @@ export const Route = createFileRoute("/admin/")({
 const STATUS_LABEL: Record<TenantStatus, string> = {
   active: "Ativa",
   trial: "Trial",
+  pending: "Pendente",
   suspended: "Suspensa",
 };
 
 const STATUS_TONE: Record<TenantStatus, string> = {
   active: "bg-emerald-500/15 text-emerald-700",
   trial: "bg-amber-500/15 text-amber-700",
+  pending: "bg-sky-500/15 text-sky-700",
   suspended: "bg-rose-500/15 text-rose-700",
 };
 
@@ -55,6 +57,7 @@ function AdminEmpresasPage() {
       total: tenants.length,
       active: tenants.filter((t) => t.status === "active").length,
       trial: tenants.filter((t) => t.status === "trial").length,
+      pending: tenants.filter((t) => t.status === "pending").length,
       suspended: tenants.filter((t) => t.status === "suspended").length,
     };
   }, [tenants]);
@@ -64,7 +67,17 @@ function AdminEmpresasPage() {
       title="Empresas"
       subtitle="Gerencie restaurantes cadastrados na plataforma Norfood."
       actions={
-        capacity?.atLimit ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {stats.pending > 0 ? (
+            <Link
+              to="/admin/aprovacoes"
+              className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-100"
+            >
+              <Clock3 className="size-4" />
+              {stats.pending} aguardando aprovação
+            </Link>
+          ) : null}
+          {capacity?.atLimit ? (
           <span className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-800">
             Limite atingido ({capacity.currentTenants}/{capacity.maxTenants})
           </span>
@@ -76,7 +89,8 @@ function AdminEmpresasPage() {
             <Plus className="size-4" />
             Nova empresa
           </Link>
-        )
+        )}
+        </div>
       }
     >
       {demo && isBrowserDemoEnabled() ? (
@@ -99,10 +113,11 @@ function AdminEmpresasPage() {
         </div>
       ) : null}
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <AdminStatCard label="Total" value={stats.total} icon={<Building2 className="size-4 text-[#6B7280]" />} />
         <AdminStatCard label="Ativas" value={stats.active} />
         <AdminStatCard label="Em trial" value={stats.trial} />
+        <AdminStatCard label="Pendentes" value={stats.pending} />
         <AdminStatCard label="Suspensas" value={stats.suspended} />
       </div>
 

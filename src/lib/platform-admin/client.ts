@@ -9,9 +9,11 @@ import { isBrowserDemoEnabled, isProductionMode } from "@/lib/runtime";
 import { supabase } from "@/integrations/supabase/client";
 import { isPlatformAdminEmail } from "@/lib/platform-admin/emails";
 import {
+  approveTenantAdminServer,
   createTenantAdminServer,
   getTenantAdminServer,
   listTenantsAdminServer,
+  rejectTenantAdminServer,
   updateTenantAdminServer,
 } from "@/lib/api/platform-admin.functions";
 import { fetchPlatformCapacityServer } from "@/lib/api/platform-capacity.functions";
@@ -95,6 +97,23 @@ export async function saveAdminTenant(
     return updated;
   }
   return updateTenantAdminServer({ data: { id, ...patch } });
+}
+
+export async function approveAdminTenant(tenantId: string): Promise<AdminTenantRow> {
+  if (isBrowserDemoEnabled()) {
+    throw new Error("Aprovação disponível apenas com Supabase em produção.");
+  }
+  return approveTenantAdminServer({ data: tenantId });
+}
+
+export async function rejectAdminTenant(
+  tenantId: string,
+  reason?: string,
+): Promise<AdminTenantRow> {
+  if (isBrowserDemoEnabled()) {
+    throw new Error("Rejeição disponível apenas com Supabase em produção.");
+  }
+  return rejectTenantAdminServer({ data: { tenantId, reason } });
 }
 
 export async function fetchPlatformCapacity() {

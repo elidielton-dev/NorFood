@@ -481,6 +481,8 @@ export const registerRestaurantServer = createServerFn({ method: "POST" })
     const { isDisposableEmail } = await import("@/lib/signup/disposable-email-domains");
     const { assertSignupRateLimit, extractClientIp } = await import("@/lib/signup/rate-limit.server");
     const { normalizeCep, formatCep } = await import("@/lib/viacep");
+    const { validateBrazilMobilePhone } = await import("@/lib/signup/signup-phone");
+    const { notifyTenantSignupReceived } = await import("@/lib/signup/tenant-approval-notify.server");
 
     const doc = validateDocument(data.documentType, data.documentNumber);
     if (!doc.ok) throw new Error(doc.error);
@@ -492,6 +494,9 @@ export const registerRestaurantServer = createServerFn({ method: "POST" })
     if (!data.street.trim() || !data.neighborhood.trim() || !data.city.trim() || !data.state.trim()) {
       throw new Error("Preencha o endereço completo (rua, bairro, cidade e UF).");
     }
+
+    const phone = validateBrazilMobilePhone(data.ownerPhone ?? "");
+    if (!phone.ok) throw new Error(phone.error);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -561,7 +566,7 @@ export const registerRestaurantServer = createServerFn({ method: "POST" })
       primary_color: "#FF9100",
       secondary_color: "#111111",
       accent_color: "#FF5A00",
-      status: "trial",
+      status: "pending",
       timezone: "America/Sao_Paulo",
       currency: "BRL",
       document_type: data.documentType,
@@ -584,17 +589,16 @@ export const registerRestaurantServer = createServerFn({ method: "POST" })
       state: data.state.trim().toUpperCase().slice(0, 2),
       neighborhood: data.neighborhood.trim(),
       address_number: data.streetNumber.trim(),
-      phone: data.ownerPhone?.trim() || null,
+      phone: phone.formatted,
     });
     if (settingsError) throw settingsError;
 
     const ownerName =
       (authUser.user?.user_metadata?.nome as string | undefined) ?? data.legalName.trim();
-
     await supabaseAdmin.from("profiles").upsert({
       id: context.userId,
       nome: ownerName,
-      telefone: data.ownerPhone?.trim() || null,
+      telefone: phone.formatted,
       updated_at: new Date().toISOString(),
     });
 
@@ -602,7 +606,7 @@ export const registerRestaurantServer = createServerFn({ method: "POST" })
       user_metadata: {
         ...authUser.user?.user_metadata,
         nome: ownerName,
-        telefone: data.ownerPhone?.trim() ?? "",
+        telefone: phone.formatted,
         cep: formattedCep,
         address: data.street.trim(),
         addressNumber: data.streetNumber.trim(),
@@ -630,7 +634,14 @@ export const registerRestaurantServer = createServerFn({ method: "POST" })
       plan: data.plan ?? null,
     });
 
-    return { tenantId, slug, name };
+    void notifyTenantSignupReceived({
+      email,
+      ownerName,
+      restaurantName: name,
+      phone: phone.formatted,
+    }).catch((err) => console.error("[signup] notify received failed:", err));
+
+    return { tenantId, slug, name, status: "pending" as const };
   });
 
 export const suggestRestaurantSlugServer = createServerFn({ method: "GET" })

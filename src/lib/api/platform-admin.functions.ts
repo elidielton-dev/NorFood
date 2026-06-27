@@ -22,6 +22,11 @@ export type AdminTenantRow = {
   currency: string;
   owner_email: string | null;
   owner_name: string | null;
+  owner_phone: string | null;
+  document_type: string | null;
+  document_number: string | null;
+  city: string | null;
+  state: string | null;
   created_at: string | null;
 };
 
@@ -67,7 +72,9 @@ async function loadOwnerInfo(tenantId: string) {
     .limit(1)
     .maybeSingle();
 
-  if (!data?.user_id) return { owner_email: null, owner_name: null };
+  if (!data?.user_id) {
+    return { owner_email: null, owner_name: null, owner_phone: null };
+  }
 
   const { data: userData } = await supabaseAdmin.auth.admin.getUserById(data.user_id);
   const email = userData.user?.email ?? null;
@@ -75,12 +82,23 @@ async function loadOwnerInfo(tenantId: string) {
     (userData.user?.user_metadata?.name as string | undefined) ??
     userData.user?.user_metadata?.full_name ??
     null;
-  return { owner_email: email, owner_name: name };
+
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("telefone")
+    .eq("id", data.user_id)
+    .maybeSingle();
+
+  return {
+    owner_email: email,
+    owner_name: name,
+    owner_phone: profile?.telefone ?? (userData.user?.user_metadata?.telefone as string | undefined) ?? null,
+  };
 }
 
 function mapTenantRow(
   row: Record<string, unknown>,
-  owner?: { owner_email: string | null; owner_name: string | null },
+  owner?: { owner_email: string | null; owner_name: string | null; owner_phone?: string | null },
 ): AdminTenantRow {
   return {
     id: String(row.id),
@@ -97,6 +115,11 @@ function mapTenantRow(
     currency: String(row.currency ?? "BRL"),
     owner_email: owner?.owner_email ?? null,
     owner_name: owner?.owner_name ?? null,
+    owner_phone: owner?.owner_phone ?? null,
+    document_type: (row.document_type as string | null) ?? null,
+    document_number: (row.document_number as string | null) ?? null,
+    city: (row.city as string | null) ?? null,
+    state: (row.state as string | null) ?? null,
     created_at: (row.created_at as string | null) ?? null,
   };
 }
@@ -109,6 +132,11 @@ export const listTenantsAdminServer = createServerFn({ method: "GET" })
         ...t,
         owner_email: t.slug === "norfood" ? "admin@norfood.local" : null,
         owner_name: t.slug === "norfood" ? "Admin Demo" : null,
+        owner_phone: null,
+        document_type: null,
+        document_number: null,
+        city: null,
+        state: null,
         created_at: null,
       }));
     }
@@ -142,6 +170,11 @@ export const getTenantAdminServer = createServerFn({ method: "GET" })
         ...tenant,
         owner_email: tenant.slug === "norfood" ? "admin@norfood.local" : null,
         owner_name: tenant.slug === "norfood" ? "Admin Demo" : null,
+        owner_phone: null,
+        document_type: null,
+        document_number: null,
+        city: null,
+        state: null,
         created_at: null,
       };
     }
@@ -312,6 +345,110 @@ export const updateTenantAdminServer = createServerFn({ method: "POST" })
 
     const updated = await getTenantAdminServer({ data: data.id });
     if (!updated) throw new Error("Empresa não encontrada.");
+    return updated;
+  });
+
+export const approveTenantAdminServer = createServerFn({ method: "POST" })
+  .middleware([requirePlatformAdmin])
+  .validator((tenantId: string) => tenantId)
+  .handler(async ({ data: tenantId, context }): Promise<AdminTenantRow> => {
+    if (isDemoBackend()) {
+      throw new Error("Aprovação disponível apenas com Supabase configurado.");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { notifyTenantApproved } = await import("@/lib/signup/tenant-approval-notify.server");
+
+    const { data: tenant, error } = await supabaseAdmin
+      .from("tenants")
+      .select("id, name, slug, status")
+      .eq("id", tenantId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!tenant) throw new Error("Empresa não encontrada.");
+    if (tenant.status !== "pending") {
+      throw new Error("Esta empresa não está aguardando aprovação.");
+    }
+
+    const now = new Date().toISOString();
+    const { error: updateError } = await supabaseAdmin
+      .from("tenants")
+      .update({
+        status: "trial",
+        approved_at: now,
+        approved_by: context.userId,
+        rejected_at: null,
+        rejection_reason: null,
+        updated_at: now,
+      })
+      .eq("id", tenantId);
+    if (updateError) throw updateError;
+
+    const owner = await loadOwnerInfo(tenantId);
+    if (owner.owner_email) {
+      void notifyTenantApproved({
+        email: owner.owner_email,
+        ownerName: owner.owner_name ?? owner.owner_email.split("@")[0],
+        restaurantName: tenant.name,
+        slug: tenant.slug,
+        phone: owner.owner_phone,
+      }).catch((err) => console.error("[admin] notify approved failed:", err));
+    }
+
+    const updated = await getTenantAdminServer({ data: tenantId });
+    if (!updated) throw new Error("Empresa não encontrada após aprovação.");
+    return updated;
+  });
+
+export const rejectTenantAdminServer = createServerFn({ method: "POST" })
+  .middleware([requirePlatformAdmin])
+  .validator((payload: { tenantId: string; reason?: string }) => payload)
+  .handler(async ({ data, context }): Promise<AdminTenantRow> => {
+    if (isDemoBackend()) {
+      throw new Error("Rejeição disponível apenas com Supabase configurado.");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { notifyTenantRejected } = await import("@/lib/signup/tenant-approval-notify.server");
+
+    const { data: tenant, error } = await supabaseAdmin
+      .from("tenants")
+      .select("id, name, status")
+      .eq("id", data.tenantId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!tenant) throw new Error("Empresa não encontrada.");
+    if (tenant.status !== "pending") {
+      throw new Error("Esta empresa não está aguardando aprovação.");
+    }
+
+    const now = new Date().toISOString();
+    const { error: updateError } = await supabaseAdmin
+      .from("tenants")
+      .update({
+        status: "suspended",
+        rejected_at: now,
+        rejection_reason: data.reason?.trim() || null,
+        approved_at: null,
+        approved_by: context.userId,
+        updated_at: now,
+      })
+      .eq("id", data.tenantId);
+    if (updateError) throw updateError;
+
+    const owner = await loadOwnerInfo(data.tenantId);
+    if (owner.owner_email) {
+      void notifyTenantRejected({
+        email: owner.owner_email,
+        ownerName: owner.owner_name ?? owner.owner_email.split("@")[0],
+        restaurantName: tenant.name,
+        reason: data.reason,
+        phone: owner.owner_phone,
+      }).catch((err) => console.error("[admin] notify rejected failed:", err));
+    }
+
+    const updated = await getTenantAdminServer({ data: data.tenantId });
+    if (!updated) throw new Error("Empresa não encontrada após rejeição.");
     return updated;
   });
 

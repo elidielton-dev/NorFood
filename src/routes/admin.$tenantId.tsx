@@ -150,6 +150,7 @@ function AdminEditarEmpresaPage() {
               >
                 <option value="active">Ativa</option>
                 <option value="trial">Trial</option>
+                <option value="pending">Pendente</option>
                 <option value="suspended">Suspensa</option>
               </select>
             </label>

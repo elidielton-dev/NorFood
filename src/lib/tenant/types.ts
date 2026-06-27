@@ -1,4 +1,4 @@
-export type TenantStatus = "active" | "suspended" | "trial";
+export type TenantStatus = "active" | "suspended" | "trial" | "pending";
 
 export type TenantRole =
   | "owner"
