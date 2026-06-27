@@ -150,6 +150,30 @@ export function getActiveRiderTenantId() {
   return activeTenantId;
 }
 
+async function fetchRiderSatelliteRows(
+  supabase: ReturnType<typeof requireSupabase>,
+  table: typeof MOTOBOY_OCORRENCIAS_TABLE,
+  riderId: string,
+  tenantId: string,
+) {
+  const scoped = await supabase
+    .from(table)
+    .select("*")
+    .eq("rider_id", riderId)
+    .eq("tenant_id", tenantId)
+    .order("created_at", { ascending: false })
+    .limit(table === MOTOBOY_NOTIFICACOES_TABLE ? 50 : 30);
+
+  if (!scoped.error) return scoped;
+
+  return supabase
+    .from(table)
+    .select("*")
+    .eq("rider_id", riderId)
+    .order("created_at", { ascending: false })
+    .limit(table === MOTOBOY_NOTIFICACOES_TABLE ? 50 : 30);
+}
+
 function requireSupabase() {
   if (!mobileSupabase) {
     throw new Error("Supabase nao configurado no app do entregador.");
@@ -268,30 +292,9 @@ export async function fetchRiderAppState(tenantId?: string | null): Promise<Ride
       .eq("user_id", user.id)
       .maybeSingle<RiderProfileRow>(),
     fetchDeliveries(user.id, scopedTenantId),
-    supabase
-      .from(MOTOBOY_OCORRENCIAS_TABLE)
-      .select("*")
-      .eq("rider_id", user.id)
-      .eq("tenant_id", scopedTenantId)
-      .order("created_at", { ascending: false })
-      .limit(30)
-      .returns<IncidentRow[]>(),
-    supabase
-      .from(MOTOBOY_MENSAGENS_TABLE)
-      .select("*")
-      .eq("rider_id", user.id)
-      .eq("tenant_id", scopedTenantId)
-      .order("created_at", { ascending: false })
-      .limit(30)
-      .returns<MessageRow[]>(),
-    supabase
-      .from(MOTOBOY_NOTIFICACOES_TABLE)
-      .select("*")
-      .eq("rider_id", user.id)
-      .eq("tenant_id", scopedTenantId)
-      .order("created_at", { ascending: false })
-      .limit(50)
-      .returns<NotificationRow[]>(),
+    fetchRiderSatelliteRows(supabase, MOTOBOY_OCORRENCIAS_TABLE, user.id, scopedTenantId),
+    fetchRiderSatelliteRows(supabase, MOTOBOY_MENSAGENS_TABLE, user.id, scopedTenantId),
+    fetchRiderSatelliteRows(supabase, MOTOBOY_NOTIFICACOES_TABLE, user.id, scopedTenantId),
   ]);
 
   if (deliveriesResult.error) throw deliveriesResult.error;

@@ -11,6 +11,7 @@ import { useAppData } from "../context/AppDataContext";
 import { requestPasswordReset } from "../data/tenantApi";
 import { getMobileSupabaseConfigError, mobileSupabaseEnabled } from "../lib/supabase";
 import { useTenantTheme } from "../hooks/useTenantTheme";
+import type { AppPalette } from "../styles/theme";
 
 const logo = require("../../assets/brand/logo-norfood.png");
 
@@ -214,7 +215,7 @@ type FieldProps = {
   icon: keyof typeof Feather.glyphMap;
   secureTextEntry?: boolean;
   rightAction?: ReactNode;
-  theme: ReturnType<typeof useAppTheme>;
+  theme: AppPalette;
 };
 
 function Field({

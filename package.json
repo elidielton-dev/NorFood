@@ -36,6 +36,7 @@
     "validate:real-neighborhoods": "node ./scripts/validate-real-neighborhood-orders.mjs",
     "validate:real-complete-delivery": "node ./scripts/validate-real-complete-delivery-flow.mjs",
     "validate:real-rider-app": "node ./scripts/validate-real-rider-app.mjs",
+    "validate:mobile-rider-e2e": "node ./scripts/validate-mobile-rider-e2e.mjs",
     "validate:produtos-module": "node ./scripts/validate-produtos-module.mjs",
     "migrate:produtos-extras": "node ./scripts/apply-produtos-campos-extras.mjs",
     "validate:real-balcao": "node ./scripts/validate-real-balcao-flow.mjs",

@@ -325,7 +325,7 @@ export function ProfileScreen() {
 }
 
 function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) {
-  const theme = useAppTheme();
+  const theme = useTenantTheme();
   return (
     <View className="mb-4">
       <Text style={{ color: theme.text, fontFamily: "Manrope_800ExtraBold", fontSize: 18 }}>{title}</Text>
@@ -347,7 +347,7 @@ function Input({
   onChangeText: (value: string) => void;
   onBlur?: () => void;
 }) {
-  const theme = useAppTheme();
+  const theme = useTenantTheme();
   return (
     <View className="mb-3">
       <Text className="mb-2" style={{ color: theme.textMuted, fontFamily: "Manrope_600SemiBold", fontSize: 12 }}>
@@ -375,7 +375,7 @@ function ToggleRow({
   onValueChange: (value: boolean) => void | Promise<void>;
   disabled?: boolean;
 }) {
-  const theme = useAppTheme();
+  const theme = useTenantTheme();
   return (
     <View className="mb-3 flex-row items-center justify-between rounded-[22px] px-4 py-4" style={{ backgroundColor: theme.backgroundSoft, borderWidth: 1, borderColor: theme.border, opacity: disabled ? 0.6 : 1 }}>
       <Text style={{ color: theme.text, fontFamily: "Manrope_600SemiBold", fontSize: 14 }}>{label}</Text>
@@ -385,7 +385,7 @@ function ToggleRow({
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
-  const theme = useAppTheme();
+  const theme = useTenantTheme();
   return (
     <View className="mb-3 rounded-[22px] px-4 py-4" style={{ backgroundColor: theme.backgroundSoft, borderWidth: 1, borderColor: theme.border }}>
       <Text style={{ color: theme.textSoft, fontFamily: "Manrope_600SemiBold", fontSize: 12 }}>{label}</Text>
@@ -397,7 +397,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
-  const theme = useAppTheme();
+  const theme = useTenantTheme();
   return (
     <View className="flex-1 rounded-[24px] p-4" style={{ backgroundColor: theme.backgroundElevated, borderWidth: 1, borderColor: theme.border }}>
       <Text style={{ color: theme.text, fontFamily: "Manrope_800ExtraBold", fontSize: 25 }}>{value}</Text>
