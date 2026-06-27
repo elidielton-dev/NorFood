@@ -3,7 +3,9 @@ import { useMutation } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { PlanPicker } from "@/components/billing/plan-picker";
 import { createAdminTenant } from "@/lib/platform-admin/client";
+import type { BillingModel, BillingPlanId } from "@/lib/platform/billing-plans";
 import { slugifyTenantName } from "@/lib/platform-admin/slug";
 import { suggestTenantSlugServer } from "@/lib/api/platform-admin.functions";
 import { isBrowserDemoEnabled } from "@/lib/runtime";
@@ -23,6 +25,8 @@ function AdminNovaEmpresaPage() {
   const [ownerName, setOwnerName] = useState("");
   const [ownerEmail, setOwnerEmail] = useState("");
   const [ownerPassword, setOwnerPassword] = useState("");
+  const [billingModel, setBillingModel] = useState<BillingModel>("monthly");
+  const [billingPlan, setBillingPlan] = useState<BillingPlanId>("pro");
 
   useEffect(() => {
     if (!name.trim()) return;
@@ -52,6 +56,8 @@ function AdminNovaEmpresaPage() {
         owner_name: ownerName.trim() || undefined,
         owner_email: ownerEmail.trim() || undefined,
         owner_password: ownerPassword.trim() || undefined,
+        billing_model: billingModel,
+        billing_plan: billingModel === "monthly" ? billingPlan : undefined,
       }),
     onSuccess: (tenant) => {
       toast.success(`Empresa "${tenant.name}" criada com sucesso!`);
@@ -128,6 +134,20 @@ function AdminNovaEmpresaPage() {
               </select>
             </Field>
           </div>
+        </section>
+
+        <section className="space-y-4 border-t border-[#E5E7EB] pt-6">
+          <h2 className="text-sm font-semibold text-[#111111]">Plano Norfood</h2>
+          <p className="text-xs text-[#6B7280]">
+            Define cobrança da plataforma (trial de 14 dias para novos cadastros).
+          </p>
+          <PlanPicker
+            billingModel={billingModel}
+            onBillingModelChange={setBillingModel}
+            selectedPlan={billingPlan}
+            onPlanChange={setBillingPlan}
+            compact
+          />
         </section>
 
         <section className="space-y-4 border-t border-[#E5E7EB] pt-6">

@@ -16,6 +16,7 @@ import {
 } from "@/lib/api/platform-admin.functions";
 import { fetchPlatformCapacityServer } from "@/lib/api/platform-capacity.functions";
 import type { TenantStatus } from "@/lib/tenant/types";
+import type { BillingModel, BillingPlanId } from "@/lib/platform/billing-plans";
 
 export function useAdminTenantsSource() {
   return isBrowserDemoEnabled();
@@ -67,6 +68,8 @@ export async function createAdminTenant(input: {
   owner_email?: string;
   owner_name?: string;
   owner_password?: string;
+  billing_model?: BillingModel;
+  billing_plan?: BillingPlanId;
 }): Promise<AdminTenantRow> {
   if (isBrowserDemoEnabled()) {
     return createDemoAdminTenant(input);

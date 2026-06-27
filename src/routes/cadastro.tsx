@@ -62,19 +62,29 @@ function CadastroPage() {
 
     setLoading(true);
     try {
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password: senha,
         options: { data: { nome } },
       });
-      if (signUpError) throw signUpError;
-
-      let headers = await getAuthHeaders();
-      if (!headers) {
+      if (signUpError) {
+        if (signUpError.message.toLowerCase().includes("already registered")) {
+          const { error: signInError } = await supabase.auth.signInWithPassword({ email, password: senha });
+          if (signInError) throw signInError;
+        } else {
+          throw signUpError;
+        }
+      } else if (signUpData.user && !signUpData.session) {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password: senha });
-        if (signInError) throw signInError;
-        headers = await getAuthHeaders();
+        if (signInError) {
+          throw new Error(
+            "Conta criada. Confirme o e-mail enviado pelo Supabase e tente entrar em /login.",
+          );
+        }
       }
+
+      await supabase.auth.getSession();
+      const headers = await getAuthHeaders();
       if (!headers) throw new Error("Não foi possível autenticar após cadastro.");
 
       const result = await registerRestaurantServer({
@@ -89,7 +99,7 @@ function CadastroPage() {
       });
 
       toast.success(`Restaurante "${result.name}" criado! Trial de 14 dias ativo.`);
-      window.location.href = tenantPath(result.slug, "dashboard");
+      window.location.href = tenantPath(result.slug, "estabelecimento/plano");
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Erro ao criar conta");
     } finally {

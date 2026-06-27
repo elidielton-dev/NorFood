@@ -161,6 +161,52 @@ export async function upsertTenantBillingRecord(
   if (error) throw error;
 }
 
+export async function markBillingInvoicePaid(
+  invoiceId: string,
+  options?: { paymentMethod?: string; paidAt?: string },
+) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const paidAt = options?.paidAt ?? new Date().toISOString();
+
+  const { data: invoice, error: loadError } = await supabaseAdmin
+    .from("tenant_billing_invoices")
+    .select("id, tenant_id, status")
+    .eq("id", invoiceId)
+    .single();
+  if (loadError || !invoice) throw new Error("Fatura não encontrada.");
+
+  const { error: invoiceError } = await supabaseAdmin
+    .from("tenant_billing_invoices")
+    .update({
+      status: "paid",
+      paid_at: paidAt,
+      payment_method: options?.paymentMethod ?? "manual",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", invoiceId);
+  if (invoiceError) throw invoiceError;
+
+  await supabaseAdmin
+    .from("tenant_billing")
+    .update({
+      payment_status: "active",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("tenant_id", invoice.tenant_id);
+
+  const { data: tenant } = await supabaseAdmin
+    .from("tenants")
+    .select("status")
+    .eq("id", invoice.tenant_id)
+    .maybeSingle();
+  if (tenant?.status === "suspended") {
+    await supabaseAdmin
+      .from("tenants")
+      .update({ status: "active", updated_at: new Date().toISOString() })
+      .eq("id", invoice.tenant_id);
+  }
+}
+
 export const registerRestaurantServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((payload: RegisterRestaurantPayload) => payload)
@@ -470,6 +516,11 @@ export const updateBillingInvoiceStatusServer = createServerFn({ method: "POST" 
   .validator((input: { invoiceId: string; status: string }) => input)
   .handler(async ({ data }) => {
     if (isDemoBackend()) throw new Error("Indisponível no modo demo.");
+    if (data.status === "paid") {
+      await markBillingInvoicePaid(data.invoiceId, { paymentMethod: "manual" });
+      return { ok: true };
+    }
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("tenant_billing_invoices")

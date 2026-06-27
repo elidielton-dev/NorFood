@@ -557,11 +557,15 @@ export function getWebhookPaymentId(body: unknown, request: Request) {
 
 export function getWebhookAuthorizationSummary() {
   const request = getRequest();
+  const accessToken = process.env.MP_ACCESS_TOKEN?.trim();
+  const webhookSecret = process.env.MP_WEBHOOK_SECRET?.trim();
+  const publicKey =
+    process.env.VITE_MP_PUBLIC_KEY?.trim() || process.env.MP_PUBLIC_KEY?.trim();
   return {
-    hasAccessToken: Boolean(process.env.MP_ACCESS_TOKEN),
-    hasWebhookSecret: Boolean(process.env.MP_WEBHOOK_SECRET),
-    hasPublicKey: Boolean(process.env.VITE_MP_PUBLIC_KEY),
-    webhookUrl: process.env.MP_WEBHOOK_URL ?? "",
+    hasAccessToken: Boolean(accessToken),
+    hasWebhookSecret: Boolean(webhookSecret),
+    hasPublicKey: Boolean(publicKey),
+    webhookUrl: buildMercadoPagoWebhookUrl(),
     requestHost: request?.headers.get("host") ?? "",
   };
 }

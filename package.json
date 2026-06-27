@@ -67,6 +67,9 @@
     "seed:tenants": "node ./scripts/seed-tenants.mjs",
     "billing:report": "node ./scripts/billing-monthly-report.mjs",
     "billing:generate": "node ./scripts/billing-monthly-report.mjs --generate",
+    "setup:mp-production": "node ./scripts/setup-mp-production.mjs",
+    "check:mp-env": "node ./scripts/check-mp-env.mjs",
+    "validate:signup": "node ./scripts/validate-signup-production.mjs",
     "format": "prettier --write ."
   },
   "dependencies": {
