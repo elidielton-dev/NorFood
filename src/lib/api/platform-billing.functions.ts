@@ -386,7 +386,13 @@ export const listAdminBillingServer = createServerFn({ method: "GET" })
 export const generateBillingInvoicesServer = createServerFn({ method: "POST" })
   .middleware([requirePlatformAdmin])
   .validator((input: { year: number; month: number; markPending?: boolean }) => input)
-  .handler(async ({ data }): Promise<{ created: number; updated: number }> => {
+  .handler(async ({ data }): Promise<{
+    created: number;
+    updated: number;
+    waived: number;
+    pending: number;
+    skippedNoBilling: number;
+  }> => {
     if (isDemoBackend()) throw new Error("Indisponível no modo demo.");
 
     const { periodStart, periodEnd } = getMonthPeriod(data.year, data.month);
@@ -395,9 +401,15 @@ export const generateBillingInvoicesServer = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let created = 0;
     let updated = 0;
+    let waived = 0;
+    let pending = 0;
+    let skippedNoBilling = 0;
 
     for (const row of rows) {
-      if (!row.billing) continue;
+      if (!row.billing) {
+        skippedNoBilling += 1;
+        continue;
+      }
 
       const calc = calculateBillingAmount({
         billingModel: row.billing.billing_model,
@@ -409,6 +421,10 @@ export const generateBillingInvoicesServer = createServerFn({ method: "POST" })
         grossSales: row.period_gross_sales,
         inTrial: row.in_trial,
       });
+
+      const status = row.in_trial ? "waived" : data.markPending ? "pending" : "draft";
+      if (status === "waived") waived += 1;
+      if (status === "pending") pending += 1;
 
       const payload = {
         tenant_id: row.tenant_id,
@@ -424,7 +440,7 @@ export const generateBillingInvoicesServer = createServerFn({ method: "POST" })
             : null,
         calculated_amount: calc.calculated,
         final_amount: calc.final,
-        status: row.in_trial ? "waived" : data.markPending ? "pending" : "draft",
+        status,
         updated_at: new Date().toISOString(),
       };
 
@@ -451,7 +467,7 @@ export const generateBillingInvoicesServer = createServerFn({ method: "POST" })
       }
     }
 
-    return { created, updated };
+    return { created, updated, waived, pending, skippedNoBilling };
   });
 
 export const listBillingInvoicesServer = createServerFn({ method: "GET" })

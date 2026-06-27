@@ -70,6 +70,9 @@
     "setup:mp-production": "node ./scripts/setup-mp-production.mjs",
     "check:mp-env": "node ./scripts/check-mp-env.mjs",
     "validate:signup": "node ./scripts/validate-signup-production.mjs",
+    "validate:billing": "node ./scripts/validate-billing-production.mjs",
+    "fix:billing": "node ./scripts/fix-billing-production.mjs",
+    "apply:billing-migrations": "node ./scripts/apply-billing-migrations.mjs",
     "format": "prettier --write ."
   },
   "dependencies": {

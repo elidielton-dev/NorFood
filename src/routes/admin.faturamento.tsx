@@ -62,7 +62,19 @@ function AdminFaturamentoPage() {
   const generateMutation = useMutation({
     mutationFn: () => generateBillingInvoices(year, month),
     onSuccess: (result) => {
-      toast.success(`Faturas: ${result.created} criada(s), ${result.updated} atualizada(s).`);
+      const parts = [];
+      if (result.created) parts.push(`${result.created} criada(s)`);
+      if (result.updated) parts.push(`${result.updated} atualizada(s)`);
+      if (result.pending) parts.push(`${result.pending} a cobrar`);
+      if (result.waived) parts.push(`${result.waived} isenta(s) trial`);
+      if (result.skippedNoBilling) parts.push(`${result.skippedNoBilling} sem plano`);
+      toast.success(parts.length ? `Faturas: ${parts.join(", ")}.` : "Nenhuma fatura alterada.");
+      if (result.waived > 0 && result.pending === 0) {
+        toast.info(
+          "Restaurantes em trial geram fatura isenta (R$ 0). Encerre o trial para cobrar via Mercado Pago.",
+          { duration: 8000 },
+        );
+      }
       queryClient.invalidateQueries({ queryKey: periodKey });
     },
     onError: (err: Error) => toast.error(err.message),
@@ -200,8 +212,19 @@ function AdminFaturamentoPage() {
                       </td>
                       <td className="px-4 py-3">
                         {invoice ? (
-                          <span className="rounded-full bg-[#F6F7F9] px-2 py-1 text-xs uppercase">
-                            {invoice.status}
+                          <span
+                            className={`rounded-full px-2 py-1 text-xs uppercase ${
+                              invoice.status === "waived"
+                                ? "bg-amber-500/15 text-amber-800"
+                                : "bg-[#F6F7F9]"
+                            }`}
+                            title={
+                              invoice.status === "waived"
+                                ? "Trial ativo — sem cobrança neste período"
+                                : undefined
+                            }
+                          >
+                            {invoice.status === "waived" ? "trial (isenta)" : invoice.status}
                           </span>
                         ) : (
                           "—"
