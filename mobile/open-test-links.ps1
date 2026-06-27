@@ -30,14 +30,13 @@ $html = @"
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Abelha &amp; Mel Entregador</title>
+    <title>NorFood Entregador</title>
     <style>
       :root {
-        --green: #3d5a40;
-        --green-soft: #556b57;
-        --gold: #d8a03d;
-        --amber: #f2c14e;
-        --cream: #faf5eb;
+        --orange: #ff7a00;
+        --orange-dark: #ff5a00;
+        --orange-soft: #ff9100;
+        --surface: #f6f7f9;
         --card: #ffffff;
         --line: #ece7dd;
         --text: #223126;
@@ -49,7 +48,7 @@ $html = @"
         font-family: Arial, sans-serif;
         background:
           radial-gradient(circle at top, rgba(242, 193, 78, 0.18), transparent 28%),
-          linear-gradient(180deg, #fffdf8 0%, var(--cream) 100%);
+          linear-gradient(180deg, #ffffff 0%, var(--surface) 100%);
         color: var(--text);
         min-height: 100vh;
         display: grid;
@@ -68,7 +67,7 @@ $html = @"
       h1 {
         margin: 0 0 8px;
         font-size: 34px;
-        color: var(--green);
+        color: var(--orange);
       }
       p {
         margin: 0;
@@ -105,10 +104,10 @@ $html = @"
       .link-card strong {
         display: block;
         margin-bottom: 6px;
-        color: var(--green);
+        color: var(--orange);
       }
       .link-card a {
-        color: var(--green);
+        color: var(--orange);
         font-weight: 700;
         word-break: break-all;
         text-decoration: none;
@@ -128,7 +127,7 @@ $html = @"
       .badge {
         display: inline-block;
         margin-top: 16px;
-        background: var(--green);
+        background: var(--orange);
         color: #fff;
         border-radius: 999px;
         padding: 10px 16px;
@@ -138,7 +137,7 @@ $html = @"
   </head>
   <body>
     <main class="card">
-      <h1>Abelha &amp; Mel Entregador</h1>
+      <h1>NorFood Entregador</h1>
       <p>Use esta tela para abrir o app no <strong>iPhone via Expo Go</strong> e no <strong>PC via navegador</strong>.</p>
       <div class="badge">Ambiente validado</div>
       <div class="qr-wrap">

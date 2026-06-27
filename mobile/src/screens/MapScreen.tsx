@@ -190,7 +190,7 @@ export function MapScreen() {
           >
             <Marker
               coordinate={STORE_COORDINATE}
-              title="Loja Abelha & Mel"
+              title="Loja NorFood"
               pinColor={theme.primary}
             />
             <Marker

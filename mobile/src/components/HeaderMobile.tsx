@@ -34,7 +34,7 @@ export function HeaderMobile({
   const subtitleColor = inverse ? "rgba(255,255,255,0.78)" : theme.textMuted;
   const buttonBg = inverse ? "rgba(255,255,255,0.08)" : theme.backgroundElevated;
   const buttonBorder = inverse ? "rgba(255,255,255,0.12)" : theme.border;
-  const iconColor = inverse ? "#F2C14E" : theme.accent;
+  const iconColor = inverse ? "#FFFFFF" : theme.primary;
 
   return (
     <View>
@@ -91,7 +91,7 @@ export function HeaderMobile({
           {rightBadge > 0 ? (
             <View
               className="absolute -right-1 -top-1 h-5 min-w-[20px] items-center justify-center rounded-full px-1"
-              style={{ backgroundColor: inverse ? "#FFFFFF" : theme.accentBright }}
+              style={{ backgroundColor: inverse ? "#FFFFFF" : theme.backgroundElevated }}
             >
               <Text
                 style={{

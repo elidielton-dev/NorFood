@@ -8,10 +8,6 @@ import { StatusBar } from "expo-status-bar";
 import { useColorScheme } from "react-native";
 import { useFonts } from "expo-font";
 import {
-  CormorantGaramond_600SemiBold,
-  CormorantGaramond_700Bold,
-} from "@expo-google-fonts/cormorant-garamond";
-import {
   Manrope_400Regular,
   Manrope_500Medium,
   Manrope_600SemiBold,
@@ -28,8 +24,6 @@ export default function App() {
   const scheme = useColorScheme();
   const isDark = scheme === "dark";
   const [fontsLoaded] = useFonts({
-    CormorantGaramond_600SemiBold,
-    CormorantGaramond_700Bold,
     Manrope_400Regular,
     Manrope_500Medium,
     Manrope_600SemiBold,

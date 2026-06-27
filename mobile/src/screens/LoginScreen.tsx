@@ -3,15 +3,15 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { ReactNode, useState } from "react";
 import { Alert, Pressable, Switch, Text, TextInput, View } from "react-native";
+import { BrandIllustration } from "../components/BrandIllustration";
 import { FadeInView } from "../components/FadeInView";
-import { HoneyJarIllustration } from "../components/HoneyJarIllustration";
 import { PhoneStatusBar } from "../components/PhoneStatusBar";
 import { ScreenContainer } from "../components/ScreenContainer";
 import { useAppData } from "../context/AppDataContext";
 import { getMobileSupabaseConfigError, mobileSupabaseEnabled } from "../lib/supabase";
 import { useAppTheme } from "../styles/theme";
 
-const logo = require("../../assets/brand/logo-abelha-mel.png");
+const logo = require("../../assets/brand/logo-norfood.png");
 
 export function LoginScreen() {
   const theme = useAppTheme();
@@ -34,7 +34,7 @@ export function LoginScreen() {
       await login(email, password, rememberLogin, onlineAfterLogin);
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Nao foi possivel entrar. Verifique e-mail e senha.";
+        error instanceof Error ? error.message : 'Nao foi possivel entrar. Verifique e-mail e senha.';
       Alert.alert("Erro ao entrar", message);
     } finally {
       setSubmitting(false);
@@ -48,12 +48,12 @@ export function LoginScreen() {
         {configError ? (
           <View
             className="mt-3 rounded-2xl px-4 py-3"
-            style={{ backgroundColor: "#fff4e5", borderWidth: 1, borderColor: "#f0c987" }}
+            style={{ backgroundColor: theme.backgroundSoft, borderWidth: 1, borderColor: theme.accentSoft }}
           >
-            <Text style={{ color: "#8a5a00", fontFamily: "Manrope_700Bold", fontSize: 13 }}>
+            <Text style={{ color: theme.primaryDeep, fontFamily: "Manrope_700Bold", fontSize: 13 }}>
               Supabase nao configurado no Expo Go
             </Text>
-            <Text style={{ color: "#8a5a00", fontFamily: "Manrope_500Medium", fontSize: 12, marginTop: 4 }}>
+            <Text style={{ color: theme.primaryDeep, fontFamily: "Manrope_500Medium", fontSize: 12, marginTop: 4 }}>
               {configError}
             </Text>
           </View>
@@ -61,20 +61,20 @@ export function LoginScreen() {
         {!mobileSupabaseEnabled() ? null : (
           <View
             className="mt-3 rounded-2xl px-4 py-3"
-            style={{ backgroundColor: theme.backgroundSoft, borderWidth: 1, borderColor: theme.border }}
+            style={{ backgroundColor: theme.backgroundElevated, borderWidth: 1, borderColor: theme.border }}
           >
             <Text style={{ color: theme.textMuted, fontFamily: "Manrope_600SemiBold", fontSize: 12 }}>
-              Expo Go: use o QR Code do comando `npm run mobile:tunnel` se o celular nao conectar na rede local.
+              Expo Go: use o QR Code do painel NorFood se o celular nao conectar na rede local.
             </Text>
           </View>
         )}
-        <View className="mt-1 items-center">
-          <Image source={logo} style={{ width: 156, height: 156 }} contentFit="contain" />
+        <View className="mt-2 items-center">
+          <Image source={logo} style={{ width: 168, height: 72 }} contentFit="contain" />
           <Text
-            className="mt-7 text-center"
-            style={{ color: theme.text, fontFamily: "CormorantGaramond_700Bold", fontSize: 44 }}
+            className="mt-8 text-center"
+            style={{ color: theme.text, fontFamily: "Manrope_800ExtraBold", fontSize: 32, lineHeight: 38 }}
           >
-            Bem-vindo(a)!
+            NorFood Entregador
           </Text>
           <Text
             className="mt-2 text-center"
@@ -89,7 +89,7 @@ export function LoginScreen() {
             label="E-mail"
             value={email}
             onChangeText={setEmail}
-            placeholder="motoboy@abelhaemel.com"
+            placeholder="entregador@norfood.local"
             icon="mail"
             theme={theme}
           />
@@ -132,11 +132,7 @@ export function LoginScreen() {
               </Text>
             </Pressable>
           </View>
-          <Pressable
-            onPress={() => void handleLogin()}
-            disabled={submitting}
-            className="mt-1"
-          >
+          <Pressable onPress={() => void handleLogin()} disabled={submitting} className="mt-1">
             <LinearGradient
               colors={[theme.primary, theme.primaryDeep]}
               start={{ x: 0, y: 0 }}
@@ -161,7 +157,7 @@ export function LoginScreen() {
           <View
             className="flex-row items-center justify-between rounded-full px-1 py-1"
             style={{
-              backgroundColor: theme.backgroundSoft,
+              backgroundColor: theme.backgroundElevated,
               borderWidth: 1,
               borderColor: theme.border,
             }}
@@ -183,12 +179,12 @@ export function LoginScreen() {
       </FadeInView>
 
       <View className="mb-3 mt-7 items-center">
-        <HoneyJarIllustration size={122} />
+        <BrandIllustration size={118} />
         <Text className="mt-5" style={{ color: theme.textSoft, fontFamily: "Manrope_600SemiBold", fontSize: 12 }}>
           Versao 1.0.0
         </Text>
-        <Text className="mt-2" style={{ color: theme.accent, fontFamily: "Manrope_700Bold", fontSize: 13 }}>
-          Feito com amor
+        <Text className="mt-2" style={{ color: theme.primary, fontFamily: "Manrope_700Bold", fontSize: 13 }}>
+          Sistema de delivery NorFood
         </Text>
       </View>
     </ScreenContainer>
@@ -234,7 +230,7 @@ function Field({
           elevation: 1,
         }}
       >
-        <Feather name={icon} size={18} color={theme.accent} />
+        <Feather name={icon} size={18} color={theme.primary} />
         <TextInput
           value={value}
           onChangeText={onChangeText}

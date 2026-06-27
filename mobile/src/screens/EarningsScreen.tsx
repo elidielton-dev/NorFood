@@ -34,7 +34,7 @@ export function EarningsScreen() {
       </View>
 
       <View className="mt-6 rounded-[30px] p-6" style={{ backgroundColor: theme.backgroundElevated, borderWidth: 1, borderColor: theme.border, shadowColor: theme.shadow, shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 2 }}>
-        <Text className="text-center" style={{ color: theme.text, fontFamily: "CormorantGaramond_700Bold", fontSize: 34 }}>
+        <Text className="text-center" style={{ color: theme.text, fontFamily: "Manrope_800ExtraBold", fontSize: 34 }}>
           {formatCurrency(total)}
         </Text>
         <Text className="mt-1 text-center" style={{ color: theme.textMuted, fontFamily: "Manrope_600SemiBold", fontSize: 14 }}>

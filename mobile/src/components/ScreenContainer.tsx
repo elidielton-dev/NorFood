@@ -1,7 +1,7 @@
 import { PropsWithChildren } from "react";
 import { ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { HoneyBackground } from "./HoneyBackground";
+import { AppBackground } from "./AppBackground";
 import { useAppTheme } from "../styles/theme";
 
 type Props = PropsWithChildren<{
@@ -15,7 +15,7 @@ export function ScreenContainer({ children, scroll = true, contentClassName = ""
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: theme.background }}>
-      <HoneyBackground />
+      <AppBackground />
       <Wrapper
         showsVerticalScrollIndicator={false}
         contentContainerStyle={scroll ? { paddingBottom: 36 } : { paddingBottom: 18 }}

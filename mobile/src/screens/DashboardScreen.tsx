@@ -249,7 +249,7 @@ export function DashboardScreen() {
         <Pressable
           onPress={() => navigation.navigate("Tabs")}
           className="mt-5 flex-row items-center justify-center gap-2 rounded-full py-4"
-          style={{ backgroundColor: theme.accentBright }}
+          style={{ backgroundColor: theme.backgroundElevated, borderWidth: 1, borderColor: theme.primary }}
         >
           <MaterialCommunityIcons name="bag-personal-outline" size={18} color={theme.primary} />
           <Text style={{ color: theme.primary, fontFamily: "Manrope_800ExtraBold", fontSize: 16 }}>

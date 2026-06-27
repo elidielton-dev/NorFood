@@ -1,21 +1,21 @@
 {
   "expo": {
-    "name": "Abelha & Mel Entregador",
-    "slug": "abelha-mel-entregador",
+    "name": "NorFood Entregador",
+    "slug": "norfood-entregador",
     "version": "1.0.0",
     "platforms": ["ios", "android", "web"],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "scheme": "abelha-mel-entregador",
+    "scheme": "norfood-entregador",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.abelhaemel.entregador"
+      "bundleIdentifier": "com.norfood.entregador"
     },
     "android": {
-      "package": "com.abelhaemel.entregador",
+      "package": "com.norfood.entregador",
       "adaptiveIcon": {
-        "backgroundColor": "#FAF5EB",
+        "backgroundColor": "#F6F7F9",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -30,9 +30,9 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "A Abelha & Mel usa sua localizacao para rastrear entregas em tempo real.",
-          "locationAlwaysPermission": "A Abelha & Mel usa sua localizacao em segundo plano para atualizar a rota do entregador.",
-          "locationWhenInUsePermission": "A Abelha & Mel usa sua localizacao para navegar ate o cliente."
+          "locationAlwaysAndWhenInUsePermission": "O NorFood usa sua localizacao para rastrear entregas em tempo real.",
+          "locationAlwaysPermission": "O NorFood usa sua localizacao em segundo plano para atualizar a rota do entregador.",
+          "locationWhenInUsePermission": "O NorFood usa sua localizacao para navegar ate o cliente."
         }
       ]
     ],

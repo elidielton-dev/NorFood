@@ -3,26 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Abelha &amp; Mel Entregador</title>
+    <title>NorFood Entregador</title>
     <style>
       :root {
-        --green: #3d5a40;
-        --green-soft: #556b57;
-        --gold: #d8a03d;
-        --amber: #f2c14e;
-        --cream: #faf5eb;
+        --orange: #ff7a00;
+        --orange-dark: #ff5a00;
+        --orange-soft: #ff9100;
+        --surface: #f6f7f9;
         --card: #ffffff;
-        --line: #ece7dd;
-        --text: #223126;
-        --muted: #6d7468;
+        --line: #e5e7eb;
+        --text: #1a1a1a;
+        --muted: #6b7280;
       }
       * { box-sizing: border-box; }
       body {
         margin: 0;
         font-family: Arial, sans-serif;
         background:
-          radial-gradient(circle at top, rgba(242, 193, 78, 0.18), transparent 28%),
-          linear-gradient(180deg, #fffdf8 0%, var(--cream) 100%);
+          radial-gradient(circle at top, rgba(255, 122, 0, 0.14), transparent 28%),
+          linear-gradient(180deg, #ffffff 0%, var(--surface) 100%);
         color: var(--text);
         min-height: 100vh;
         display: grid;
@@ -41,7 +40,7 @@
       h1 {
         margin: 0 0 8px;
         font-size: 34px;
-        color: var(--green);
+        color: var(--orange);
       }
       p {
         margin: 0;
@@ -54,7 +53,7 @@
         max-width: 100%;
         padding: 18px;
         border-radius: 28px;
-        background: linear-gradient(180deg, #fff, #fbf5e8);
+        background: linear-gradient(180deg, #fff, #fff4e8);
         border: 1px solid var(--line);
       }
       .qr-wrap img {
@@ -72,16 +71,16 @@
       .link-card {
         padding: 14px 16px;
         border-radius: 18px;
-        background: #f8f2e5;
+        background: #fff4e8;
         border: 1px solid var(--line);
       }
       .link-card strong {
         display: block;
         margin-bottom: 6px;
-        color: var(--green);
+        color: var(--orange);
       }
       .link-card a {
-        color: var(--green);
+        color: var(--orange);
         font-weight: 700;
         word-break: break-all;
         text-decoration: none;
@@ -89,7 +88,7 @@
       .steps {
         margin-top: 22px;
         text-align: left;
-        background: #fffaf0;
+        background: #fff8f0;
         border: 1px solid var(--line);
         border-radius: 24px;
         padding: 18px 18px 6px;
@@ -101,7 +100,7 @@
       .badge {
         display: inline-block;
         margin-top: 16px;
-        background: var(--green);
+        background: var(--orange);
         color: #fff;
         border-radius: 999px;
         padding: 10px 16px;
@@ -111,7 +110,7 @@
   </head>
   <body>
     <main class="card">
-      <h1>Abelha &amp; Mel Entregador</h1>
+      <h1>NorFood Entregador</h1>
       <p>Use esta tela para abrir o app no <strong>iPhone via Expo Go</strong> e no <strong>PC via navegador</strong>.</p>
       <div class="badge">Ambiente validado</div>
       <div class="qr-wrap">

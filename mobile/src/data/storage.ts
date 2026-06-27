@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppState } from "../types";
 import { initialAppState } from "./mockData";
 
-const STORAGE_KEY = "@abelha-mel:rider-app";
+const STORAGE_KEY = "@norfood:rider-app";
 
 export async function loadAppState(): Promise<AppState> {
   try {

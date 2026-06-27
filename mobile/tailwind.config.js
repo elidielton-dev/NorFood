@@ -6,21 +6,22 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        honey: {
-          deep: "#3D5A40",
-          leaf: "#556B57",
-          gold: "#D8A03D",
-          amber: "#F2C14E",
-          cream: "#FAF5EB",
-          soft: "#ECE7DD",
+        norfood: {
+          orange: "#FF7A00",
+          orangeDark: "#FF5A00",
+          orangeSoft: "#FF9100",
+          ink: "#1A1A1A",
+          muted: "#6B7280",
+          cream: "#FFF4E8",
+          surface: "#F6F7F9",
         },
       },
       fontFamily: {
-        display: ["CormorantGaramond_700Bold"],
+        display: ["Manrope_800ExtraBold"],
         body: ["Manrope_500Medium"],
       },
       boxShadow: {
-        card: "0 18px 50px rgba(109, 84, 39, 0.12)",
+        card: "0 18px 50px rgba(26, 26, 26, 0.1)",
       },
     },
   },

@@ -9,8 +9,8 @@ type Props = {
 export function StatusBadge({ label, tone = "green" }: Props) {
   const theme = useAppTheme();
   const styles = {
-    green: { bg: "#EAF7EA", color: theme.primary },
-    gold: { bg: "#FFF1CF", color: theme.accent },
+    green: { bg: "#ECFDF3", color: theme.success },
+    gold: { bg: theme.backgroundSoft, color: theme.primary },
     gray: { bg: theme.backgroundMuted, color: theme.textMuted },
   }[tone];
 

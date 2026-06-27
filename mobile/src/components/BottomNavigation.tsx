@@ -46,17 +46,17 @@ export function BottomNavigation({ state, descriptors, navigation }: BottomTabBa
             >
               <View
                 className="rounded-full px-3 py-1.5"
-                style={{ backgroundColor: isFocused ? "rgba(242,193,78,0.12)" : "transparent" }}
+                style={{ backgroundColor: isFocused ? "rgba(255,255,255,0.18)" : "transparent" }}
               >
                 <MaterialCommunityIcons
                   name={icons[label]}
                   size={22}
-                  color={isFocused ? theme.accentBright : "rgba(255,255,255,0.82)"}
+                  color={isFocused ? "#FFFFFF" : "rgba(255,255,255,0.78)"}
                 />
               </View>
               <Text
                 style={{
-                  color: isFocused ? theme.accentBright : "rgba(255,255,255,0.78)",
+                  color: isFocused ? "#FFFFFF" : "rgba(255,255,255,0.78)",
                   fontFamily: isFocused ? "Manrope_800ExtraBold" : "Manrope_600SemiBold",
                   fontSize: 12,
                 }}

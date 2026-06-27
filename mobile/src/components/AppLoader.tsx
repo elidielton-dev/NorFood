@@ -8,7 +8,7 @@ type Props = {
 export function AppLoader({ theme }: Props) {
   return (
     <View className="flex-1 items-center justify-center" style={{ backgroundColor: theme.background }}>
-      <ActivityIndicator size="large" color={theme.accent} />
+      <ActivityIndicator size="large" color={theme.primary} />
     </View>
   );
 }

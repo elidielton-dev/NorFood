@@ -1,4 +1,4 @@
-# Abelha & Mel Entregador
+# NorFood Entregador
 
 App mobile em `React Native + Expo + TypeScript + React Navigation + AsyncStorage + NativeWind`.
 
@@ -16,7 +16,7 @@ O app tenta ler o Supabase nesta ordem:
 
 1. Variáveis `EXPO_PUBLIC_SUPABASE_*`
 2. `extra.supabase` do Expo
-3. `.env` da raiz do projeto via [app.config.js](/c:/Users/elidi/Downloads/abelha-e-mel-ops-main/abelha-e-mel-ops-main/mobile/app.config.js)
+3. `.env` da raiz do projeto via [app.config.js](./app.config.js)
 
 Isso permite usar o mesmo projeto Supabase do painel web sem duplicar credenciais no app mobile durante o desenvolvimento local.
 

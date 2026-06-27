@@ -97,8 +97,8 @@ export function ProfileScreen() {
         <View className="mt-3">
           <StatusBadge label={rider.online ? "Online" : "Offline"} />
         </View>
-        <Text className="mt-4" style={{ color: theme.accent, fontFamily: "CormorantGaramond_700Bold", fontSize: 30 }}>
-          Entrega com amor!
+        <Text className="mt-4" style={{ color: theme.primary, fontFamily: "Manrope_800ExtraBold", fontSize: 28 }}>
+          Entrega com NorFood
         </Text>
       </View>
 

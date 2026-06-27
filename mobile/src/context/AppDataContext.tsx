@@ -74,7 +74,7 @@ const quickMessages: QuickMessageTemplate[] = [
   {
     id: "way",
     label: "Estou a caminho",
-    text: "Oi. Sou o entregador da Abelha & Mel e estou a caminho com o seu pedido.",
+    text: "Oi. Sou o entregador NorFood e estou a caminho com o seu pedido.",
   },
   {
     id: "arriving",
