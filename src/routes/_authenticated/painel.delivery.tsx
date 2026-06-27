@@ -7,6 +7,7 @@ import {
   MapPinned,
   MessageCircle,
   Navigation,
+  QrCode,
   RefreshCw,
   Route as RouteIcon,
   Shuffle,
@@ -17,6 +18,10 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { DeliveryFleetMap } from "@/components/delivery-fleet-map-lazy";
+import {
+  EntregadorWebAppQrDialog,
+  EntregadorWebAppQrPanel,
+} from "@/components/entregador-web-app-qr";
 import {
   GestaoButton,
   GestaoCard,
@@ -62,6 +67,7 @@ async function fetchDeliveryPanelData(): Promise<DeliveryPanelData> {
 function DeliveryManagementPage() {
   const qc = useQueryClient();
   const [selectedRiderId, setSelectedRiderId] = useState<string | null>(null);
+  const [qrRiderId, setQrRiderId] = useState<string | null>(null);
   const { data, isLoading, error } = useQuery({
     queryKey: ["delivery-panel-real"],
     queryFn: fetchDeliveryPanelData,
@@ -188,6 +194,7 @@ function DeliveryManagementPage() {
   );
 
   const selectedRider = riders.find((rider) => rider.id === selectedRiderId) ?? riders[0] ?? null;
+  const qrRider = riders.find((rider) => rider.id === qrRiderId) ?? null;
   const filteredDeliveries = selectedRider
     ? entregas.filter(
         (entrega) =>
@@ -349,6 +356,17 @@ function DeliveryManagementPage() {
         />
       </div>
 
+      <GestaoCard>
+        <GestaoSectionTitle
+          eyebrow="Mobile"
+          title="QR Code do app entregador"
+          description="Escaneie no celular para abrir o app web. O entregador faz login com e-mail e senha cadastrados."
+        />
+        <div className="mt-5">
+          <EntregadorWebAppQrPanel />
+        </div>
+      </GestaoCard>
+
       <DeliveryFleetMap
         riders={riders.map((rider) => {
           const location = locationsByRider.get(rider.id);
@@ -406,7 +424,16 @@ function DeliveryManagementPage() {
           {riders.map((rider) => (
             <div
               key={rider.id}
-              className={`rounded-3xl border p-4 shadow-soft transition ${
+              role="button"
+              tabIndex={0}
+              onClick={() => setSelectedRiderId(rider.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setSelectedRiderId(rider.id);
+                }
+              }}
+              className={`cursor-pointer rounded-3xl border p-4 shadow-soft transition ${
                 selectedRider?.id === rider.id
                   ? "border-[color:var(--gestao-green)] bg-[color:var(--gestao-cream)]/70"
                   : "border-[color:var(--honey-line)] bg-card"
@@ -448,7 +475,21 @@ function DeliveryManagementPage() {
                 <GestaoButton
                   variant="secondary"
                   size="sm"
-                  onClick={() => setSelectedRiderId(rider.id)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setQrRiderId(rider.id);
+                  }}
+                >
+                  <QrCode className="size-3.5" />
+                  QR app
+                </GestaoButton>
+                <GestaoButton
+                  variant="secondary"
+                  size="sm"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setSelectedRiderId(rider.id);
+                  }}
                 >
                   <RouteIcon className="size-3.5" />
                   Ver rota
@@ -456,7 +497,10 @@ function DeliveryManagementPage() {
                 <GestaoButton
                   variant="secondary"
                   size="sm"
-                  onClick={() => setSelectedRiderId(rider.id)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setSelectedRiderId(rider.id);
+                  }}
                 >
                   <UserRound className="size-3.5" />
                   Ver entregas
@@ -464,12 +508,22 @@ function DeliveryManagementPage() {
                 <GestaoButton
                   variant="secondary"
                   size="sm"
-                  onClick={() => void toggleRiderOnline(rider.id, !rider.online)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    void toggleRiderOnline(rider.id, !rider.online);
+                  }}
                 >
                   <Shuffle className="size-3.5" />
                   {rider.online ? "Ficar offline" : "Ficar online"}
                 </GestaoButton>
-                <GestaoButton variant="secondary" size="sm" onClick={() => contactRider(rider.id)}>
+                <GestaoButton
+                  variant="secondary"
+                  size="sm"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    contactRider(rider.id);
+                  }}
+                >
                   <MessageCircle className="size-3.5" />
                   Enviar mensagem
                 </GestaoButton>
@@ -588,6 +642,14 @@ function DeliveryManagementPage() {
           </p>
         ) : null}
       </GestaoCard>
+
+      <EntregadorWebAppQrDialog
+        open={qrRiderId !== null}
+        onOpenChange={(open) => {
+          if (!open) setQrRiderId(null);
+        }}
+        riderName={qrRider?.nome}
+      />
     </GestaoPage>
   );
 }

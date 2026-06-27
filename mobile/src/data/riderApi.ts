@@ -934,7 +934,12 @@ export async function advanceRiderDelivery(deliveryId: string, step: string) {
     _stage: step,
   });
   if (error) {
-    if (step === "delivered" && isDeliveredQueueConflict(error)) {
+    const missingRpc =
+      error.code === "PGRST202" ||
+      String(error.message ?? "").includes("Could not find the function");
+    if (missingRpc) {
+      await advanceRiderDeliveryFallback(supabase, deliveryId, step);
+    } else if (step === "delivered" && isDeliveredQueueConflict(error)) {
       await repairDeliveredQueueAndFinalizeDelivery(deliveryId);
     } else {
       throw error;
@@ -948,6 +953,56 @@ export async function advanceRiderDelivery(deliveryId: string, step: string) {
     "delivery_progress",
     deliveryId,
   );
+}
+
+async function advanceRiderDeliveryFallback(
+  supabase: ReturnType<typeof requireSupabase>,
+  deliveryId: string,
+  step: string,
+) {
+  const stageMap: Record<
+    string,
+    { entrega: string; rota: string; pedido: string | null }
+  > = {
+    assigned: { entrega: "aceito", rota: "pendente", pedido: null },
+    arrived_store: { entrega: "na_loja", rota: "na_loja", pedido: null },
+    picked_up: { entrega: "pedido_retirado", rota: "em_rota", pedido: "em_entrega" },
+    arrived_customer: { entrega: "chegou_cliente", rota: "chegando", pedido: "em_entrega" },
+    delivered: { entrega: "entregue", rota: "entregue", pedido: "entregue" },
+  };
+  const mapped = stageMap[step];
+  if (!mapped) throw new Error(`invalid_stage: ${step}`);
+
+  const { data: entrega, error: selectError } = await supabase
+    .from("entregas")
+    .select("id, pedido_id, saiu_em")
+    .eq("id", deliveryId)
+    .single();
+  if (selectError) throw selectError;
+
+  const entregaUpdate: Record<string, string> = {
+    status: mapped.entrega,
+    updated_at: new Date().toISOString(),
+    saiu_em: entrega.saiu_em ?? new Date().toISOString(),
+  };
+  if (step === "delivered") entregaUpdate.entregue_em = new Date().toISOString();
+
+  const { error: entregaError } = await supabase.from("entregas").update(entregaUpdate).eq("id", deliveryId);
+  if (entregaError) throw entregaError;
+
+  const { error: rotaError } = await supabase
+    .from("rotas_entrega")
+    .update({ status: mapped.rota })
+    .eq("pedido_id", entrega.pedido_id);
+  if (rotaError) throw rotaError;
+
+  if (mapped.pedido) {
+    const { error: pedidoError } = await supabase
+      .from("pedidos")
+      .update({ status: mapped.pedido, updated_at: new Date().toISOString() })
+      .eq("id", entrega.pedido_id);
+    if (pedidoError) throw pedidoError;
+  }
 }
 
 export async function sendRiderLocation(

@@ -1,11 +1,14 @@
 import { adminClient } from "./supabase-real-tracking-tools.mjs";
 
-const PRODUCTION_URL = process.env.PRODUCTION_URL ?? "https://abelhaemel.vercel.app";
+const PRODUCTION_URL = process.env.PRODUCTION_URL ?? "https://norfood.com.br";
 
 const ROUTES = [
   "/",
-  "/auth",
-  "/painel/produtos",
+  "/login",
+  "/cadastro",
+  "/admin",
+  "/loja/norfood",
+  "/t/norfood/dashboard",
 ];
 
 function assert(condition, message) {

@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -41,6 +42,27 @@ async function pickPort() {
   return undefined;
 }
 
+function resolveExpoLaunch(port, extraArgs) {
+  const baseArgs = ["start", "--port", String(port), ...extraArgs];
+  const cliJs = path.join(mobileRoot, "node_modules", "expo", "bin", "cli.js");
+  const winBin = path.join(mobileRoot, "node_modules", ".bin", "expo.cmd");
+  const unixBin = path.join(mobileRoot, "node_modules", ".bin", "expo");
+
+  if (existsSync(cliJs)) {
+    return { command: process.execPath, args: [cliJs, ...baseArgs], shell: false };
+  }
+  if (process.platform === "win32" && existsSync(winBin)) {
+    return { command: winBin, args: baseArgs, shell: true };
+  }
+  if (existsSync(unixBin)) {
+    return { command: unixBin, args: baseArgs, shell: false };
+  }
+
+  console.error("Expo nao encontrado em mobile/node_modules.");
+  console.error("Rode na raiz do projeto: npm run mobile:setup");
+  process.exit(1);
+}
+
 const extraArgs = process.argv.slice(2);
 const port = await pickPort();
 
@@ -57,9 +79,14 @@ if (port !== 8081) {
   console.log(`Porta 8081 ocupada. Iniciando Metro na porta ${port}.`);
 }
 
-const child = spawn("npx", ["expo", "start", "--port", String(port), ...extraArgs], {
+if (extraArgs.includes("--tunnel")) {
+  console.log("Modo tunnel: funciona mesmo com celular em outra rede (evita timeout).");
+}
+
+const launch = resolveExpoLaunch(port, extraArgs);
+const child = spawn(launch.command, launch.args, {
   stdio: "inherit",
-  shell: true,
+  shell: launch.shell,
   cwd: mobileRoot,
 });
 

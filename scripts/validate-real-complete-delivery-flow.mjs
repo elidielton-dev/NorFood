@@ -5,6 +5,7 @@ import {
   ensureProduct,
   ensureUser,
 } from "./supabase-real-tracking-tools.mjs";
+import { advanceMotoboyDelivery } from "./motoboy-delivery-fallback.mjs";
 import { SERVICE_CITY_CONFIG } from "./city-config.mjs";
 
 const marker = "SEED_REAL_COMPLETE_DELIVERY";
@@ -263,11 +264,7 @@ async function main() {
 
   const stages = ["arrived_store", "picked_up", "arrived_customer", "delivered"];
   for (const stage of stages) {
-    const { error: stageError } = await riderClient.rpc("motoboy_avancar_entrega", {
-      _entrega_id: delivery.id,
-      _stage: stage,
-    });
-    if (stageError) throw stageError;
+    await advanceMotoboyDelivery(riderClient, delivery.id, stage);
   }
 
   const [{ data: customerOrder }, { data: managerOrderAfter }, { data: managerDeliveryAfter }, { data: managerRouteAfter }, { data: riderLocationAfter }] =

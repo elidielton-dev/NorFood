@@ -1,16 +1,51 @@
 import { createClient } from "@supabase/supabase-js";
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { SERVICE_CITY_CONFIG } from "./city-config.mjs";
 
-const env = parseEnv(resolve(process.cwd(), ".env"));
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+function parseEnv(filePath) {
+  try {
+    return readFileSync(filePath, "utf8")
+      .split(/\r?\n/)
+      .reduce((acc, line) => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) return acc;
+        const separatorIndex = trimmed.indexOf("=");
+        if (separatorIndex === -1) return acc;
+        const key = trimmed.slice(0, separatorIndex).trim();
+        let value = trimmed.slice(separatorIndex + 1).trim();
+        if (
+          (value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))
+        ) {
+          value = value.slice(1, -1);
+        }
+        acc[key] = value;
+        return acc;
+      }, {});
+  } catch {
+    return {};
+  }
+}
+
+const env = {
+  ...parseEnv(resolve(root, ".env")),
+  ...parseEnv(resolve(root, "deploy/.env")),
+};
 
 const requiredEnv = ["SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "SUPABASE_SERVICE_ROLE_KEY"];
 for (const key of requiredEnv) {
   if (!env[key]) {
-    throw new Error(`Missing ${key} in .env`);
+    throw new Error(`Missing ${key} in .env or deploy/.env`);
   }
 }
+
+/** Tenant principal NorFood (produção). */
+export const DEFAULT_TENANT_ID =
+  process.env.NORFOOD_TENANT_ID ?? "a0000000-0000-4000-8000-000000000001";
 
 export const seedMarker = "SEED_TRACKING_REALTIME";
 
@@ -66,27 +101,6 @@ const customerLocations = SERVICE_CITY_CONFIG.neighborhoods.map((item) => ({
   reference: item.reference,
   deliveryFee: item.deliveryFee,
 }));
-
-function parseEnv(filePath) {
-  return readFileSync(filePath, "utf8")
-    .split(/\r?\n/)
-    .reduce((acc, line) => {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) return acc;
-      const separatorIndex = trimmed.indexOf("=");
-      if (separatorIndex === -1) return acc;
-      const key = trimmed.slice(0, separatorIndex).trim();
-      let value = trimmed.slice(separatorIndex + 1).trim();
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
-        value = value.slice(1, -1);
-      }
-      acc[key] = value;
-      return acc;
-    }, {});
-}
 
 export async function findUserByEmail(email) {
   let page = 1;
@@ -164,11 +178,12 @@ export async function ensureUser({ email, password, name, phone, role = "cliente
   };
 }
 
-export async function ensureCategory(nome) {
+export async function ensureCategory(nome, tenantId = DEFAULT_TENANT_ID) {
   const { data: existing, error: selectError } = await adminClient
     .from("categorias")
     .select("id")
     .eq("nome", nome)
+    .eq("tenant_id", tenantId)
     .limit(1)
     .maybeSingle();
   if (selectError) throw selectError;
@@ -176,18 +191,19 @@ export async function ensureCategory(nome) {
 
   const { data, error } = await adminClient
     .from("categorias")
-    .insert({ nome, emoji: "🚚", ordem: 999, ativo: true })
+    .insert({ nome, emoji: "🚚", ordem: 999, ativo: true, tenant_id: tenantId })
     .select("id")
     .single();
   if (error) throw error;
   return data.id;
 }
 
-export async function ensureProduct({ categoriaId, nome, preco, destaque = false }) {
+export async function ensureProduct({ categoriaId, nome, preco, destaque = false, tenantId = DEFAULT_TENANT_ID }) {
   const { data: existing, error: selectError } = await adminClient
     .from("produtos")
     .select("id")
     .eq("nome", nome)
+    .eq("tenant_id", tenantId)
     .limit(1)
     .maybeSingle();
   if (selectError) throw selectError;
@@ -196,6 +212,7 @@ export async function ensureProduct({ categoriaId, nome, preco, destaque = false
   const { data, error } = await adminClient
     .from("produtos")
     .insert({
+      tenant_id: tenantId,
       categoria_id: categoriaId,
       nome,
       preco,
@@ -315,6 +332,7 @@ export async function seedRealtimeTrackingScenario() {
     const subtotal = 84.9 + 16.5 * (index + 1);
     const taxaEntrega = customerLocations[index].deliveryFee ?? SERVICE_CITY_CONFIG.defaultDeliveryFee;
     return {
+      tenant_id: DEFAULT_TENANT_ID,
       canal: "delivery",
       cliente_id: customer.id,
       status: index === 0 ? "em_entrega" : "pronto",
@@ -359,6 +377,7 @@ export async function seedRealtimeTrackingScenario() {
   if (itemInsertError) throw itemInsertError;
 
   const deliveryPayloads = orders.map((order, index) => ({
+    tenant_id: DEFAULT_TENANT_ID,
     pedido_id: order.id,
     motoboy_id: rider.id,
     status: index === 0 ? "pedido_retirado" : "aceito",

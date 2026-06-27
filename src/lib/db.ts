@@ -616,6 +616,17 @@ export async function atualizarEtapaEntrega(id: string, stage: EntregaLifecycleS
   const { error } = await supabase.from("entregas").update(updatePayload).eq("id", id);
   if (error) throw error;
 
+  const rotaStatusMap: Partial<Record<EntregaLifecycleStage, string>> = {
+    arrived_store: "na_loja",
+    picked_up: "em_rota",
+    arrived_customer: "chegando",
+    delivered: "entregue",
+  };
+  const rotaStatus = rotaStatusMap[stage];
+  if (rotaStatus) {
+    await supabase.from("rotas_entrega").update({ status: rotaStatus }).eq("pedido_id", entrega.pedido_id);
+  }
+
   if (mapped.pedidoStatus) {
     await mudarStatusPedido(entrega.pedido_id, mapped.pedidoStatus);
   }

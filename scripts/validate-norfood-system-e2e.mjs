@@ -15,7 +15,9 @@ const TENANT_SLUG = "norfood";
 const MARKER = "NORFOOD_E2E_VALIDATION";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "eltnxz@gmail.com";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "NorfoodAdmin2026!";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "@Elton20!";
+const MANAGER_EMAIL = process.env.MANAGER_EMAIL ?? "gestor@norfood.local";
+const MANAGER_PASSWORD = process.env.MANAGER_PASSWORD ?? "GestorNorfood2026!";
 const CLIENT_EMAIL = process.env.CLIENT_TEST_EMAIL ?? "cliente-teste@norfood.local";
 const CLIENT_PASSWORD = process.env.CLIENT_TEST_PASSWORD ?? "ClienteTest123!";
 const RIDER_EMAIL = process.env.RIDER_TEST_EMAIL ?? "entregador-teste@norfood.local";
@@ -108,16 +110,19 @@ async function ensureUser(admin, { email, password, name, phone, role, tenantRol
   });
 
   if (role) {
-    await admin.from("user_roles").upsert({ user_id: user.id, role });
+    await admin.from("user_roles").upsert({ user_id: user.id, role }, { onConflict: "user_id,role" });
   }
 
   if (tenantRole) {
-    await admin.from("tenant_users").upsert({
-      tenant_id: TENANT_ID,
-      user_id: user.id,
-      role: tenantRole,
-      status: "active",
-    });
+    await admin.from("tenant_users").upsert(
+      {
+        tenant_id: TENANT_ID,
+        user_id: user.id,
+        role: tenantRole,
+        status: "active",
+      },
+      { onConflict: "tenant_id,user_id,role" },
+    );
   }
 
   return user;
@@ -284,8 +289,13 @@ async function checkDatabaseInventory(admin) {
 async function checkUsers(admin) {
   console.log("\n== 4. Usuários e papéis ==");
 
+  const platformAdmins = (env.PLATFORM_ADMIN_EMAILS ?? env.VITE_PLATFORM_ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+
   const adminUser = await findUserByEmail(admin, ADMIN_EMAIL);
-  assert(Boolean(adminUser?.email_confirmed_at), "AUTH", "admin confirmado", ADMIN_EMAIL);
+  assert(Boolean(adminUser?.email_confirmed_at), "AUTH", "admin plataforma confirmado", ADMIN_EMAIL);
 
   const { data: adminMembership } = await admin
     .from("tenant_users")
@@ -293,7 +303,22 @@ async function checkUsers(admin) {
     .eq("user_id", adminUser?.id)
     .eq("tenant_id", TENANT_ID)
     .maybeSingle();
-  assert(adminMembership?.role === "owner", "AUTH", "admin owner norfood", adminMembership?.role);
+
+  if (platformAdmins.includes(ADMIN_EMAIL.toLowerCase()) && !adminMembership) {
+    ok("AUTH", "admin plataforma sem vínculo tenant", "correto para /admin");
+  } else {
+    assert(adminMembership?.role === "owner", "AUTH", "admin owner norfood", adminMembership?.role);
+  }
+
+  const manager = await ensureUser(admin, {
+    email: MANAGER_EMAIL,
+    password: MANAGER_PASSWORD,
+    name: "Gestor Norfood",
+    phone: "(11) 99999-0002",
+    role: "gerente",
+    tenantRole: "owner",
+  });
+  ok("AUTH", "gestor tenant norfood", MANAGER_EMAIL);
 
   const client = await findUserByEmail(admin, CLIENT_EMAIL);
   assert(Boolean(client), "AUTH", "cliente teste existe", CLIENT_EMAIL);
@@ -340,7 +365,7 @@ async function checkUsers(admin) {
     { onConflict: "entregador_id" },
   );
 
-  return { adminUser, client, rider };
+  return { adminUser, manager, client, rider };
 }
 
 async function runDeliveryE2E(admin, anon, users) {
@@ -478,8 +503,8 @@ async function runDeliveryE2E(admin, anon, users) {
   assert(!delErr, "E2E", "entrega criada", delErr?.message);
 
   const { error: signInErr, data: managerSession } = await anon.auth.signInWithPassword({
-    email: ADMIN_EMAIL,
-    password: ADMIN_PASSWORD,
+    email: MANAGER_EMAIL,
+    password: MANAGER_PASSWORD,
   });
   assert(!signInErr && managerSession.session, "E2E", "gestor login Supabase", signInErr?.message);
 
@@ -498,11 +523,18 @@ async function runDeliveryE2E(admin, anon, users) {
     .eq("id", order.id);
   assert(!assignOrderErr, "E2E", "gestor marca pedido pronto + entregador", assignOrderErr?.message);
 
-  const { error: assignDelErr } = await managerClient
+  const { error: assignDelErr, data: assignedRows } = await managerClient
     .from("entregas")
     .update({ motoboy_id: users.rider.id, status: "aceito" })
-    .eq("id", delivery.id);
+    .eq("id", delivery.id)
+    .select("id, motoboy_id, status");
   assert(!assignDelErr, "E2E", "gestor atribui entrega ao motoboy", assignDelErr?.message);
+  assert(
+    assignedRows?.[0]?.motoboy_id === users.rider.id,
+    "E2E",
+    "motoboy_id persistido na entrega",
+    assignedRows?.[0]?.motoboy_id ?? "null",
+  );
 
   await anon.auth.signOut();
 
@@ -639,9 +671,10 @@ async function main() {
   }
 
   console.log("\nCredenciais teste:");
-  console.log(`  Admin:      ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
-  console.log(`  Cliente:    ${CLIENT_EMAIL} / ${CLIENT_PASSWORD}`);
-  console.log(`  Entregador: ${RIDER_EMAIL} / ${RIDER_PASSWORD}`);
+  console.log(`  Admin plataforma: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
+  console.log(`  Gestor painel:    ${MANAGER_EMAIL} / ${MANAGER_PASSWORD}`);
+  console.log(`  Cliente:          ${CLIENT_EMAIL} / ${CLIENT_PASSWORD}`);
+  console.log(`  Entregador:       ${RIDER_EMAIL} / ${RIDER_PASSWORD}`);
   console.log(`  App mobile: configure EXPO_PUBLIC_SUPABASE_URL + EXPO_PUBLIC_SUPABASE_ANON_KEY e login entregador`);
 }
 
