@@ -23,6 +23,9 @@ services:
       EXPO_GO_URL: ${EXPO_GO_URL:-exp://15.228.214.190:8081}
       EXPO_METRO_HOST: ${EXPO_METRO_HOST:-15.228.214.190}
       EXPO_METRO_PORT: ${EXPO_METRO_PORT:-8081}
+      EXPO_URL_FILE: /data/expo-go-url.txt
+    volumes:
+      - expo-go-data:/data:ro
     expose:
       - "3000"
     networks:
@@ -50,7 +53,10 @@ services:
     environment:
       EXPO_PUBLIC_SUPABASE_URL: ${VITE_SUPABASE_URL}
       EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
-      CI: "1"
+      EXPO_METRO_HOST: ${EXPO_METRO_HOST:-15.228.214.190}
+      EXPO_URL_FILE: /data/expo-go-url.txt
+    volumes:
+      - expo-go-data:/data
     ports:
       - "8081:8081"
     networks:
@@ -90,3 +96,4 @@ networks:
 volumes:
   caddy_data:
   caddy_config:
+  expo-go-data:

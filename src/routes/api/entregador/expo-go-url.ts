@@ -1,12 +1,27 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { readFileSync, existsSync } from "node:fs";
 import { resolveExpoGoUrl } from "@/lib/entregador-expo-go-url";
+
+function readTunnelUrlFile() {
+  const path = process.env.EXPO_URL_FILE ?? "/data/expo-go-url.txt";
+  try {
+    if (!existsSync(path)) return null;
+    const url = readFileSync(path, "utf8").trim();
+    return url || null;
+  } catch {
+    return null;
+  }
+}
 
 export const Route = createFileRoute("/api/entregador/expo-go-url")({
   server: {
     handlers: {
       GET: async () => {
         const url = resolveExpoGoUrl({
-          expoGoUrl: process.env.EXPO_GO_URL ?? process.env.VITE_EXPO_GO_URL,
+          expoGoUrl:
+            readTunnelUrlFile() ??
+            process.env.EXPO_GO_URL ??
+            process.env.VITE_EXPO_GO_URL,
           metroHost: process.env.EXPO_METRO_HOST,
           metroPort: process.env.EXPO_METRO_PORT,
         });
