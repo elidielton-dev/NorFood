@@ -9,6 +9,12 @@ import { NorfoodLogo } from "@/components/brand/norfood-logo";
 
 export const Route = createFileRoute("/login")({
   ssr: false,
+  validateSearch: (search: Record<string, unknown>) => ({
+    redirect:
+      typeof search.redirect === "string" && search.redirect.startsWith("/")
+        ? search.redirect
+        : undefined,
+  }),
   head: () => ({
     meta: [{ title: "Entrar — Norfood" }],
   }),
@@ -17,6 +23,7 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const nav = useNavigate();
+  const { redirect: redirectTo } = Route.useSearch();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,8 +40,16 @@ function LoginPage() {
 
       const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
       if (error) throw error;
+      await supabase.auth.getSession();
       toast.success("Bem-vindo(a) de volta!");
-      const destination = await resolvePostLoginRoute();
+      let destination = await resolvePostLoginRoute();
+      if (
+        redirectTo &&
+        (destination === "/admin" || redirectTo.startsWith("/admin")) &&
+        redirectTo.startsWith("/")
+      ) {
+        destination = redirectTo;
+      }
       nav({ to: destination });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erro inesperado";

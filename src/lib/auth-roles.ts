@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Enums } from "@/integrations/supabase/types";
 import { fetchUserTenantsServer } from "@/lib/api/tenant.functions";
+import { checkCurrentUserPlatformAdmin } from "@/lib/platform-admin/client";
 import { NORFOOD_DEMO_TENANT_SLUG } from "@/lib/tenant/constants";
 import { isTenantStaffRole } from "@/lib/tenant/tenant-permissions";
 import { isBrowserDemoEnabled } from "@/lib/runtime";
@@ -37,6 +38,10 @@ function isManagementRole(roles: AppRole[]) {
 }
 
 export async function resolvePostLoginRoute(): Promise<string> {
+  if (await checkCurrentUserPlatformAdmin()) {
+    return "/admin";
+  }
+
   const roles = await fetchCurrentUserRoles();
 
   if (isMotoboyRole(roles) && !isManagementRole(roles)) {

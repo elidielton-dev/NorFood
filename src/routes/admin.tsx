@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
 import { isBrowserDemoEnabled } from "@/lib/runtime";
-import { isPlatformAdminEmail } from "@/lib/platform-admin/emails";
+import { checkCurrentUserPlatformAdmin } from "@/lib/platform-admin/client";
 
 export const Route = createFileRoute("/admin")({
   ssr: false,
@@ -18,8 +18,8 @@ export const Route = createFileRoute("/admin")({
       });
     }
 
-    const email = data.user.email?.toLowerCase() ?? null;
-    if (!isPlatformAdminEmail(email) && !isBrowserDemoEnabled()) {
+    const isPlatformAdmin = await checkCurrentUserPlatformAdmin();
+    if (!isPlatformAdmin && !isBrowserDemoEnabled()) {
       throw redirect({ to: "/" });
     }
 

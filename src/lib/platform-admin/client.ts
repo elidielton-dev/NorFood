@@ -7,6 +7,7 @@ import {
 } from "@/lib/platform-admin/demo-tenants-store";
 import { isBrowserDemoEnabled } from "@/lib/runtime";
 import {
+  checkPlatformAdminAccessServer,
   createTenantAdminServer,
   getTenantAdminServer,
   listTenantsAdminServer,
@@ -17,6 +18,17 @@ import type { TenantStatus } from "@/lib/tenant/types";
 
 export function useAdminTenantsSource() {
   return isBrowserDemoEnabled();
+}
+
+/** Valida admin da plataforma no servidor (usa PLATFORM_ADMIN_EMAILS em runtime). */
+export async function checkCurrentUserPlatformAdmin(): Promise<boolean> {
+  if (isBrowserDemoEnabled()) return true;
+  try {
+    const result = await checkPlatformAdminAccessServer();
+    return result.allowed;
+  } catch {
+    return false;
+  }
 }
 
 export async function fetchAdminTenants(): Promise<AdminTenantRow[]> {

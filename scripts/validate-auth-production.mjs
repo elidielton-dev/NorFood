@@ -96,13 +96,20 @@ async function ensureAdminUser(admin) {
     telefone: "(11) 99999-0000",
     updated_at: new Date().toISOString(),
   });
-  await admin.from("user_roles").upsert({ user_id: userId, role: "admin" });
-  await admin.from("tenant_users").upsert({
-    tenant_id: "a0000000-0000-4000-8000-000000000001",
-    user_id: userId,
-    role: "owner",
-    status: "active",
-  });
+  pass("Perfil admin plataforma", ADMIN_EMAIL);
+
+  const { data: memberships } = await admin
+    .from("tenant_users")
+    .select("tenant_id, tenants(slug)")
+    .eq("user_id", userId);
+  if (memberships?.length) {
+    await admin.from("tenant_users").delete().eq("user_id", userId);
+    pass(
+      "Vínculos restaurante removidos",
+      memberships.map((m) => m.tenants?.slug ?? m.tenant_id).join(", "),
+    );
+  }
+  await admin.from("user_roles").delete().eq("user_id", userId);
 
   return userId;
 }
