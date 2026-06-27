@@ -73,7 +73,8 @@ export function getMercadoPagoAccessToken() {
 }
 
 function getApplicationBaseUrl() {
-  const configuredBaseUrl = process.env.MP_APP_BASE_URL?.trim();
+  const configuredBaseUrl =
+    process.env.PUBLIC_APP_URL?.trim() || process.env.MP_APP_BASE_URL?.trim();
   if (configuredBaseUrl) {
     return configuredBaseUrl.replace(/\/+$/, "");
   }
@@ -86,17 +87,21 @@ function getApplicationBaseUrl() {
   return new URL(request.url).origin.replace(/\/+$/, "");
 }
 
-function buildWebhookUrl() {
+export function buildMercadoPagoWebhookUrl() {
   return (
     process.env.MP_WEBHOOK_URL?.trim() || `${getApplicationBaseUrl()}/api/mercado-pago/webhook`
   );
+}
+
+function buildWebhookUrl() {
+  return buildMercadoPagoWebhookUrl();
 }
 
 function buildReturnUrl(orderNumber: number) {
   return `${getApplicationBaseUrl()}/?pedido=${orderNumber}`;
 }
 
-async function mercadoPagoRequest<T>(path: string, init?: RequestInit) {
+export async function mercadoPagoRequest<T>(path: string, init?: RequestInit) {
   const response = await fetch(`https://api.mercadopago.com${path}`, {
     ...init,
     headers: {
@@ -313,6 +318,23 @@ function mapPaymentStatusToOrderStatus(
     return "cancelado";
   }
   return "aberto";
+}
+
+export async function syncMercadoPagoPayment(paymentId: string) {
+  const payment = await fetchMercadoPagoPayment(paymentId);
+  const orderReference = payment.external_reference?.trim();
+
+  if (!orderReference) {
+    throw new Error(`Pagamento ${paymentId} sem external_reference.`);
+  }
+
+  if (orderReference.startsWith("norfood-billing:")) {
+    const { syncPlatformBillingMercadoPagoPayment } =
+      await import("@/lib/api/platform-billing-mercadopago.server");
+    return syncPlatformBillingMercadoPagoPayment(payment);
+  }
+
+  return syncMercadoPagoPaymentToOrder(paymentId);
 }
 
 export async function syncMercadoPagoPaymentToOrder(paymentId: string) {

@@ -110,6 +110,7 @@ export function getTenantSidebarSections(tenantSlug: string, role?: TenantRole):
         item(tenantSlug, "estabelecimento/horarios", "Horarios", Clock),
         item(tenantSlug, "configuracoes/operacao", "Operacao da loja", Store),
         item(tenantSlug, "estabelecimento/pagamentos", "Meios de pagamento", CreditCard),
+        item(tenantSlug, "estabelecimento/plano", "Plano Norfood", Receipt),
         item(tenantSlug, "colaboradores", "Colaboradores", UserCog),
         item(tenantSlug, "estabelecimento/visual", "Visual e descricao", Palette),
         item(tenantSlug, "configuracoes/impressoras", "Impressao", Printer, true),

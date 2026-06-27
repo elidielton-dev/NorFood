@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AdminShell, AdminStatCard } from "@/components/admin/admin-shell";
 import {
+  createAdminBillingCheckout,
+  createAdminBillingPix,
   describeBillingRow,
   fetchAdminBillingRows,
   fetchBillingInvoices,
@@ -70,6 +72,25 @@ function AdminFaturamentoPage() {
     mutationFn: markInvoicePaid,
     onSuccess: () => {
       toast.success("Fatura marcada como paga.");
+      queryClient.invalidateQueries({ queryKey: periodKey });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const checkoutMutation = useMutation({
+    mutationFn: createAdminBillingCheckout,
+    onSuccess: (result) => {
+      window.open(result.checkoutUrl, "_blank", "noopener,noreferrer");
+      toast.success("Link Mercado Pago aberto.");
+      queryClient.invalidateQueries({ queryKey: periodKey });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const pixMutation = useMutation({
+    mutationFn: createAdminBillingPix,
+    onSuccess: () => {
+      toast.success("Pix gerado — QR salvo na fatura.");
       queryClient.invalidateQueries({ queryKey: periodKey });
     },
     onError: (err: Error) => toast.error(err.message),
@@ -187,16 +208,41 @@ function AdminFaturamentoPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {invoice && invoice.status !== "paid" && invoice.status !== "waived" ? (
-                          <button
-                            type="button"
-                            disabled={paidMutation.isPending}
-                            onClick={() => paidMutation.mutate(invoice.id)}
-                            className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800 hover:bg-emerald-100"
-                          >
-                            Marcar pago
-                          </button>
-                        ) : null}
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                          {invoice &&
+                          invoice.status !== "paid" &&
+                          invoice.status !== "waived" &&
+                          Number(invoice.final_amount) > 0 ? (
+                            <>
+                              <button
+                                type="button"
+                                disabled={checkoutMutation.isPending}
+                                onClick={() => checkoutMutation.mutate(invoice.id)}
+                                className="rounded-lg border border-[#E5E7EB] px-2.5 py-1 text-xs font-medium hover:bg-[#F6F7F9]"
+                              >
+                                MP Checkout
+                              </button>
+                              <button
+                                type="button"
+                                disabled={pixMutation.isPending}
+                                onClick={() => pixMutation.mutate(invoice.id)}
+                                className="rounded-lg border border-[#E5E7EB] px-2.5 py-1 text-xs font-medium hover:bg-[#F6F7F9]"
+                              >
+                                MP Pix
+                              </button>
+                            </>
+                          ) : null}
+                          {invoice && invoice.status !== "paid" && invoice.status !== "waived" ? (
+                            <button
+                              type="button"
+                              disabled={paidMutation.isPending}
+                              onClick={() => paidMutation.mutate(invoice.id)}
+                              className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800 hover:bg-emerald-100"
+                            >
+                              Marcar pago
+                            </button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   );

@@ -71,6 +71,9 @@ export const TENANT_PAINEL_REGISTRY: Record<string, ComponentType> = {
   "estabelecimento/pagamentos": painelPage(
     () => import("@/routes/_authenticated/painel.estabelecimento.pagamentos"),
   ),
+  "estabelecimento/plano": painelPage(
+    () => import("@/routes/_authenticated/painel.estabelecimento.plano"),
+  ),
   colaboradores: painelPage(() => import("@/routes/_authenticated/painel.colaboradores")),
   "estabelecimento/visual": painelPage(
     () => import("@/routes/_authenticated/painel.estabelecimento.visual"),

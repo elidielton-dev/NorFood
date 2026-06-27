@@ -1,5 +1,7 @@
 import type { AdminBillingTenantRow, BillingInvoiceRow } from "@/lib/api/platform-billing.functions";
 import {
+  adminPayBillingInvoiceCheckoutServer,
+  adminPayBillingInvoicePixServer,
   generateBillingInvoicesServer,
   getBillingSummaryServer,
   listAdminBillingServer,
@@ -57,6 +59,16 @@ export async function generateBillingInvoices(year: number, month: number) {
 export async function markInvoicePaid(invoiceId: string) {
   if (isBrowserDemoEnabled()) throw new Error("Indisponível no modo demo.");
   return updateBillingInvoiceStatusServer({ data: { invoiceId, status: "paid" } });
+}
+
+export async function createAdminBillingCheckout(invoiceId: string) {
+  if (isBrowserDemoEnabled()) throw new Error("Indisponível no modo demo.");
+  return adminPayBillingInvoiceCheckoutServer({ data: { invoiceId } });
+}
+
+export async function createAdminBillingPix(invoiceId: string) {
+  if (isBrowserDemoEnabled()) throw new Error("Indisponível no modo demo.");
+  return adminPayBillingInvoicePixServer({ data: { invoiceId } });
 }
 
 export type { AdminBillingTenantRow, BillingInvoiceRow };

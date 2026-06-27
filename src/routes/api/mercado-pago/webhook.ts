@@ -3,6 +3,7 @@ import {
   getWebhookAuthorizationSummary,
   getWebhookEventType,
   getWebhookPaymentId,
+  syncMercadoPagoPayment,
   syncMercadoPagoPaymentToOrder,
   validateMercadoPagoWebhook,
 } from "@/lib/api/mercado-pago.server";
@@ -35,7 +36,7 @@ export const Route = createFileRoute("/api/mercado-pago/webhook")({
           });
         }
 
-        const result = await syncMercadoPagoPaymentToOrder(paymentId);
+        const result = await syncMercadoPagoPayment(paymentId);
         return Response.json({
           ok: true,
           processed: true,

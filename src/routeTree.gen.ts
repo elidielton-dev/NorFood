@@ -75,6 +75,7 @@ import { Route as AuthenticatedPainelFinanceiroFaturasRouteImport } from './rout
 import { Route as AuthenticatedPainelFinanceiroExtratosRouteImport } from './routes/_authenticated/painel.financeiro.extratos'
 import { Route as AuthenticatedPainelFinanceiroAgendaRouteImport } from './routes/_authenticated/painel.financeiro.agenda'
 import { Route as AuthenticatedPainelEstabelecimentoVisualRouteImport } from './routes/_authenticated/painel.estabelecimento.visual'
+import { Route as AuthenticatedPainelEstabelecimentoPlanoRouteImport } from './routes/_authenticated/painel.estabelecimento.plano'
 import { Route as AuthenticatedPainelEstabelecimentoPagamentosRouteImport } from './routes/_authenticated/painel.estabelecimento.pagamentos'
 import { Route as AuthenticatedPainelEstabelecimentoHorariosRouteImport } from './routes/_authenticated/painel.estabelecimento.horarios'
 import { Route as AuthenticatedPainelConfiguracoesOperacaoRouteImport } from './routes/_authenticated/painel.configuracoes.operacao'
@@ -459,6 +460,12 @@ const AuthenticatedPainelEstabelecimentoVisualRoute =
     path: '/estabelecimento/visual',
     getParentRoute: () => AuthenticatedPainelRoute,
   } as any)
+const AuthenticatedPainelEstabelecimentoPlanoRoute =
+  AuthenticatedPainelEstabelecimentoPlanoRouteImport.update({
+    id: '/estabelecimento/plano',
+    path: '/estabelecimento/plano',
+    getParentRoute: () => AuthenticatedPainelRoute,
+  } as any)
 const AuthenticatedPainelEstabelecimentoPagamentosRoute =
   AuthenticatedPainelEstabelecimentoPagamentosRouteImport.update({
     id: '/estabelecimento/pagamentos',
@@ -614,6 +621,7 @@ export interface FileRoutesByFullPath {
   '/painel/configuracoes/operacao': typeof AuthenticatedPainelConfiguracoesOperacaoRoute
   '/painel/estabelecimento/horarios': typeof AuthenticatedPainelEstabelecimentoHorariosRoute
   '/painel/estabelecimento/pagamentos': typeof AuthenticatedPainelEstabelecimentoPagamentosRoute
+  '/painel/estabelecimento/plano': typeof AuthenticatedPainelEstabelecimentoPlanoRoute
   '/painel/estabelecimento/visual': typeof AuthenticatedPainelEstabelecimentoVisualRoute
   '/painel/financeiro/agenda': typeof AuthenticatedPainelFinanceiroAgendaRoute
   '/painel/financeiro/extratos': typeof AuthenticatedPainelFinanceiroExtratosRoute
@@ -690,6 +698,7 @@ export interface FileRoutesByTo {
   '/painel/configuracoes/operacao': typeof AuthenticatedPainelConfiguracoesOperacaoRoute
   '/painel/estabelecimento/horarios': typeof AuthenticatedPainelEstabelecimentoHorariosRoute
   '/painel/estabelecimento/pagamentos': typeof AuthenticatedPainelEstabelecimentoPagamentosRoute
+  '/painel/estabelecimento/plano': typeof AuthenticatedPainelEstabelecimentoPlanoRoute
   '/painel/estabelecimento/visual': typeof AuthenticatedPainelEstabelecimentoVisualRoute
   '/painel/financeiro/agenda': typeof AuthenticatedPainelFinanceiroAgendaRoute
   '/painel/financeiro/extratos': typeof AuthenticatedPainelFinanceiroExtratosRoute
@@ -776,6 +785,7 @@ export interface FileRoutesById {
   '/_authenticated/painel/configuracoes/operacao': typeof AuthenticatedPainelConfiguracoesOperacaoRoute
   '/_authenticated/painel/estabelecimento/horarios': typeof AuthenticatedPainelEstabelecimentoHorariosRoute
   '/_authenticated/painel/estabelecimento/pagamentos': typeof AuthenticatedPainelEstabelecimentoPagamentosRoute
+  '/_authenticated/painel/estabelecimento/plano': typeof AuthenticatedPainelEstabelecimentoPlanoRoute
   '/_authenticated/painel/estabelecimento/visual': typeof AuthenticatedPainelEstabelecimentoVisualRoute
   '/_authenticated/painel/financeiro/agenda': typeof AuthenticatedPainelFinanceiroAgendaRoute
   '/_authenticated/painel/financeiro/extratos': typeof AuthenticatedPainelFinanceiroExtratosRoute
@@ -862,6 +872,7 @@ export interface FileRouteTypes {
     | '/painel/configuracoes/operacao'
     | '/painel/estabelecimento/horarios'
     | '/painel/estabelecimento/pagamentos'
+    | '/painel/estabelecimento/plano'
     | '/painel/estabelecimento/visual'
     | '/painel/financeiro/agenda'
     | '/painel/financeiro/extratos'
@@ -938,6 +949,7 @@ export interface FileRouteTypes {
     | '/painel/configuracoes/operacao'
     | '/painel/estabelecimento/horarios'
     | '/painel/estabelecimento/pagamentos'
+    | '/painel/estabelecimento/plano'
     | '/painel/estabelecimento/visual'
     | '/painel/financeiro/agenda'
     | '/painel/financeiro/extratos'
@@ -1023,6 +1035,7 @@ export interface FileRouteTypes {
     | '/_authenticated/painel/configuracoes/operacao'
     | '/_authenticated/painel/estabelecimento/horarios'
     | '/_authenticated/painel/estabelecimento/pagamentos'
+    | '/_authenticated/painel/estabelecimento/plano'
     | '/_authenticated/painel/estabelecimento/visual'
     | '/_authenticated/painel/financeiro/agenda'
     | '/_authenticated/painel/financeiro/extratos'
@@ -1540,6 +1553,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPainelEstabelecimentoVisualRouteImport
       parentRoute: typeof AuthenticatedPainelRoute
     }
+    '/_authenticated/painel/estabelecimento/plano': {
+      id: '/_authenticated/painel/estabelecimento/plano'
+      path: '/estabelecimento/plano'
+      fullPath: '/painel/estabelecimento/plano'
+      preLoaderRoute: typeof AuthenticatedPainelEstabelecimentoPlanoRouteImport
+      parentRoute: typeof AuthenticatedPainelRoute
+    }
     '/_authenticated/painel/estabelecimento/pagamentos': {
       id: '/_authenticated/painel/estabelecimento/pagamentos'
       path: '/estabelecimento/pagamentos'
@@ -1884,6 +1904,7 @@ interface AuthenticatedPainelRouteChildren {
   AuthenticatedPainelIndexRoute: typeof AuthenticatedPainelIndexRoute
   AuthenticatedPainelEstabelecimentoHorariosRoute: typeof AuthenticatedPainelEstabelecimentoHorariosRoute
   AuthenticatedPainelEstabelecimentoPagamentosRoute: typeof AuthenticatedPainelEstabelecimentoPagamentosRoute
+  AuthenticatedPainelEstabelecimentoPlanoRoute: typeof AuthenticatedPainelEstabelecimentoPlanoRoute
   AuthenticatedPainelEstabelecimentoVisualRoute: typeof AuthenticatedPainelEstabelecimentoVisualRoute
   AuthenticatedPainelPedidosSeparacaoRoute: typeof AuthenticatedPainelPedidosSeparacaoRoute
 }
@@ -1914,6 +1935,8 @@ const AuthenticatedPainelRouteChildren: AuthenticatedPainelRouteChildren = {
     AuthenticatedPainelEstabelecimentoHorariosRoute,
   AuthenticatedPainelEstabelecimentoPagamentosRoute:
     AuthenticatedPainelEstabelecimentoPagamentosRoute,
+  AuthenticatedPainelEstabelecimentoPlanoRoute:
+    AuthenticatedPainelEstabelecimentoPlanoRoute,
   AuthenticatedPainelEstabelecimentoVisualRoute:
     AuthenticatedPainelEstabelecimentoVisualRoute,
   AuthenticatedPainelPedidosSeparacaoRoute:

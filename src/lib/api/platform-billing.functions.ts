@@ -56,6 +56,13 @@ export type BillingInvoiceRow = {
   calculated_amount: number;
   final_amount: number;
   status: string;
+  mp_payment_id?: string | null;
+  mp_preference_id?: string | null;
+  mp_checkout_url?: string | null;
+  mp_pix_qr_code?: string | null;
+  mp_pix_qr_base64?: string | null;
+  payment_method?: string | null;
+  paid_at?: string | null;
 };
 
 export type RegisterRestaurantPayload = {
@@ -447,6 +454,13 @@ export const listBillingInvoicesServer = createServerFn({ method: "GET" })
         calculated_amount: Number(inv.calculated_amount),
         final_amount: Number(inv.final_amount),
         status: String(inv.status),
+        mp_payment_id: (inv.mp_payment_id as string | null) ?? null,
+        mp_preference_id: (inv.mp_preference_id as string | null) ?? null,
+        mp_checkout_url: (inv.mp_checkout_url as string | null) ?? null,
+        mp_pix_qr_code: (inv.mp_pix_qr_code as string | null) ?? null,
+        mp_pix_qr_base64: (inv.mp_pix_qr_base64 as string | null) ?? null,
+        payment_method: (inv.payment_method as string | null) ?? null,
+        paid_at: (inv.paid_at as string | null) ?? null,
       };
     });
   });
@@ -513,4 +527,215 @@ export const getBillingSummaryServer = createServerFn({ method: "GET" })
       inTrial,
       withoutBilling,
     };
+  });
+
+async function assertUserCanManageTenant(userId: string, tenantId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("tenant_users")
+    .select("role, status")
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  const managerRoles = new Set(["owner", "admin", "gerente", "financeiro"]);
+  if (!data || data.status !== "active" || !managerRoles.has(data.role)) {
+    throw new Error("Sem permissao para gerenciar cobranca deste restaurante.");
+  }
+}
+
+async function resolveTenantIdBySlug(slug: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("tenants")
+    .select("id")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data?.id) throw new Error("Restaurante nao encontrado.");
+  return String(data.id);
+}
+
+export type TenantBillingOverview = {
+  billing: TenantBillingRow | null;
+  in_trial: boolean;
+  current_invoice: BillingInvoiceRow | null;
+  recent_invoices: BillingInvoiceRow[];
+  mercado_pago_enabled: boolean;
+};
+
+export const getTenantBillingOverviewServer = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((tenantSlug: string) => tenantSlug)
+  .handler(async ({ data: tenantSlug, context }): Promise<TenantBillingOverview> => {
+    if (isDemoBackend()) {
+      return {
+        billing: null,
+        in_trial: true,
+        current_invoice: null,
+        recent_invoices: [],
+        mercado_pago_enabled: false,
+      };
+    }
+
+    const tenantId = await resolveTenantIdBySlug(tenantSlug);
+    await assertUserCanManageTenant(context.userId, tenantId);
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const now = new Date();
+    const { periodStart, periodEnd } = getMonthPeriod(now.getFullYear(), now.getMonth() + 1);
+
+    const { data: billing } = await supabaseAdmin
+      .from("tenant_billing")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+
+    const { data: invoices } = await supabaseAdmin
+      .from("tenant_billing_invoices")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("period_start", { ascending: false })
+      .limit(6);
+
+    const { data: tenant } = await supabaseAdmin
+      .from("tenants")
+      .select("name, slug")
+      .eq("id", tenantId)
+      .single();
+
+    const mapInvoice = (inv: Record<string, unknown>): BillingInvoiceRow => ({
+      id: String(inv.id),
+      tenant_id: tenantId,
+      tenant_name: String(tenant?.name ?? "—"),
+      tenant_slug: String(tenant?.slug ?? tenantSlug),
+      period_start: String(inv.period_start),
+      period_end: String(inv.period_end),
+      billing_model: inv.billing_model as BillingModel,
+      plan: (inv.plan as BillingPlanId | null) ?? null,
+      gross_sales: Number(inv.gross_sales),
+      order_count: Number(inv.order_count),
+      revenue_share_percent:
+        inv.revenue_share_percent != null ? Number(inv.revenue_share_percent) : null,
+      calculated_amount: Number(inv.calculated_amount),
+      final_amount: Number(inv.final_amount),
+      status: String(inv.status),
+      mp_payment_id: (inv.mp_payment_id as string | null) ?? null,
+      mp_preference_id: (inv.mp_preference_id as string | null) ?? null,
+      mp_checkout_url: (inv.mp_checkout_url as string | null) ?? null,
+      mp_pix_qr_code: (inv.mp_pix_qr_code as string | null) ?? null,
+      mp_pix_qr_base64: (inv.mp_pix_qr_base64 as string | null) ?? null,
+      payment_method: (inv.payment_method as string | null) ?? null,
+      paid_at: (inv.paid_at as string | null) ?? null,
+    });
+
+    const mapped = (invoices ?? []).map((inv) => mapInvoice(inv as Record<string, unknown>));
+    const current =
+      mapped.find((inv) => inv.period_start === periodStart && inv.period_end === periodEnd) ??
+      null;
+
+    return {
+      billing: (billing as TenantBillingRow | null) ?? null,
+      in_trial: isInTrial(billing?.trial_ends_at),
+      current_invoice: current,
+      recent_invoices: mapped,
+      mercado_pago_enabled: Boolean(process.env.MP_ACCESS_TOKEN),
+    };
+  });
+
+export const payBillingInvoiceCheckoutServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { tenantSlug: string; invoiceId?: string }) => input)
+  .handler(async ({ data, context }) => {
+    if (isDemoBackend()) throw new Error("Indisponível no modo demo.");
+    const tenantId = await resolveTenantIdBySlug(data.tenantSlug);
+    await assertUserCanManageTenant(context.userId, tenantId);
+
+    const {
+      ensureCurrentBillingInvoice,
+      createPlatformBillingCheckout,
+    } = await import("@/lib/api/platform-billing-mercadopago.server");
+
+    const invoiceId =
+      data.invoiceId ?? (await ensureCurrentBillingInvoice(tenantId));
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: invoice } = await supabaseAdmin
+      .from("tenant_billing_invoices")
+      .select("tenant_id")
+      .eq("id", invoiceId)
+      .single();
+    if (String(invoice.tenant_id) !== tenantId) {
+      throw new Error("Fatura nao pertence a este restaurante.");
+    }
+
+    return createPlatformBillingCheckout(invoiceId);
+  });
+
+export const payBillingInvoicePixServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { tenantSlug: string; invoiceId?: string }) => input)
+  .handler(async ({ data, context }) => {
+    if (isDemoBackend()) throw new Error("Indisponível no modo demo.");
+    const tenantId = await resolveTenantIdBySlug(data.tenantSlug);
+    await assertUserCanManageTenant(context.userId, tenantId);
+
+    const {
+      ensureCurrentBillingInvoice,
+      createPlatformBillingPix,
+    } = await import("@/lib/api/platform-billing-mercadopago.server");
+
+    const invoiceId =
+      data.invoiceId ?? (await ensureCurrentBillingInvoice(tenantId));
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: invoice } = await supabaseAdmin
+      .from("tenant_billing_invoices")
+      .select("tenant_id")
+      .eq("id", invoiceId)
+      .single();
+    if (String(invoice.tenant_id) !== tenantId) {
+      throw new Error("Fatura nao pertence a este restaurante.");
+    }
+
+    return createPlatformBillingPix(invoiceId);
+  });
+
+export const refreshBillingInvoicePixServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { tenantSlug: string; invoiceId: string }) => input)
+  .handler(async ({ data, context }) => {
+    if (isDemoBackend()) throw new Error("Indisponível no modo demo.");
+    const tenantId = await resolveTenantIdBySlug(data.tenantSlug);
+    await assertUserCanManageTenant(context.userId, tenantId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: invoice } = await supabaseAdmin
+      .from("tenant_billing_invoices")
+      .select("tenant_id")
+      .eq("id", data.invoiceId)
+      .single();
+    if (String(invoice.tenant_id) !== tenantId) {
+      throw new Error("Fatura nao pertence a este restaurante.");
+    }
+    const { refreshPlatformBillingPixStatus } =
+      await import("@/lib/api/platform-billing-mercadopago.server");
+    return refreshPlatformBillingPixStatus(data.invoiceId);
+  });
+
+export const adminPayBillingInvoiceCheckoutServer = createServerFn({ method: "POST" })
+  .middleware([requirePlatformAdmin])
+  .validator((input: { invoiceId: string }) => input)
+  .handler(async ({ data }) => {
+    if (isDemoBackend()) throw new Error("Indisponível no modo demo.");
+    const { createPlatformBillingCheckout } =
+      await import("@/lib/api/platform-billing-mercadopago.server");
+    return createPlatformBillingCheckout(data.invoiceId);
+  });
+
+export const adminPayBillingInvoicePixServer = createServerFn({ method: "POST" })
+  .middleware([requirePlatformAdmin])
+  .validator((input: { invoiceId: string }) => input)
+  .handler(async ({ data }) => {
+    if (isDemoBackend()) throw new Error("Indisponível no modo demo.");
+    const { createPlatformBillingPix } =
+      await import("@/lib/api/platform-billing-mercadopago.server");
+    return createPlatformBillingPix(data.invoiceId);
   });
