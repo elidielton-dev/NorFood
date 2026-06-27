@@ -2,9 +2,10 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useAppData } from "../context/AppDataContext";
 import { AppLoader } from "../components/AppLoader";
-import { useAppTheme } from "../styles/theme";
+import { useTenantTheme } from "../hooks/useTenantTheme";
 import { BottomNavigation } from "../components/BottomNavigation";
 import { LoginScreen } from "../screens/LoginScreen";
+import { TenantSelectScreen } from "../screens/TenantSelectScreen";
 import { DashboardScreen } from "../screens/DashboardScreen";
 import { DeliveriesScreen } from "../screens/DeliveriesScreen";
 import { EarningsScreen } from "../screens/EarningsScreen";
@@ -15,6 +16,7 @@ import { OccurrencesScreen } from "../screens/OccurrencesScreen";
 
 export type RootStackParamList = {
   Tabs: undefined;
+  TenantSelect: undefined;
   DeliveryDetails: { deliveryId: string };
   DeliveryMap: { deliveryId: string };
   Occurrences: { deliveryId?: string } | undefined;
@@ -45,8 +47,8 @@ function TabsNavigator() {
 }
 
 export function AppNavigator() {
-  const { state, ready } = useAppData();
-  const theme = useAppTheme();
+  const { state, ready, needsTenantSelection } = useAppData();
+  const theme = useTenantTheme();
 
   if (!ready) {
     return <AppLoader theme={theme} />;
@@ -56,9 +58,14 @@ export function AppNavigator() {
     return <LoginScreen />;
   }
 
+  if (needsTenantSelection) {
+    return <TenantSelectScreen />;
+  }
+
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.background } }}>
       <Stack.Screen name="Tabs" component={TabsNavigator} />
+      <Stack.Screen name="TenantSelect" component={TenantSelectScreen} />
       <Stack.Screen name="DeliveryDetails" component={DeliveryDetailsScreen} />
       <Stack.Screen name="DeliveryMap" component={MapScreen} />
       <Stack.Screen name="Occurrences" component={OccurrencesScreen} />

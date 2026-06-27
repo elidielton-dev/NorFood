@@ -1,13 +1,18 @@
 import { Feather } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import { useMemo, useState } from "react";
-import { Linking, Pressable, Switch, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Pressable, Switch, Text, TextInput, View } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { ScreenContainer } from "../components/ScreenContainer";
 import { StatusBadge } from "../components/StatusBadge";
+import { TenantBrandBar } from "../components/TenantBrandBar";
 import { useAppData } from "../context/AppDataContext";
+import { useTenantTheme } from "../hooks/useTenantTheme";
 import { SERVICE_CITY_CONFIG, getSupportedNeighborhoods, isSupportedCityCep } from "../lib/city-config";
-import { useAppTheme } from "../styles/theme";
+import { RootStackParamList } from "../navigation/AppNavigator";
 import { fetchAddressByCep, formatCep, normalizeCep } from "../lib/viacep";
 
 type PanelKey =
@@ -19,10 +24,12 @@ type PanelKey =
   | "suporte";
 
 export function ProfileScreen() {
-  const theme = useAppTheme();
-  const { state, logout, updateProfile, setOnline } = useAppData();
+  const theme = useTenantTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { state, logout, updateProfile, setOnline, uploadAvatar } = useAppData();
   const rider = state.rider;
   const [updatingOnline, setUpdatingOnline] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [panel, setPanel] = useState<PanelKey>("dados");
   const [name, setName] = useState(rider.name);
   const [phone, setPhone] = useState(rider.phone);
@@ -75,8 +82,37 @@ export function ProfileScreen() {
     }
   }
 
+  async function handlePickAvatar() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permissao necessaria", "Permita acesso a galeria para alterar sua foto.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    });
+
+    if (result.canceled || !result.assets[0]?.uri) return;
+
+    try {
+      setUploadingAvatar(true);
+      await uploadAvatar(result.assets[0].uri);
+      Alert.alert("Foto atualizada", "Sua foto de perfil foi salva com sucesso.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Nao foi possivel enviar a foto.";
+      Alert.alert("Erro ao enviar foto", message);
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
+
   return (
     <ScreenContainer>
+      <TenantBrandBar onSwitchPress={() => navigation.navigate("TenantSelect")} />
       <View
         className="items-center rounded-[32px] px-6 pb-6 pt-7"
         style={{
@@ -90,7 +126,22 @@ export function ProfileScreen() {
           elevation: 2,
         }}
       >
-        <Image source={rider.avatar} style={{ height: 92, width: 92, borderRadius: 46 }} contentFit="cover" />
+        <Pressable onPress={() => void handlePickAvatar()} className="relative">
+          <Image source={rider.avatar} style={{ height: 92, width: 92, borderRadius: 46 }} contentFit="cover" />
+          <View
+            className="absolute bottom-0 right-0 h-8 w-8 items-center justify-center rounded-full"
+            style={{ backgroundColor: theme.primary, borderWidth: 2, borderColor: theme.backgroundElevated }}
+          >
+            {uploadingAvatar ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Feather name="camera" size={14} color="#fff" />
+            )}
+          </View>
+        </Pressable>
+        <Text className="mt-3" style={{ color: theme.textMuted, fontFamily: "Manrope_600SemiBold", fontSize: 12 }}>
+          Toque na foto para alterar
+        </Text>
         <Text className="mt-4" style={{ color: theme.text, fontFamily: "Manrope_800ExtraBold", fontSize: 28 }}>
           {rider.name}
         </Text>
@@ -162,9 +213,9 @@ export function ProfileScreen() {
             <Pressable
               onPress={() => updateProfile({ name, phone, email, cep, address, neighborhood, city, state: stateCode })}
               className="mt-4 rounded-full py-[15px]"
-              style={{ backgroundColor: theme.accentBright }}
+              style={{ backgroundColor: theme.primary }}
             >
-              <Text className="text-center" style={{ color: theme.primary, fontFamily: "Manrope_800ExtraBold" }}>
+              <Text className="text-center" style={{ color: "#fff", fontFamily: "Manrope_800ExtraBold" }}>
                 Salvar dados
               </Text>
             </Pressable>
@@ -255,7 +306,7 @@ export function ProfileScreen() {
               <Pressable
                 onPress={() => Linking.openURL(`sms:${rider.supportPhone}`)}
                 className="flex-1 rounded-full py-[15px]"
-                style={{ backgroundColor: theme.accentBright }}
+                style={{ backgroundColor: theme.backgroundElevated, borderWidth: 1, borderColor: theme.primary }}
               >
                 <Text className="text-center" style={{ color: theme.primary, fontFamily: "Manrope_800ExtraBold" }}>
                   Mensagem

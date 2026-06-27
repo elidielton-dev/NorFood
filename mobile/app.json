@@ -28,6 +28,12 @@
     "plugins": [
       "expo-font",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "O NorFood precisa acessar suas fotos para atualizar a foto de perfil do entregador."
+        }
+      ],
+      [
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "O NorFood usa sua localizacao para rastrear entregas em tempo real.",

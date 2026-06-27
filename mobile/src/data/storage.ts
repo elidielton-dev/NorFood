@@ -3,6 +3,7 @@ import { AppState } from "../types";
 import { initialAppState } from "./mockData";
 
 const STORAGE_KEY = "@norfood:rider-app";
+const TENANT_KEY = "@norfood:active-tenant";
 
 export async function loadAppState(): Promise<AppState> {
   try {
@@ -16,4 +17,20 @@ export async function loadAppState(): Promise<AppState> {
 
 export async function saveAppState(state: AppState) {
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+export async function loadActiveTenantId(): Promise<string | null> {
+  try {
+    return await AsyncStorage.getItem(TENANT_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export async function saveActiveTenantId(tenantId: string | null) {
+  if (!tenantId) {
+    await AsyncStorage.removeItem(TENANT_KEY);
+    return;
+  }
+  await AsyncStorage.setItem(TENANT_KEY, tenantId);
 }

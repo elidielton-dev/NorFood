@@ -8,13 +8,14 @@ import { FadeInView } from "../components/FadeInView";
 import { PhoneStatusBar } from "../components/PhoneStatusBar";
 import { ScreenContainer } from "../components/ScreenContainer";
 import { useAppData } from "../context/AppDataContext";
+import { requestPasswordReset } from "../data/tenantApi";
 import { getMobileSupabaseConfigError, mobileSupabaseEnabled } from "../lib/supabase";
-import { useAppTheme } from "../styles/theme";
+import { useTenantTheme } from "../hooks/useTenantTheme";
 
 const logo = require("../../assets/brand/logo-norfood.png");
 
 export function LoginScreen() {
-  const theme = useAppTheme();
+  const theme = useTenantTheme();
   const { login, state } = useAppData();
   const [email, setEmail] = useState(state.rider.email);
   const [password, setPassword] = useState("");
@@ -38,6 +39,20 @@ export function LoginScreen() {
       Alert.alert("Erro ao entrar", message);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleForgotPassword() {
+    if (!email.trim()) {
+      Alert.alert("Informe o e-mail", "Digite seu e-mail para receber o link de recuperacao.");
+      return;
+    }
+    try {
+      await requestPasswordReset(email);
+      Alert.alert("E-mail enviado", "Verifique sua caixa de entrada para redefinir a senha.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Nao foi possivel enviar o e-mail.";
+      Alert.alert("Erro", message);
     }
   }
 
@@ -126,7 +141,7 @@ export function LoginScreen() {
                 Lembrar de mim
               </Text>
             </Pressable>
-            <Pressable>
+            <Pressable onPress={() => void handleForgotPassword()}>
               <Text style={{ color: theme.primary, fontFamily: "Manrope_700Bold", fontSize: 13 }}>
                 Esqueci minha senha
               </Text>

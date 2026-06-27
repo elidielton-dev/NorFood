@@ -6,18 +6,22 @@ import {
   advanceRiderDelivery,
   fetchRiderAppState,
   getCurrentSession,
+  getActiveRiderTenantId,
   loginRider,
   logoutRider,
   markNotificationsRead,
   reportRiderIncident,
   sendRiderLocation,
   sendRiderMessage,
+  setActiveRiderTenant,
   subscribeToAuthChanges,
   subscribeToRiderDataChanges,
   updateRiderProfile,
   updateRiderOnline,
+  uploadRiderAvatar,
 } from "../data/riderApi";
-import { loadAppState, saveAppState } from "../data/storage";
+import { fetchRiderTenancies, fetchTenantSettings } from "../data/tenantApi";
+import { loadActiveTenantId, loadAppState, saveActiveTenantId, saveAppState } from "../data/storage";
 import {
   AppNotification,
   AppState,
@@ -26,15 +30,19 @@ import {
   DeliveryRouteStage,
   IncidentType,
   QuickMessageTemplate,
+  TenantSummary,
 } from "../types";
 
 type AppDataContextValue = {
   state: AppState;
   ready: boolean;
   lastMessage: DeliveryMessage | null;
+  needsTenantSelection: boolean;
   login: (phone: string, password: string, rememberLogin: boolean, onlineAfterLogin: boolean) => Promise<void>;
   logout: () => void;
   refresh: () => Promise<void>;
+  selectTenant: (tenantId: string) => Promise<void>;
+  uploadAvatar: (localUri: string) => Promise<void>;
   updateProfile: (payload: Record<string, unknown>) => Promise<void>;
   setOnline: (value: boolean) => Promise<void>;
   acceptDelivery: (id: string) => Promise<void>;
@@ -74,7 +82,7 @@ const quickMessages: QuickMessageTemplate[] = [
   {
     id: "way",
     label: "Estou a caminho",
-    text: "Oi. Sou o entregador NorFood e estou a caminho com o seu pedido.",
+    text: "Oi. Sou o entregador e estou a caminho com o seu pedido.",
   },
   {
     id: "arriving",
@@ -95,19 +103,53 @@ const quickMessages: QuickMessageTemplate[] = [
 
 export function AppDataProvider({ children }: PropsWithChildren) {
   const riderIdRef = useRef<string | null>(null);
+  const tenantsRef = useRef<TenantSummary[]>([]);
   const [state, setState] = useState<AppState>(initialAppState);
   const [ready, setReady] = useState(false);
   const [lastMessage, setLastMessage] = useState<DeliveryMessage | null>(null);
 
+  async function applyTenantContext(tenantId: string, tenants: TenantSummary[]) {
+    const tenant = tenants.find((item) => item.id === tenantId);
+    if (!tenant) throw new Error("Empresa nao encontrada para este entregador.");
+
+    const settings = await fetchTenantSettings(tenantId);
+    setActiveRiderTenant(tenantId, settings);
+    await saveActiveTenantId(tenantId);
+
+    const remote = await fetchRiderAppState(tenantId);
+    riderIdRef.current = remote.rider.id;
+
+    setState((current) => ({
+      ...current,
+      ...(remote as unknown as AppState),
+      loggedIn: true,
+      rememberLogin: current.rememberLogin,
+      activeTenantId: tenantId,
+      tenant,
+      tenantSettings: settings,
+      availableTenants: tenants,
+      rider: {
+        ...current.rider,
+        ...((remote as unknown as AppState).rider ?? {}),
+      },
+    }));
+  }
+
   async function syncRemoteState() {
+    const tenantId = getActiveRiderTenantId() ?? state.activeTenantId;
+    if (!tenantId) return;
     try {
-      const remote = await fetchRiderAppState();
+      const remote = await fetchRiderAppState(tenantId);
       riderIdRef.current = remote.rider.id;
       setState((current) => ({
         ...current,
         ...(remote as unknown as AppState),
-        loggedIn: remote.loggedIn,
+        loggedIn: current.loggedIn,
         rememberLogin: current.rememberLogin,
+        activeTenantId: current.activeTenantId,
+        tenant: current.tenant,
+        tenantSettings: current.tenantSettings,
+        availableTenants: current.availableTenants,
         rider: {
           ...current.rider,
           ...((remote as unknown as AppState).rider ?? {}),
@@ -118,6 +160,37 @@ export function AppDataProvider({ children }: PropsWithChildren) {
     }
   }
 
+  async function bootstrapTenants(userId: string, preferredTenantId?: string | null) {
+    const tenants = await fetchRiderTenancies(userId);
+    tenantsRef.current = tenants;
+
+    if (!tenants.length) {
+      throw new Error("Sua conta nao tem acesso a nenhuma empresa como entregador.");
+    }
+
+    const savedTenantId = preferredTenantId ?? (await loadActiveTenantId());
+    const resolvedTenantId =
+      tenants.length === 1
+        ? tenants[0].id
+        : savedTenantId && tenants.some((item) => item.id === savedTenantId)
+          ? savedTenantId
+          : null;
+
+    if (resolvedTenantId) {
+      await applyTenantContext(resolvedTenantId, tenants);
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      loggedIn: true,
+      availableTenants: tenants,
+      activeTenantId: null,
+      tenant: null,
+      tenantSettings: null,
+    }));
+  }
+
   useEffect(() => {
     loadAppState()
       .then(async (loaded) => {
@@ -126,7 +199,7 @@ export function AppDataProvider({ children }: PropsWithChildren) {
           const session = await getCurrentSession();
           if (session?.user) {
             riderIdRef.current = session.user.id;
-            await syncRemoteState();
+            await bootstrapTenants(session.user.id, loaded.activeTenantId);
           }
         } catch (error) {
           console.warn("[mobile] Falha ao restaurar sessao do entregador.", error);
@@ -144,11 +217,24 @@ export function AppDataProvider({ children }: PropsWithChildren) {
     const unsubscribe = subscribeToAuthChanges((session) => {
       riderIdRef.current = session?.user?.id ?? null;
       if (!session?.user) {
-        setState((current) => ({ ...current, loggedIn: false, deliveries: [], incidents: [], messages: [], notifications: [] }));
+        setActiveRiderTenant(null, null);
+        void saveActiveTenantId(null);
+        setState((current) => ({
+          ...current,
+          loggedIn: false,
+          activeTenantId: null,
+          tenant: null,
+          tenantSettings: null,
+          availableTenants: [],
+          deliveries: [],
+          incidents: [],
+          messages: [],
+          notifications: [],
+        }));
         return;
       }
 
-      syncRemoteState().catch(() => undefined);
+      bootstrapTenants(session.user.id).catch(() => undefined);
     });
 
     return unsubscribe;
@@ -160,31 +246,35 @@ export function AppDataProvider({ children }: PropsWithChildren) {
   }, [ready, state]);
 
   useEffect(() => {
-    if (!ready || !state.loggedIn) return;
+    if (!ready || !state.loggedIn || !state.activeTenantId) return;
 
     const interval = setInterval(() => {
       syncRemoteState().catch(() => undefined);
-    }, 5000);
+    }, 8000);
 
     return () => clearInterval(interval);
-  }, [ready, state.loggedIn]);
+  }, [ready, state.loggedIn, state.activeTenantId]);
 
   useEffect(() => {
-    if (!state.loggedIn || !state.rider.id) return;
+    if (!state.loggedIn || !state.rider.id || !state.activeTenantId) return;
     return subscribeToRiderDataChanges(state.rider.id, () => {
       syncRemoteState().catch(() => undefined);
     });
-  }, [state.loggedIn, state.rider.id]);
+  }, [state.loggedIn, state.rider.id, state.activeTenantId]);
 
   async function refresh() {
     await syncRemoteState();
   }
 
-  async function login(phone: string, _password: string, rememberLogin: boolean, onlineAfterLogin: boolean) {
-    await loginRider(phone, _password);
-    await syncRemoteState();
+  async function login(phone: string, password: string, rememberLogin: boolean, onlineAfterLogin: boolean) {
+    await loginRider(phone, password);
+    const session = await getCurrentSession();
+    if (!session?.user) throw new Error("Nao foi possivel iniciar a sessao.");
+
+    await bootstrapTenants(session.user.id);
     await updateRiderOnline(onlineAfterLogin);
     await syncRemoteState();
+
     setState((current) => ({
       ...current,
       loggedIn: true,
@@ -197,9 +287,21 @@ export function AppDataProvider({ children }: PropsWithChildren) {
     }));
   }
 
+  async function selectTenant(tenantId: string) {
+    const tenants = tenantsRef.current.length ? tenantsRef.current : state.availableTenants;
+    await applyTenantContext(tenantId, tenants);
+  }
+
   function logout() {
     void logoutRider();
-    setState((current) => ({ ...current, loggedIn: false }));
+    setActiveRiderTenant(null, null);
+    void saveActiveTenantId(null);
+    setState((current) => ({ ...current, loggedIn: false, activeTenantId: null, tenant: null }));
+  }
+
+  async function uploadAvatar(localUri: string) {
+    await uploadRiderAvatar(localUri);
+    await syncRemoteState();
   }
 
   async function setOnline(value: boolean) {
@@ -301,15 +403,19 @@ export function AppDataProvider({ children }: PropsWithChildren) {
   }
 
   const unreadNotifications = state.notifications.filter((item) => !item.readAt);
+  const needsTenantSelection = state.loggedIn && !state.activeTenantId && state.availableTenants.length > 0;
 
   const value = useMemo(
     () => ({
       state,
       ready,
       lastMessage,
+      needsTenantSelection,
       login,
       logout,
       refresh,
+      selectTenant,
+      uploadAvatar,
       updateProfile,
       setOnline,
       acceptDelivery,
@@ -325,7 +431,7 @@ export function AppDataProvider({ children }: PropsWithChildren) {
       unreadNotifications,
       quickMessages,
     }),
-    [lastMessage, ready, state, unreadNotifications],
+    [lastMessage, needsTenantSelection, ready, state, unreadNotifications],
   );
 
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;

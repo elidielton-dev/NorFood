@@ -4,6 +4,10 @@ import { SERVICE_CITY_CONFIG } from "../lib/city-config";
 export const initialAppState: AppState = {
   loggedIn: false,
   rememberLogin: true,
+  activeTenantId: null,
+  tenant: null,
+  tenantSettings: null,
+  availableTenants: [],
   rider: {
     id: "demo-motoboy",
     name: "Joao da Silva",

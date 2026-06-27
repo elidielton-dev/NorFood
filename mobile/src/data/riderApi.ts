@@ -12,6 +12,8 @@ import type {
   DeliveryStep,
   EarningsSnapshot,
   RiderProfile,
+  TenantSettings,
+  TenantSummary,
 } from "../types";
 import { initialAppState } from "./mockData";
 
@@ -52,6 +54,7 @@ type DeliveryRow = {
   id: string;
   pedido_id: string;
   motoboy_id: string | null;
+  tenant_id?: string | null;
   status: string;
   endereco: string;
   bairro: string | null;
@@ -134,6 +137,18 @@ const ENTREGADOR_PERFIS_TABLE = "entregador_perfis" as never;
 const MOTOBOY_OCORRENCIAS_TABLE = "motoboy_ocorrencias" as never;
 const MOTOBOY_MENSAGENS_TABLE = "motoboy_mensagens" as never;
 const MOTOBOY_NOTIFICACOES_TABLE = "motoboy_notificacoes" as never;
+
+let activeTenantId: string | null = null;
+let activeTenantSettings: TenantSettings | null = null;
+
+export function setActiveRiderTenant(tenantId: string | null, settings: TenantSettings | null = null) {
+  activeTenantId = tenantId;
+  activeTenantSettings = settings;
+}
+
+export function getActiveRiderTenantId() {
+  return activeTenantId;
+}
 
 function requireSupabase() {
   if (!mobileSupabase) {
@@ -226,9 +241,13 @@ export async function logoutRider() {
   if (error) throw error;
 }
 
-export async function fetchRiderAppState(): Promise<RiderAppRemoteState> {
+export async function fetchRiderAppState(tenantId?: string | null): Promise<RiderAppRemoteState> {
   const user = await getCurrentUser();
   const supabase = requireSupabase();
+  const scopedTenantId = tenantId ?? activeTenantId;
+  if (!scopedTenantId) {
+    throw new Error("Selecione a empresa antes de continuar.");
+  }
 
   const [
     { data: profile },
@@ -248,11 +267,12 @@ export async function fetchRiderAppState(): Promise<RiderAppRemoteState> {
       .select("*")
       .eq("user_id", user.id)
       .maybeSingle<RiderProfileRow>(),
-    fetchDeliveries(user.id),
+    fetchDeliveries(user.id, scopedTenantId),
     supabase
       .from(MOTOBOY_OCORRENCIAS_TABLE)
       .select("*")
       .eq("rider_id", user.id)
+      .eq("tenant_id", scopedTenantId)
       .order("created_at", { ascending: false })
       .limit(30)
       .returns<IncidentRow[]>(),
@@ -260,6 +280,7 @@ export async function fetchRiderAppState(): Promise<RiderAppRemoteState> {
       .from(MOTOBOY_MENSAGENS_TABLE)
       .select("*")
       .eq("rider_id", user.id)
+      .eq("tenant_id", scopedTenantId)
       .order("created_at", { ascending: false })
       .limit(30)
       .returns<MessageRow[]>(),
@@ -267,6 +288,7 @@ export async function fetchRiderAppState(): Promise<RiderAppRemoteState> {
       .from(MOTOBOY_NOTIFICACOES_TABLE)
       .select("*")
       .eq("rider_id", user.id)
+      .eq("tenant_id", scopedTenantId)
       .order("created_at", { ascending: false })
       .limit(50)
       .returns<NotificationRow[]>(),
@@ -287,6 +309,7 @@ export async function fetchRiderAppState(): Promise<RiderAppRemoteState> {
   return {
     loggedIn: true,
     rememberLogin: true,
+    activeTenantId: scopedTenantId,
     rider,
     deliveries,
     incidents,
@@ -296,11 +319,13 @@ export async function fetchRiderAppState(): Promise<RiderAppRemoteState> {
   };
 }
 
-async function fetchDeliveries(riderId: string) {
+async function fetchDeliveries(riderId: string, tenantId: string) {
   const supabase = requireSupabase();
   const { data: deliveryRows, error } = await supabase
     .from("entregas")
     .select("*")
+    .eq("tenant_id", tenantId)
+    .or(`motoboy_id.eq.${riderId},and(motoboy_id.is.null,status.eq.pendente)`)
     .order("created_at", { ascending: false })
     .limit(50)
     .returns<DeliveryRow[]>();
@@ -432,7 +457,9 @@ function buildRiderProfile(
     state: String(riderProfile?.state ?? SERVICE_CITY_CONFIG.state),
     emergencyPhone: String(riderProfile?.emergency_phone ?? phone),
     pixKey: String(riderProfile?.pix_key ?? user.email ?? phone),
-    supportPhone: String(riderProfile?.support_phone ?? DEFAULT_SUPPORT_PHONE),
+    supportPhone: String(
+      activeTenantSettings?.phone ?? riderProfile?.support_phone ?? DEFAULT_SUPPORT_PHONE,
+    ),
     documents: {
       cnh: String(riderProfile?.cnh ?? ""),
       cnhExpiry: riderProfile?.cnh_expiry ?? "",
@@ -815,6 +842,7 @@ async function insertNotification(
   const supabase = requireSupabase();
   const { error } = await supabase.from(MOTOBOY_NOTIFICACOES_TABLE).insert({
     rider_id: userId,
+    tenant_id: activeTenantId,
     title,
     body,
     type,
@@ -842,6 +870,7 @@ export async function updateRiderOnline(online: boolean) {
   const user = await getCurrentUser();
   const { error } = await supabase.from(ENTREGADOR_PERFIS_TABLE).upsert({
     user_id: user.id,
+    tenant_id: activeTenantId,
     online,
   });
   if (error) throw error;
@@ -859,6 +888,7 @@ export async function updateRiderProfile(payload: Record<string, unknown>) {
   const profilePatch: Record<string, unknown> = {};
   if (typeof payload.name === "string") profilePatch.nome = payload.name;
   if (typeof payload.phone === "string") profilePatch.telefone = payload.phone;
+  if (typeof payload.avatarUrl === "string") profilePatch.avatar_url = payload.avatarUrl;
 
   if (Object.keys(profilePatch).length) {
     const { error } = await supabase.from("profiles").upsert({
@@ -868,13 +898,14 @@ export async function updateRiderProfile(payload: Record<string, unknown>) {
     if (error) throw error;
   }
 
-  const riderPatch: Record<string, unknown> = { user_id: user.id };
+  const riderPatch: Record<string, unknown> = { user_id: user.id, tenant_id: activeTenantId };
   if (typeof payload.cep === "string") riderPatch.cep = payload.cep;
   if (typeof payload.address === "string") riderPatch.address = payload.address;
   if (typeof payload.neighborhood === "string") riderPatch.neighborhood = payload.neighborhood;
   if (typeof payload.city === "string") riderPatch.city = payload.city;
   if (typeof payload.state === "string") riderPatch.state = payload.state;
   if (typeof payload.email === "string") riderPatch.pix_key = payload.email;
+  if (typeof payload.avatarUrl === "string") riderPatch.avatar_url = payload.avatarUrl;
 
   const settings = payload.settings as Record<string, unknown> | undefined;
   if (settings) {
@@ -898,6 +929,8 @@ export async function updateRiderProfile(payload: Record<string, unknown>) {
     data: {
       nome: typeof payload.name === "string" ? payload.name : user.user_metadata?.nome,
       telefone: typeof payload.phone === "string" ? payload.phone : user.user_metadata?.telefone,
+      avatar_url:
+        typeof payload.avatarUrl === "string" ? payload.avatarUrl : user.user_metadata?.avatar_url,
     },
   };
 
@@ -1027,6 +1060,7 @@ export async function sendRiderLocation(
     supabase.from("entregadores_localizacao").upsert(
       {
         entregador_id: riderId,
+        tenant_id: activeTenantId,
         latitude: payload.latitude,
         longitude: payload.longitude,
         speed: payload.speed ?? null,
@@ -1043,6 +1077,7 @@ export async function sendRiderLocation(
     supabase.from(ENTREGADOR_PERFIS_TABLE).upsert(
       {
         user_id: riderId,
+        tenant_id: activeTenantId,
         online: status !== "offline",
       },
       {
@@ -1064,6 +1099,7 @@ export async function reportRiderIncident(deliveryId: string, type: string, note
   const { error } = await supabase.from(MOTOBOY_OCORRENCIAS_TABLE).insert({
     delivery_id: deliveryId,
     rider_id: user.id,
+    tenant_id: activeTenantId,
     type,
     note,
   });
@@ -1079,21 +1115,44 @@ export async function reportRiderIncident(deliveryId: string, type: string, note
 }
 
 export async function sendRiderMessage(deliveryId: string, text: string, templateId?: string) {
-  const state = await fetchRiderAppState();
-  const delivery = state.deliveries.find((item) => item.id === deliveryId);
-  if (!delivery) throw new Error("Entrega nao encontrada para envio da mensagem.");
-
   const supabase = requireSupabase();
   const user = await getCurrentUser();
-  const quickLinks = buildQuickLinks(delivery.whatsapp || delivery.phone, text);
+
+  const { data: deliveryRow } = await supabase
+    .from("entregas")
+    .select("id, pedido_id")
+    .eq("id", deliveryId)
+    .eq("tenant_id", activeTenantId)
+    .maybeSingle();
+
+  if (!deliveryRow) throw new Error("Entrega nao encontrada para envio da mensagem.");
+
+  const { data: order } = await supabase
+    .from("pedidos")
+    .select("cliente_id")
+    .eq("id", deliveryRow.pedido_id)
+    .maybeSingle<{ cliente_id: string | null }>();
+
+  let customerPhone = "";
+  if (order?.cliente_id) {
+    const { data: customer } = await supabase
+      .from("profiles")
+      .select("telefone")
+      .eq("id", order.cliente_id)
+      .maybeSingle<{ telefone: string | null }>();
+    customerPhone = customer?.telefone ?? "";
+  }
+
+  const quickLinks = buildQuickLinks(customerPhone, text);
 
   const { error } = await supabase.from(MOTOBOY_MENSAGENS_TABLE).insert({
     delivery_id: deliveryId,
     rider_id: user.id,
+    tenant_id: activeTenantId,
     template_id: templateId ?? null,
     text,
-    customer_phone: delivery.phone,
-    customer_whatsapp: delivery.whatsapp,
+    customer_phone: customerPhone,
+    customer_whatsapp: customerPhone,
     quick_whatsapp: quickLinks.whatsapp,
     quick_sms: quickLinks.sms,
   });
@@ -1119,6 +1178,30 @@ export async function markNotificationsRead() {
     .from(MOTOBOY_NOTIFICACOES_TABLE)
     .update({ read_at: new Date().toISOString() })
     .eq("rider_id", user.id)
+    .eq("tenant_id", activeTenantId)
     .is("read_at", null);
   if (error) throw error;
+}
+
+export async function uploadRiderAvatar(localUri: string) {
+  const supabase = requireSupabase();
+  const user = await getCurrentUser();
+  const response = await fetch(localUri);
+  const blob = await response.blob();
+  const ext = localUri.split(".").pop()?.split("?")[0] ?? "jpg";
+  const contentType = blob.type || `image/${ext === "png" ? "png" : "jpeg"}`;
+  const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage.from("avatars").upload(path, blob, {
+    contentType,
+    upsert: true,
+  });
+  if (uploadError) throw uploadError;
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("avatars").getPublicUrl(path);
+
+  await updateRiderProfile({ avatarUrl: publicUrl });
+  return publicUrl;
 }

@@ -4,19 +4,22 @@ import { useState } from "react";
 import { Pressable, Switch, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { CardResumo } from "../components/CardResumo";
 import { FadeInView } from "../components/FadeInView";
 import { HeaderMobile } from "../components/HeaderMobile";
 import { ScreenContainer } from "../components/ScreenContainer";
+import { TenantBrandBar } from "../components/TenantBrandBar";
 import { useAppData } from "../context/AppDataContext";
+import { useTenantTheme } from "../hooks/useTenantTheme";
 import { RootStackParamList } from "../navigation/AppNavigator";
-import { useAppTheme } from "../styles/theme";
 import { formatCurrency } from "../utils/format";
 
 export function DashboardScreen() {
-  const theme = useAppTheme();
-  const { state, setOnline, unreadNotifications, markAllNotificationsRead } = useAppData();
+  const theme = useTenantTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { state, setOnline, unreadNotifications, markAllNotificationsRead } = useAppData();
   const [updatingOnline, setUpdatingOnline] = useState(false);
   const nextDelivery =
     state.deliveries.find((item) => item.status === "in_progress") ??
@@ -37,6 +40,7 @@ export function DashboardScreen() {
   return (
     <ScreenContainer>
       <FadeInView>
+        <TenantBrandBar onSwitchPress={() => navigation.navigate("TenantSelect")} />
         <HeaderMobile
           avatar={state.rider.avatar}
           greeting={`Ola, ${state.rider.shortName}!`}

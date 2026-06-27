@@ -1,3 +1,24 @@
+export type TenantSummary = {
+  id: string;
+  role: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+};
+
+export type TenantSettings = {
+  phone: string | null;
+  address: string | null;
+  description: string | null;
+  deliveryFeeDefault: number;
+  deliveryTimeMinutes: number;
+  pedidoMinimo: number;
+  lojaAberta: boolean;
+};
+
 export type DeliveryTab = "disponiveis" | "andamento" | "historico";
 export type DeliveryStatus = "available" | "in_progress" | "completed";
 export type DeliveryStep = "confirmed" | "preparing" | "on_route" | "arrived" | "delivered";
@@ -140,6 +161,10 @@ export type QuickMessageTemplate = {
 export type AppState = {
   loggedIn: boolean;
   rememberLogin: boolean;
+  activeTenantId: string | null;
+  tenant: TenantSummary | null;
+  tenantSettings: TenantSettings | null;
+  availableTenants: TenantSummary[];
   rider: RiderProfile;
   deliveries: DeliveryOrder[];
   incidents: DeliveryIncident[];

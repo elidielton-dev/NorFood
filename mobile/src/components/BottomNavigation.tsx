@@ -2,7 +2,7 @@ import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useAppTheme } from "../styles/theme";
+import { useTenantTheme } from "../hooks/useTenantTheme";
 
 const icons = {
   Início: "home-variant-outline",
@@ -13,7 +13,7 @@ const icons = {
 
 export function BottomNavigation({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const theme = useAppTheme();
+  const theme = useTenantTheme();
 
   return (
     <View
