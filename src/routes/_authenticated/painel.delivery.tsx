@@ -19,9 +19,9 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { DeliveryFleetMap } from "@/components/delivery-fleet-map-lazy";
 import {
-  EntregadorWebAppQrDialog,
-  EntregadorWebAppQrPanel,
-} from "@/components/entregador-web-app-qr";
+  EntregadorExpoGoQrDialog,
+  EntregadorExpoGoQrPanel,
+} from "@/components/entregador-expo-go-qr";
 import {
   GestaoButton,
   GestaoCard,
@@ -358,12 +358,12 @@ function DeliveryManagementPage() {
 
       <GestaoCard>
         <GestaoSectionTitle
-          eyebrow="Mobile"
-          title="QR Code do app entregador"
-          description="Escaneie no celular para abrir o app web. O entregador faz login com e-mail e senha cadastrados."
+          eyebrow="Expo Go"
+          title="QR Code Expo Go — app entregador"
+          description="Escaneie com o app Expo Go no celular. O Metro roda na VPS (porta 8081)."
         />
         <div className="mt-5">
-          <EntregadorWebAppQrPanel />
+          <EntregadorExpoGoQrPanel />
         </div>
       </GestaoCard>
 
@@ -481,7 +481,7 @@ function DeliveryManagementPage() {
                   }}
                 >
                   <QrCode className="size-3.5" />
-                  QR app
+                  QR Expo Go
                 </GestaoButton>
                 <GestaoButton
                   variant="secondary"
@@ -643,7 +643,7 @@ function DeliveryManagementPage() {
         ) : null}
       </GestaoCard>
 
-      <EntregadorWebAppQrDialog
+      <EntregadorExpoGoQrDialog
         open={qrRiderId !== null}
         onOpenChange={(open) => {
           if (!open) setQrRiderId(null);

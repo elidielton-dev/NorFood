@@ -10,6 +10,9 @@ services:
         VITE_DEMO_MODE: ${VITE_DEMO_MODE:-false}
         VITE_PLATFORM_ADMIN_EMAILS: ${VITE_PLATFORM_ADMIN_EMAILS}
         VITE_MP_PUBLIC_KEY: ${VITE_MP_PUBLIC_KEY:-}
+        VITE_EXPO_GO_URL: ${EXPO_GO_URL:-exp://15.228.214.190:8081}
+        VITE_EXPO_METRO_HOST: ${EXPO_METRO_HOST:-15.228.214.190}
+        VITE_EXPO_METRO_PORT: ${EXPO_METRO_PORT:-8081}
     restart: unless-stopped
     env_file:
       - .env
@@ -17,6 +20,9 @@ services:
       NODE_ENV: production
       HOST: 0.0.0.0
       PORT: 3000
+      EXPO_GO_URL: ${EXPO_GO_URL:-exp://15.228.214.190:8081}
+      EXPO_METRO_HOST: ${EXPO_METRO_HOST:-15.228.214.190}
+      EXPO_METRO_PORT: ${EXPO_METRO_PORT:-8081}
     expose:
       - "3000"
     networks:
@@ -33,6 +39,28 @@ services:
           memory: 6G
         reservations:
           memory: 2G
+
+  expo-metro:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.expo
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      EXPO_PUBLIC_SUPABASE_URL: ${VITE_SUPABASE_URL}
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
+      CI: "1"
+    ports:
+      - "8081:8081"
+    networks:
+      - norfood-net
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
 
   caddy:
     image: caddy:2-alpine

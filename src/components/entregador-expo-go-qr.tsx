@@ -1,6 +1,7 @@
 import QRCode from "qrcode";
+import { useQuery } from "@tanstack/react-query";
 import { Copy, QrCode, Smartphone } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { GestaoButton } from "@/components/gestao-ui";
 import {
@@ -11,18 +12,25 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { resolveExpoGoUrl } from "@/lib/entregador-expo-go-url";
 
-export function getEntregadorWebAppUrl() {
-  if (typeof window !== "undefined" && window.location.origin) {
-    return `${window.location.origin}/entregador`;
-  }
-  return "/entregador";
+type ExpoGoUrlResponse = {
+  url: string;
+  type: "expo-go";
+  instructions: string[];
+};
+
+async function fetchExpoGoUrl(): Promise<ExpoGoUrlResponse> {
+  const res = await fetch("/api/entregador/expo-go-url");
+  if (!res.ok) throw new Error("Nao foi possivel carregar URL do Expo Go.");
+  return res.json() as Promise<ExpoGoUrlResponse>;
 }
 
-function useEntregadorQrDataUrl(url: string) {
+function useExpoGoQrDataUrl(url: string | undefined) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!url) return;
     let cancelled = false;
     void QRCode.toDataURL(url, {
       width: 280,
@@ -43,7 +51,7 @@ function useEntregadorQrDataUrl(url: string) {
   return dataUrl;
 }
 
-export function EntregadorWebAppQrPanel({
+export function EntregadorExpoGoQrPanel({
   className,
   compact = false,
   riderName,
@@ -52,13 +60,25 @@ export function EntregadorWebAppQrPanel({
   compact?: boolean;
   riderName?: string;
 }) {
-  const appUrl = useMemo(() => getEntregadorWebAppUrl(), []);
-  const qrDataUrl = useEntregadorQrDataUrl(appUrl);
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["expo-go-url"],
+    queryFn: fetchExpoGoUrl,
+    staleTime: 60_000,
+  });
+
+  const fallbackUrl = resolveExpoGoUrl({
+    expoGoUrl: import.meta.env.VITE_EXPO_GO_URL,
+    metroHost: import.meta.env.VITE_EXPO_METRO_HOST,
+    metroPort: import.meta.env.VITE_EXPO_METRO_PORT,
+  });
+
+  const expoUrl = data?.url ?? fallbackUrl;
+  const qrDataUrl = useExpoGoQrDataUrl(expoUrl);
 
   async function copyLink() {
     try {
-      await navigator.clipboard.writeText(appUrl);
-      toast.success("Link copiado.");
+      await navigator.clipboard.writeText(expoUrl);
+      toast.success("Link Expo Go copiado.");
     } catch {
       toast.error("Nao foi possivel copiar o link.");
     }
@@ -71,12 +91,17 @@ export function EntregadorWebAppQrPanel({
         className,
       )}
     >
-      <div className={cn("flex gap-4", compact ? "flex-col items-center text-center" : "flex-col lg:flex-row lg:items-start")}>
+      <div
+        className={cn(
+          "flex gap-4",
+          compact ? "flex-col items-center text-center" : "flex-col lg:flex-row lg:items-start",
+        )}
+      >
         <div className="mx-auto shrink-0 rounded-2xl border border-[color:var(--honey-line)] bg-white p-3 shadow-soft lg:mx-0">
           {qrDataUrl ? (
             <img
               src={qrDataUrl}
-              alt="QR Code app entregador"
+              alt="QR Code Expo Go"
               className="size-[220px] rounded-xl sm:size-[240px]"
             />
           ) : (
@@ -89,19 +114,32 @@ export function EntregadorWebAppQrPanel({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 text-[color:var(--gestao-green)]">
             <Smartphone className="size-4" />
-            <p className="text-xs font-semibold uppercase tracking-[0.18em]">App entregador</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em]">Expo Go</p>
           </div>
           <h3 className="mt-2 text-lg font-semibold text-[color:var(--gestao-ink)]">
-            {riderName ? `Acesso de ${riderName}` : "Escaneie para abrir no celular"}
+            {riderName ? `App de ${riderName}` : "Escaneie com o Expo Go"}
           </h3>
           <p className="mt-2 text-sm text-muted-foreground">
-            O entregador abre o link, faz login com e-mail e senha cadastrados e acompanha as
-            entregas em tempo real.
+            Abra o app <strong>Expo Go</strong> no celular, escaneie este QR e faça login com e-mail e
+            senha do entregador.
           </p>
 
+          {isLoading ? (
+            <p className="mt-3 text-sm text-muted-foreground">Carregando URL do Metro...</p>
+          ) : null}
+          {isError ? (
+            <p className="mt-3 text-sm text-amber-700">
+              Usando URL padrao. Confirme se o Metro esta rodando na VPS (porta 8081).
+            </p>
+          ) : null}
+
           <div className="mt-4 rounded-2xl border border-[color:var(--honey-line)] bg-background px-3 py-2.5">
-            <p className="text-[11px] uppercase tracking-[0.15em] text-muted-foreground">Link</p>
-            <p className="mt-1 break-all text-sm font-medium text-[color:var(--gestao-ink)]">{appUrl}</p>
+            <p className="text-[11px] uppercase tracking-[0.15em] text-muted-foreground">
+              Link Expo Go
+            </p>
+            <p className="mt-1 break-all text-sm font-medium text-[color:var(--gestao-ink)]">
+              {expoUrl}
+            </p>
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
@@ -109,21 +147,17 @@ export function EntregadorWebAppQrPanel({
               <Copy className="size-3.5" />
               Copiar link
             </GestaoButton>
-            <a
-              href={appUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex h-8 items-center justify-center gap-2 rounded-lg border border-[color:var(--honey-line)] bg-background px-3 text-xs font-semibold transition hover:bg-muted/50"
-            >
-              Abrir app
-            </a>
           </div>
 
           {!compact ? (
             <ol className="mt-4 list-decimal space-y-1 pl-4 text-sm text-muted-foreground">
-              <li>Escaneie o QR Code com a camera do celular.</li>
-              <li>Abra o link no navegador.</li>
-              <li>Entre com o e-mail e senha do entregador.</li>
+              {(data?.instructions ?? [
+                "Instale o Expo Go (App Store / Play Store).",
+                "Abra o Expo Go e escaneie o QR (nao use a camera do iPhone).",
+                "Entre com e-mail e senha do entregador.",
+              ]).map((step) => (
+                <li key={step}>{step}</li>
+              ))}
             </ol>
           ) : null}
         </div>
@@ -132,7 +166,7 @@ export function EntregadorWebAppQrPanel({
   );
 }
 
-export function EntregadorWebAppQrDialog({
+export function EntregadorExpoGoQrDialog({
   open,
   onOpenChange,
   riderName,
@@ -145,15 +179,19 @@ export function EntregadorWebAppQrDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>App do entregador</DialogTitle>
+          <DialogTitle>Expo Go — app entregador</DialogTitle>
           <DialogDescription>
             {riderName
-              ? `Mostre este QR para ${riderName} acessar o app e fazer login.`
-              : "Escaneie para abrir o app web do entregador."}
+              ? `Mostre este QR para ${riderName} abrir no Expo Go.`
+              : "Escaneie com o app Expo Go no celular."}
           </DialogDescription>
         </DialogHeader>
-        <EntregadorWebAppQrPanel compact riderName={riderName} />
+        <EntregadorExpoGoQrPanel compact riderName={riderName} />
       </DialogContent>
     </Dialog>
   );
 }
+
+// Compatibilidade com imports antigos
+export { EntregadorExpoGoQrPanel as EntregadorWebAppQrPanel };
+export { EntregadorExpoGoQrDialog as EntregadorWebAppQrDialog };

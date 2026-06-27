@@ -24,14 +24,23 @@ function detectLanIp() {
   } catch {
     /* optional */
   }
-  return "192.168.0.9";
+  return null;
 }
 
-const lanIp = process.env.EXPO_LAN_IP ?? detectLanIp();
-const port = process.env.EXPO_PORT ?? "8081";
-const expUrl = process.env.EXPO_URL ?? process.env.EXPO_GO_URL ?? `exp://${lanIp}:${port}`;
-const mode = process.env.EXPO_URL || process.env.EXPO_GO_URL ? "tunnel/custom" : "lan";
-const webUrl = "http://localhost:19006";
+const port = process.env.EXPO_METRO_PORT ?? process.env.EXPO_PORT ?? "8081";
+const host =
+  process.env.EXPO_METRO_HOST ??
+  process.env.NORFOOD_VPS_HOST ??
+  detectLanIp() ??
+  "15.228.214.190";
+const expUrl = process.env.EXPO_URL ?? process.env.EXPO_GO_URL ?? `exp://${host}:${port}`;
+const mode =
+  process.env.EXPO_URL || process.env.EXPO_GO_URL
+    ? "custom"
+    : host === "15.228.214.190"
+      ? "vps"
+      : "lan";
+
 const pngPath = resolve(root, "public/expo-go-qr.png");
 const htmlPath = resolve(root, "public/expo-go-qr.html");
 
@@ -56,20 +65,18 @@ const html = `<!DOCTYPE html>
 <body>
   <main>
     <h1>App Entregador — Expo Go</h1>
-    <p style="text-align:center">Escaneie com o <strong>Expo Go</strong>. Modo: <strong>${mode}</strong>.</p>
+    <p style="text-align:center">Escaneie com o <strong>Expo Go</strong> (${mode}).</p>
     <img src="expo-go-qr.png" alt="QR Code Expo Go" />
     <p style="text-align:center"><a href="${expUrl}">${expUrl}</a></p>
     <ol>
       <li>Instale o app <strong>Expo Go</strong> no celular.</li>
-      <li>Deixe o Metro rodando: <code>npm run mobile:tunnel</code> (recomendado — evita timeout)</li>
-      <li>Escaneie o QR Code acima.</li>
-      <li>Faça login com e-mail e senha do entregador.</li>
+      <li>Abra o Expo Go e escaneie o QR (nao use a camera comum).</li>
+      <li>Faca login com e-mail e senha do entregador.</li>
     </ol>
-    <p style="text-align:center">Web no PC: <a href="${webUrl}">${webUrl}</a></p>
   </main>
 </body>
 </html>`;
 
 writeFileSync(htmlPath, html, "utf8");
 
-console.log(JSON.stringify({ lanIp, expUrl, mode, webUrl, pngPath, htmlPath }, null, 2));
+console.log(JSON.stringify({ host, port, expUrl, mode, pngPath, htmlPath }, null, 2));
