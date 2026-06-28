@@ -150,6 +150,8 @@ async function checkHttpRoutes() {
     "/login",
     "/cadastro",
     "/admin",
+  "/admin/aprovacoes",
+  "/cadastro/aguardando/norfood",
     `/loja/${TENANT_SLUG}`,
     `/t/${TENANT_SLUG}/dashboard`,
     `/t/${TENANT_SLUG}/pedidos`,
@@ -184,11 +186,14 @@ async function checkEnvIntegrations() {
     ["META_APP_SECRET", env.META_APP_SECRET],
     ["WABA_VERIFY_TOKEN", env.WABA_VERIFY_TOKEN],
     ["EVOLUTION_API_URL", env.EVOLUTION_API_URL],
+    ["RESEND_API_KEY", env.RESEND_API_KEY],
   ];
 
   for (const [key, val] of checks) {
     if (val && String(val).length > 3) ok("ENV", key, "configurado");
-    else if (["MP_ACCESS_TOKEN", "VITE_MP_PUBLIC_KEY", "META_APP_ID", "META_APP_SECRET", "WABA_VERIFY_TOKEN", "EVOLUTION_API_URL"].includes(key)) {
+    else if (key === "RESEND_API_KEY") {
+      gap("ENV", key, "não configurado — e-mails transacionais (aprovação de cadastro) não serão enviados");
+    } else if (["MP_ACCESS_TOKEN", "VITE_MP_PUBLIC_KEY", "META_APP_ID", "META_APP_SECRET", "WABA_VERIFY_TOKEN", "EVOLUTION_API_URL"].includes(key)) {
       gap("ENV", key, "não configurado — pagamento online / WhatsApp indisponível");
     } else {
       fail("ENV", key, "obrigatório ausente");
@@ -282,8 +287,16 @@ async function checkDatabaseInventory(admin) {
   const { data: fiscal } = await admin.from("empresa_fiscal").select("*").eq("tenant_id", TENANT_ID).limit(1);
   if (!fiscal?.length) gap("DB", "empresa_fiscal", "CNPJ/certificado não cadastrado — NFC-e indisponível");
 
-  const { data: waba } = await admin.from("waba_config").select("*").eq("tenant_id", TENANT_ID).limit(1);
-  if (!waba?.length) gap("DB", "waba_config", "WhatsApp Meta não configurado no tenant");
+  const { data: waba } = await admin
+    .from("waba_config")
+    .select("workspace_id, status, phone_number_id, access_token, display_phone_number")
+    .eq("workspace_id", "default")
+    .maybeSingle();
+  if (!waba?.access_token || !waba?.phone_number_id) {
+    gap("DB", "waba_config", "WhatsApp Meta não configurado (workspace default)");
+  } else {
+    ok("DB", "WhatsApp Meta", waba.display_phone_number ?? waba.status);
+  }
 }
 
 async function checkUsers(admin) {

@@ -7,6 +7,7 @@ import { spawn } from "node:child_process";
 
 const steps = [
   { name: "Cadastro SaaS", script: "validate:signup" },
+  { name: "Aprovação cadastro", script: "validate:approval" },
   { name: "Faturamento E2E", script: "validate:billing:e2e" },
   { name: "Sistema E2E", script: "validate:system:e2e" },
   { name: "Produtos módulo", script: "validate:produtos-module" },

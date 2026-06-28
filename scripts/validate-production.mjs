@@ -7,6 +7,8 @@ const ROUTES = [
   "/login",
   "/cadastro",
   "/admin",
+  "/admin/aprovacoes",
+  "/cadastro/aguardando/norfood",
   "/loja/norfood",
   "/t/norfood/dashboard",
 ];
