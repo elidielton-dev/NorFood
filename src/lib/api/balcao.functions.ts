@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Enums, Tables } from "@/integrations/supabase/types";
-import { assertStaffUserId } from "@/lib/api/auth-helpers.server";
+import { assertStaffUserId, resolveStaffTenantId } from "@/lib/api/auth-helpers.server";
 import {
   getOperationalConfig,
   validateAndPriceOrderItems,
@@ -12,6 +12,7 @@ type FormaPagamento = Enums<"forma_pagamento">;
 type PedidoRow = Tables<"pedidos">;
 
 type CreateBalcaoOrderInput = {
+  tenantSlug: string;
   forma_pagamento: string;
   troco_para?: number | null;
   observacoes?: string | null;
@@ -23,8 +24,9 @@ export const createBalcaoOrderServer = createServerFn({ method: "POST" })
   .validator((input: CreateBalcaoOrderInput) => input)
   .handler(async ({ context, data }): Promise<PedidoRow> => {
     await assertStaffUserId(context.userId, "Acesso restrito ao PDV balcão.");
+    const tenantId = await resolveStaffTenantId(context.userId, data.tenantSlug);
 
-    const config = await getOperationalConfig();
+    const config = await getOperationalConfig(tenantId);
     if (!config.loja_aberta) {
       throw new Error("A loja esta fechada no momento.");
     }
@@ -33,6 +35,19 @@ export const createBalcaoOrderServer = createServerFn({ method: "POST" })
     const { itens, subtotal } = await validateAndPriceOrderItems(data.itens, {
       checkStock: true,
     });
+
+    const { resolveTenantIdFromProductId, assertCanCreateTenantOrder } = await import(
+      "@/lib/tenant/tenant-plan.server"
+    );
+
+    if (data.itens[0]?.produto_id) {
+      const productTenantId = await resolveTenantIdFromProductId(data.itens[0].produto_id);
+      if (productTenantId && productTenantId !== tenantId) {
+        throw new Error("Produto não pertence a este restaurante.");
+      }
+    }
+
+    await assertCanCreateTenantOrder(tenantId);
 
     if (subtotal < Number(config.pedido_minimo)) {
       throw new Error(
@@ -44,6 +59,7 @@ export const createBalcaoOrderServer = createServerFn({ method: "POST" })
       .from("pedidos")
       .insert({
         canal: "balcao",
+        tenant_id: tenantId,
         status: "aberto",
         subtotal,
         desconto: 0,
@@ -75,6 +91,7 @@ export const createBalcaoOrderServer = createServerFn({ method: "POST" })
       valor: subtotal,
       forma: data.forma_pagamento as FormaPagamento,
       pedido_id: pedido.id,
+      tenant_id: tenantId,
     });
     if (financeError) throw financeError;
 

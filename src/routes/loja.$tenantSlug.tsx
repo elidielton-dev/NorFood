@@ -1,12 +1,14 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { resolveTenantBySlug } from "@/lib/platform-admin/demo-tenants-store";
+import { fetchTenantBySlugServer } from "@/lib/api/tenant.functions";
 import { TenantProvider } from "@/lib/tenant/tenant-context";
+import { TenantOperationalGate } from "@/components/tenant/tenant-operational-gate";
 import { AppAbelhaMel } from "@/components/app-abelha-mel";
 
 export const Route = createFileRoute("/loja/$tenantSlug")({
-  beforeLoad: ({ params }) => {
-    const tenant = resolveTenantBySlug(params.tenantSlug);
+  beforeLoad: async ({ params }) => {
+    const tenant = await fetchTenantBySlugServer({ data: params.tenantSlug });
     if (!tenant) throw redirect({ to: "/" });
+    return { routeTenant: tenant };
   },
   head: ({ params }) => ({
     meta: [
@@ -20,9 +22,13 @@ export const Route = createFileRoute("/loja/$tenantSlug")({
 
 function LojaPage() {
   const { tenantSlug } = Route.useParams();
+  const { routeTenant } = Route.useRouteContext();
+
   return (
-    <TenantProvider slug={tenantSlug}>
-      <AppAbelhaMel />
+    <TenantProvider slug={tenantSlug} initialTenant={routeTenant}>
+      <TenantOperationalGate mode="loja">
+        <AppAbelhaMel />
+      </TenantOperationalGate>
     </TenantProvider>
   );
 }

@@ -1,4 +1,5 @@
 import { sendPlatformEmail } from "@/lib/notifications/platform-email.server";
+import { buildAppUrl } from "@/lib/app-url";
 import { formatBrazilPhone } from "@/lib/signup/signup-phone";
 import { tenantPath } from "@/lib/tenant/painel-routes";
 
@@ -68,9 +69,8 @@ export async function notifyTenantApproved(args: {
   slug: string;
   phone?: string | null;
 }) {
-  const appUrl = (process.env.PUBLIC_APP_URL ?? "https://norfood.com.br").replace(/\/$/, "");
-  const painelUrl = `${appUrl}${tenantPath(args.slug, "dashboard")}`;
-  const lojaUrl = `${appUrl}/loja/${args.slug}`;
+  const painelUrl = buildAppUrl(tenantPath(args.slug, "dashboard"));
+  const lojaUrl = buildAppUrl(`/loja/${args.slug}`);
 
   const subject = `Seu restaurante ${args.restaurantName} está ativo!`;
   const html = `
@@ -94,10 +94,23 @@ export async function notifyTenantApproved(args: {
     `Trial de 14 dias ativo. Qualquer dúvida, responda esta mensagem.`,
   ].join("\n");
 
-  const [emailResult, whatsappResult] = await Promise.all([
-    sendPlatformEmail({ to: args.email, subject, html, text: `${subject} ${painelUrl}` }),
-    args.phone ? sendPlatformWhatsApp(args.phone, whatsappText) : Promise.resolve({ ok: false as const }),
-  ]);
+  const emailResult = await sendPlatformEmail({
+    to: args.email,
+    subject,
+    html,
+    text: `${subject} ${painelUrl}`,
+  });
+
+  if (!emailResult.ok) {
+    console.error("[tenant-approval] e-mail de aprovação falhou:", args.email, emailResult);
+  }
+
+  const whatsappResult = args.phone
+    ? await sendPlatformWhatsApp(args.phone, whatsappText).catch((error) => {
+        console.error("[tenant-approval] WhatsApp falhou:", error);
+        return { ok: false as const, reason: "send_failed" as const };
+      })
+    : ({ ok: false as const, reason: "not_configured" as const } as const);
 
   return { email: emailResult, whatsapp: whatsappResult };
 }
@@ -136,4 +149,100 @@ export async function notifyTenantRejected(args: {
     sendPlatformEmail({ to: args.email, subject, html }),
     args.phone ? sendPlatformWhatsApp(formatBrazilPhone(args.phone), whatsappText) : Promise.resolve(null),
   ]);
+}
+
+export async function notifyTenantSuspended(args: {
+  email: string;
+  ownerName: string;
+  restaurantName: string;
+  slug: string;
+  reason: string;
+  phone?: string | null;
+  kind?: "admin" | "billing";
+}) {
+  const statusUrl = buildAppUrl(`/conta-suspensa/${args.slug}`);
+  const supportEmail = "suporte@norfood.com.br";
+
+  const subject = `Sua conta ${args.restaurantName} foi suspensa — Norfood`;
+  const intro =
+    args.kind === "billing"
+      ? "Identificamos uma pendência no plano ou pagamento da sua conta."
+      : "Sua conta na plataforma Norfood foi suspensa pela equipe de administração.";
+
+  const html = `
+    <p>Olá, ${args.ownerName}.</p>
+    <p>${intro}</p>
+    <p><strong>Restaurante:</strong> ${args.restaurantName}</p>
+    <p><strong>Motivo:</strong> ${args.reason}</p>
+    <p>Enquanto a conta estiver suspensa:</p>
+    <ul>
+      <li>O painel fica indisponível</li>
+      <li>A loja online fica offline para clientes</li>
+    </ul>
+    <p><a href="${statusUrl}">Ver detalhes da suspensão</a></p>
+    <p>Para regularizar ou tirar dúvidas, responda este e-mail ou escreva para ${supportEmail}.</p>
+    <p>Equipe Norfood</p>
+  `;
+
+  const whatsappText = [
+    `Olá, ${args.ownerName}.`,
+    ``,
+    `Sua conta do restaurante ${args.restaurantName} no Norfood foi suspensa.`,
+    ``,
+    `Motivo: ${args.reason}`,
+    ``,
+    `Detalhes: ${statusUrl}`,
+    `Suporte: ${supportEmail}`,
+  ].join("\n");
+
+  const emailResult = await sendPlatformEmail({
+    to: args.email,
+    subject,
+    html,
+    text: `${subject} ${statusUrl}`,
+  });
+
+  if (!emailResult.ok) {
+    console.error("[tenant-approval] e-mail de suspensão falhou:", args.email, emailResult);
+  }
+
+  if (args.phone) {
+    await sendPlatformWhatsApp(formatBrazilPhone(args.phone), whatsappText).catch((error) => {
+      console.error("[tenant-approval] WhatsApp suspensão falhou:", error);
+    });
+  }
+
+  return { email: emailResult };
+}
+
+export async function notifyTenantReactivated(args: {
+  email: string;
+  ownerName: string;
+  restaurantName: string;
+  slug: string;
+  phone?: string | null;
+}) {
+  const painelUrl = buildAppUrl(tenantPath(args.slug, "dashboard"));
+
+  const subject = `Sua conta ${args.restaurantName} foi reativada — Norfood`;
+  const html = `
+    <p>Olá, ${args.ownerName}!</p>
+    <p>Boas notícias: a conta de <strong>${args.restaurantName}</strong> foi reativada.</p>
+    <p>Você já pode acessar o painel e a loja online normalmente.</p>
+    <p><a href="${painelUrl}">Acessar painel</a></p>
+    <p>Equipe Norfood</p>
+  `;
+
+  const emailResult = await sendPlatformEmail({
+    to: args.email,
+    subject,
+    html,
+    text: `${subject} ${painelUrl}`,
+  });
+
+  if (!emailResult.ok) {
+    console.error("[tenant-approval] e-mail de reativação falhou:", args.email, emailResult);
+  }
+
+  return { email: emailResult };
 }

@@ -283,16 +283,18 @@ function Shell({
     };
 
     void loadCatalog();
-    void fetchCatalogExtrasServer()
-      .then(setCatalogExtras)
-      .catch(() => setCatalogExtras(null));
-    void fetchOperationalStatusServer()
-      .then((config) => setLojaAberta(config.loja_aberta))
-      .catch(() => setLojaAberta(true));
+    if (tenantSlug) {
+      void fetchCatalogExtrasServer({ data: tenantSlug })
+        .then(setCatalogExtras)
+        .catch(() => setCatalogExtras(null));
+      void fetchOperationalStatusServer({ data: tenantSlug })
+        .then((config) => setLojaAberta(config.loja_aberta))
+        .catch(() => setLojaAberta(true));
+    }
     return () => {
       active = false;
     };
-  }, []);
+  }, [tenantSlug]);
 
   useEffect(() => {
     let active = true;
@@ -1222,7 +1224,7 @@ function Carrinho({
     setCupomMessage(null);
     try {
       const result = await validateCouponServer({
-        data: { codigo: cupomInput.trim(), subtotal: total },
+        data: { codigo: cupomInput.trim(), subtotal: total, tenantSlug: tenantSlug! },
       });
       setCupomCodigo(result.codigo);
       setCupomDesconto(result.desconto);

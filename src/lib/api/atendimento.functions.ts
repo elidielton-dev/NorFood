@@ -51,6 +51,8 @@ import type { AtendimentoNotificationSettings } from "@/lib/atendimento/notifica
 
 const staffOnly = async (userId: string) => {
   await assertStaffUserId(userId, "Acesso restrito ao módulo Atendimento.");
+  const { assertPlanFeatureForStaffUser } = await import("@/lib/tenant/tenant-plan.server");
+  await assertPlanFeatureForStaffUser(userId, "whatsapp");
 };
 
 export const fetchAtendimentoConfigServer = createServerFn({ method: "GET" })

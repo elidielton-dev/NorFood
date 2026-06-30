@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { Bike } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getAuthenticatedSession } from "@/lib/auth-session";
 import {
   fetchCurrentUserRoles,
   isMotoboyRole,
@@ -23,9 +24,9 @@ export function EntregadorGate() {
   const [submitting, setSubmitting] = useState(false);
 
   async function refreshSession() {
-    const { data } = await supabase.auth.getSession();
-    setUser(data.session?.user ?? null);
-    if (data.session?.user) {
+    const session = await getAuthenticatedSession();
+    setUser(session?.user ?? null);
+    if (session?.user) {
       setRoles(await fetchCurrentUserRoles());
     } else {
       setRoles([]);

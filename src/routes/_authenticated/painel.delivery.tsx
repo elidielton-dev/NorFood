@@ -37,6 +37,7 @@ import {
   fetchDeliveryPanelDataServer,
   type DeliveryPanelData,
 } from "@/lib/api/delivery-panel.functions";
+import { useTenantSlug } from "@/lib/tenant/tenant-context";
 
 export const Route = createFileRoute("/_authenticated/painel/delivery")({
   component: DeliveryManagementPage,
@@ -60,17 +61,18 @@ type RiderProfileRow = {
 const LOCATION_FRESHNESS_WINDOW_MS = 3 * 60 * 1000;
 const ENTREGADOR_PERFIS_TABLE = "entregador_perfis" as never;
 
-async function fetchDeliveryPanelData(): Promise<DeliveryPanelData> {
-  return await fetchDeliveryPanelDataServer();
+async function fetchDeliveryPanelData(tenantSlug: string): Promise<DeliveryPanelData> {
+  return await fetchDeliveryPanelDataServer({ data: tenantSlug });
 }
 
 function DeliveryManagementPage() {
+  const tenantSlug = useTenantSlug();
   const qc = useQueryClient();
   const [selectedRiderId, setSelectedRiderId] = useState<string | null>(null);
   const [qrRiderId, setQrRiderId] = useState<string | null>(null);
   const { data, isLoading, error } = useQuery({
-    queryKey: ["delivery-panel-real"],
-    queryFn: fetchDeliveryPanelData,
+    queryKey: ["delivery-panel-real", tenantSlug],
+    queryFn: () => fetchDeliveryPanelData(tenantSlug),
     refetchInterval: 60_000,
   });
 
@@ -78,30 +80,30 @@ function DeliveryManagementPage() {
     const channel = supabase
       .channel("delivery-panel-real")
       .on("postgres_changes", { event: "*", schema: "public", table: "pedidos" }, () => {
-        void qc.invalidateQueries({ queryKey: ["delivery-panel-real"] });
+        void qc.invalidateQueries({ queryKey: ["delivery-panel-real", tenantSlug] });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "entregas" }, () => {
-        void qc.invalidateQueries({ queryKey: ["delivery-panel-real"] });
+        void qc.invalidateQueries({ queryKey: ["delivery-panel-real", tenantSlug] });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "rotas_entrega" }, () => {
-        void qc.invalidateQueries({ queryKey: ["delivery-panel-real"] });
+        void qc.invalidateQueries({ queryKey: ["delivery-panel-real", tenantSlug] });
       })
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "entregadores_localizacao" },
         () => {
-          void qc.invalidateQueries({ queryKey: ["delivery-panel-real"] });
+          void qc.invalidateQueries({ queryKey: ["delivery-panel-real", tenantSlug] });
         },
       )
       .on("postgres_changes", { event: "*", schema: "public", table: "entregador_perfis" }, () => {
-        void qc.invalidateQueries({ queryKey: ["delivery-panel-real"] });
+        void qc.invalidateQueries({ queryKey: ["delivery-panel-real", tenantSlug] });
       })
       .subscribe();
 
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [qc]);
+  }, [qc, tenantSlug]);
 
   const pedidos = useMemo(() => data?.pedidos ?? [], [data?.pedidos]);
   const entregas = useMemo(() => data?.entregas ?? [], [data?.entregas]);
@@ -237,7 +239,7 @@ function DeliveryManagementPage() {
     if (locationResult.error) throw locationResult.error;
 
     toast.success(nextOnline ? "Entregador ficou online." : "Entregador ficou offline.");
-    await qc.invalidateQueries({ queryKey: ["delivery-panel-real"] });
+    await qc.invalidateQueries({ queryKey: ["delivery-panel-real", tenantSlug] });
   }
 
   async function reassignDelivery(deliveryId: string) {
@@ -312,7 +314,7 @@ function DeliveryManagementPage() {
     }
 
     toast.success(`Entrega movida para ${nextRider.nome}.`);
-    await qc.invalidateQueries({ queryKey: ["delivery-panel-real"] });
+    await qc.invalidateQueries({ queryKey: ["delivery-panel-real", tenantSlug] });
   }
 
   function contactRider(riderId: string) {
@@ -413,7 +415,7 @@ function DeliveryManagementPage() {
           />
           <GestaoButton
             variant="secondary"
-            onClick={() => void qc.invalidateQueries({ queryKey: ["delivery-panel-real"] })}
+            onClick={() => void qc.invalidateQueries({ queryKey: ["delivery-panel-real", tenantSlug] })}
           >
             <RefreshCw className="size-4" />
             Atualizar

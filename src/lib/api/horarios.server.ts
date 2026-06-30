@@ -33,16 +33,19 @@ function isMissingHorariosSchema(message: string) {
   );
 }
 
-export async function fetchHorariosFromDb(): Promise<{
+export async function fetchHorariosFromDb(tenantId?: string): Promise<{
   horarios: HorarioDia[];
   schemaReady: boolean;
 }> {
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from("horarios_funcionamento")
       .select("dia_semana, ativo, abre, fecha")
       .order("dia_semana");
+    if (tenantId) query = query.eq("tenant_id", tenantId);
+
+    const { data, error } = await query;
 
     if (error) {
       if (isMissingHorariosSchema(error.message)) {
@@ -77,17 +80,19 @@ export async function fetchHorariosFromDb(): Promise<{
   }
 }
 
-export async function fetchHorariosConfigFromDb(): Promise<{
+export async function fetchHorariosConfigFromDb(tenantId?: string): Promise<{
   config: HorariosConfig;
   schemaReady: boolean;
 }> {
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from("config_operacional")
-      .select("loja_aberta, horario_automatico, pausa_imediata, fuso_horario")
-      .eq("id", "default")
-      .maybeSingle();
+      .select("loja_aberta, horario_automatico, pausa_imediata, fuso_horario");
+    if (tenantId) query = query.eq("tenant_id", tenantId);
+    else query = query.eq("id", "default");
+
+    const { data, error } = await query.maybeSingle();
 
     if (error) {
       if (isMissingHorariosSchema(error.message)) {
@@ -115,11 +120,11 @@ export async function fetchHorariosConfigFromDb(): Promise<{
   }
 }
 
-export async function getResolvedOperationalOpenState(): Promise<HorariosPainelState> {
+export async function getResolvedOperationalOpenState(tenantId?: string): Promise<HorariosPainelState> {
   try {
     const [configResult, horariosResult] = await Promise.all([
-      fetchHorariosConfigFromDb(),
-      fetchHorariosFromDb(),
+      fetchHorariosConfigFromDb(tenantId),
+      fetchHorariosFromDb(tenantId),
     ]);
     const config = normalizeHorariosConfig(configResult.config);
     const horarios = horariosResult.horarios;
@@ -145,19 +150,20 @@ export async function getResolvedOperationalOpenState(): Promise<HorariosPainelS
   }
 }
 
-export async function saveHorariosConfigToDb(config: HorariosConfig) {
+export async function saveHorariosConfigToDb(config: HorariosConfig, tenantId?: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const normalized = normalizeHorariosConfig(config);
-  const { error } = await supabaseAdmin
-    .from("config_operacional")
-    .update({
-      loja_aberta: normalized.loja_aberta,
-      horario_automatico: normalized.horario_automatico,
-      pausa_imediata: normalized.pausa_imediata,
-      fuso_horario: STORE_TIMEZONE,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", "default");
+  let query = supabaseAdmin.from("config_operacional").update({
+    loja_aberta: normalized.loja_aberta,
+    horario_automatico: normalized.horario_automatico,
+    pausa_imediata: normalized.pausa_imediata,
+    fuso_horario: STORE_TIMEZONE,
+    updated_at: new Date().toISOString(),
+  });
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+  else query = query.eq("id", "default");
+
+  const { error } = await query;
   if (error) {
     if (isMissingHorariosSchema(error.message)) {
       throw new Error(
@@ -172,15 +178,27 @@ export async function saveHorariosConfigToDb(config: HorariosConfig) {
   void syncAtendimentoWithStoreHoursNow().catch(console.error);
 }
 
-export async function saveHorariosGradeToDb(horarios: HorarioDia[]) {
+export async function saveHorariosGradeToDb(horarios: HorarioDia[], tenantId?: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const payload = ensureFullWeek(horarios).map((horario) => ({
     dia_semana: horario.dia_semana,
     ativo: horario.ativo,
     abre: horario.abre,
     fecha: horario.fecha,
+    tenant_id: tenantId ?? null,
     updated_at: new Date().toISOString(),
   }));
+
+  if (tenantId) {
+    const { error: deleteError } = await supabaseAdmin
+      .from("horarios_funcionamento")
+      .delete()
+      .eq("tenant_id", tenantId);
+    if (deleteError) throw deleteError;
+    const { error } = await supabaseAdmin.from("horarios_funcionamento").insert(payload);
+    if (error) throw error;
+    return;
+  }
 
   const { error } = await supabaseAdmin.from("horarios_funcionamento").upsert(payload, {
     onConflict: "dia_semana",

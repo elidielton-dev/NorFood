@@ -113,6 +113,16 @@ export function updateDemoAdminTenantStatus(id: string, status: TenantStatus) {
   return updated;
 }
 
+export function deleteDemoAdminTenant(id: string): AdminTenantRow | null {
+  if (id === "a0000000-0000-4000-8000-000000000001") return null;
+  const store = readStore();
+  const tenant = store.tenants.find((t) => t.id === id);
+  if (!tenant) return null;
+  store.tenants = store.tenants.filter((t) => t.id !== id);
+  writeStore(store);
+  return tenant;
+}
+
 export function updateDemoAdminTenant(
   id: string,
   patch: Partial<

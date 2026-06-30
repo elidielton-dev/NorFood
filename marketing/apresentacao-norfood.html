@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Norfood — Apresentação Comercial</title>
+  <style>
+    :root {
+      --orange: #FF9100;
+      --orange-dark: #FF7A00;
+      --orange-deep: #FF5C00;
+      --dark: #111111;
+      --dark-soft: #1A1A1A;
+      --bg: #F6F7F9;
+      --text: #1A1A1A;
+      --muted: #5C4A3A;
+      --white: #ffffff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--dark);
+      color: var(--text);
+    }
+
+    .deck {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      padding: 4rem 6rem;
+      opacity: 0;
+      transform: translateX(30px);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+
+    .slide.active {
+      display: flex;
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .slide.light { background: var(--bg); color: var(--text); }
+    .slide.dark { background: var(--dark); color: var(--white); }
+    .slide.orange {
+      background: linear-gradient(135deg, var(--orange) 0%, var(--orange-dark) 50%, var(--orange-deep) 100%);
+      color: var(--white);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.4rem 1rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: rgba(255, 145, 0, 0.15);
+      color: var(--orange-dark);
+      margin-bottom: 1.5rem;
+    }
+
+    .slide.dark .badge,
+    .slide.orange .badge {
+      background: rgba(255, 255, 255, 0.15);
+      color: var(--white);
+    }
+
+    h1 {
+      font-size: clamp(2.5rem, 5vw, 4rem);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+    }
+
+    h2 {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+    }
+
+    h3 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .accent { color: var(--orange); }
+    .slide.orange .accent { color: #FFF8F0; }
+
+    p, li {
+      font-size: clamp(1rem, 1.8vw, 1.25rem);
+      line-height: 1.6;
+    }
+
+    .subtitle {
+      font-size: clamp(1.1rem, 2vw, 1.5rem);
+      color: var(--muted);
+      margin-top: 1rem;
+      max-width: 42rem;
+    }
+
+    .slide.dark .subtitle,
+    .slide.orange .subtitle { color: rgba(255, 255, 255, 0.8); }
+
+    .logo-text {
+      font-size: clamp(3rem, 7vw, 5rem);
+      font-weight: 900;
+      letter-spacing: -0.03em;
+    }
+
+    .logo-text span { color: var(--orange); }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+      margin-top: 2rem;
+      max-width: 56rem;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+      margin-top: 2rem;
+      max-width: 60rem;
+    }
+
+    .card {
+      background: var(--white);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      border: 1px solid rgba(255, 145, 0, 0.15);
+      box-shadow: 0 4px 24px rgba(255, 145, 0, 0.08);
+    }
+
+    .slide.dark .card {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.1);
+      box-shadow: none;
+    }
+
+    .slide.orange .card {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.2);
+      box-shadow: none;
+      backdrop-filter: blur(8px);
+    }
+
+    .card-icon {
+      font-size: 2rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .card p {
+      font-size: 0.95rem;
+      color: var(--muted);
+      margin-top: 0.35rem;
+    }
+
+    .slide.dark .card p,
+    .slide.orange .card p { color: rgba(255, 255, 255, 0.75); }
+
+    .plan {
+      text-align: center;
+      position: relative;
+    }
+
+    .plan.highlight {
+      border: 2px solid var(--orange);
+      transform: scale(1.03);
+    }
+
+    .plan-price {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--orange);
+      margin: 0.75rem 0;
+    }
+
+    .slide.dark .plan-price { color: var(--orange); }
+
+    .plan ul {
+      list-style: none;
+      text-align: left;
+      margin-top: 1rem;
+    }
+
+    .plan li {
+      font-size: 0.9rem;
+      padding: 0.35rem 0;
+      padding-left: 1.25rem;
+      position: relative;
+    }
+
+    .plan li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: var(--orange);
+      font-weight: 700;
+    }
+
+    .problem-list {
+      list-style: none;
+      margin-top: 1.5rem;
+      max-width: 40rem;
+    }
+
+    .problem-list li {
+      padding: 0.75rem 0 0.75rem 2rem;
+      position: relative;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .slide.dark .problem-list li { border-color: rgba(255, 255, 255, 0.08); }
+
+    .problem-list li::before {
+      content: "✕";
+      position: absolute;
+      left: 0;
+      color: #E53935;
+      font-weight: 700;
+    }
+
+    .benefit-list {
+      list-style: none;
+      margin-top: 1.5rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      max-width: 50rem;
+    }
+
+    .benefit-list li {
+      padding: 1rem 1rem 1rem 2.5rem;
+      background: rgba(255, 145, 0, 0.08);
+      border-radius: 0.75rem;
+      position: relative;
+      font-size: 1rem;
+    }
+
+    .benefit-list li::before {
+      content: "✓";
+      position: absolute;
+      left: 1rem;
+      color: var(--orange);
+      font-weight: 800;
+    }
+
+    .cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 2rem;
+      padding: 1rem 2rem;
+      background: var(--orange);
+      color: var(--white);
+      border-radius: 999px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      text-decoration: none;
+      box-shadow: 0 8px 32px rgba(255, 145, 0, 0.35);
+    }
+
+    .contact-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-top: 2rem;
+      max-width: 48rem;
+    }
+
+    .contact-item h3 { color: var(--orange); margin-bottom: 0.25rem; }
+    .contact-item p { font-size: 1.1rem; }
+
+    .nav-hint {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 2rem;
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.4);
+      z-index: 100;
+    }
+
+    .progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      background: var(--orange);
+      transition: width 0.3s ease;
+      z-index: 100;
+    }
+
+    .slide-counter {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 2rem;
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.5);
+      z-index: 100;
+    }
+
+    .demo-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .demo-link {
+      padding: 0.75rem 1.25rem;
+      border-radius: 0.75rem;
+      background: rgba(255, 145, 0, 0.12);
+      color: var(--orange);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .slide.dark .demo-link {
+      background: rgba(255, 145, 0, 0.2);
+      color: var(--orange);
+    }
+
+    @media (max-width: 900px) {
+      .slide { padding: 2.5rem 2rem; }
+      .grid-2, .grid-3, .benefit-list, .contact-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress" id="progress"></div>
+  <div class="slide-counter" id="counter">1 / 14</div>
+  <div class="nav-hint">← → ou Espaço · F = tela cheia</div>
+
+  <div class="deck" id="deck">
+
+    <!-- 1. Capa -->
+    <section class="slide dark active" data-slide="1">
+      <span class="badge">Sistema de delivery SaaS</span>
+      <div class="logo-text">Nor<span>food</span></div>
+      <p class="subtitle" style="margin-top: 1.5rem;">
+        Plataforma multitenant para restaurantes: PDV, cozinha, delivery e gestão — tudo num painel só.
+      </p>
+      <p class="subtitle" style="margin-top: 2rem; font-size: 1rem; opacity: 0.6;">
+        norfood.com.br · Apresentação comercial · 2026
+      </p>
+    </section>
+
+    <!-- 2. Problema -->
+    <section class="slide light" data-slide="2">
+      <span class="badge">O desafio</span>
+      <h2>O restaurante moderno<br><span class="accent">opera no caos</span></h2>
+      <ul class="problem-list">
+        <li>Pedidos espalhados: WhatsApp, telefone, iFood, balcão — sem visão única</li>
+        <li>Cozinha e salão desalinhados: erros, atrasos e retrabalho</li>
+        <li>Entregadores sem rastreio: cliente reclama, operação perde controle</li>
+        <li>Sistemas caros, fragmentados ou difíceis de configurar</li>
+        <li>Dependência de marketplaces que cobram comissão alta</li>
+      </ul>
+    </section>
+
+    <!-- 3. Solução -->
+    <section class="slide orange" data-slide="3">
+      <span class="badge">A solução</span>
+      <h2>Norfood centraliza<br>sua operação inteira</h2>
+      <p class="subtitle">
+        Um único sistema na nuvem para receber pedidos, produzir, entregar e faturar —
+        com sua marca, seu cardápio e seu time.
+      </p>
+      <div class="grid-3" style="margin-top: 2.5rem;">
+        <div class="card">
+          <div class="card-icon">🏪</div>
+          <h3>Loja online própria</h3>
+          <p>Cardápio digital com sua logo e cores</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">📊</div>
+          <h3>Painel unificado</h3>
+          <p>Delivery, balcão, mesas e relatórios</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🛵</div>
+          <h3>App entregador</h3>
+          <p>GPS, status em tempo real, sem planilha</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Módulos PDV/KDS -->
+    <section class="slide light" data-slide="4">
+      <span class="badge">Módulos</span>
+      <h2>PDV e <span class="accent">KDS</span></h2>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-icon">🖥️</div>
+          <h3>PDV / Balcão</h3>
+          <p>Lançamento rápido de pedidos no balcão e retirada. Pagamento Pix, cartão ou na entrega.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🍽️</div>
+          <h3>Mesas</h3>
+          <p>Controle de mesas e comandas integrado ao fluxo da cozinha e do caixa.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">👨‍🍳</div>
+          <h3>KDS Cozinha</h3>
+          <p>Display na cozinha com fila de produção, priorização e status em tempo real.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">📦</div>
+          <h3>Gestão de pedidos</h3>
+          <p>Visão completa: aberto → preparo → pronto → entrega → entregue.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Delivery e loja -->
+    <section class="slide dark" data-slide="5">
+      <span class="badge">Módulos</span>
+      <h2>Delivery e <span class="accent">loja online</span></h2>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-icon">🌐</div>
+          <h3>Loja digital</h3>
+          <p>Seu cardápio no navegador — sem app para o cliente baixar. Link personalizado norfood.com.br/loja/seu-restaurante</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">📍</div>
+          <h3>Área de entrega</h3>
+          <p>Taxas, bairros, horários e tempo estimado configuráveis no painel.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🔔</div>
+          <h3>Notificações</h3>
+          <p>Cliente acompanha status do pedido em tempo real, da cozinha até a porta.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">💳</div>
+          <h3>Pagamentos</h3>
+          <p>Pix, cartão e pagamento na entrega — flexível para seu público.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. WhatsApp e fiscal -->
+    <section class="slide light" data-slide="6">
+      <span class="badge">Módulos avançados</span>
+      <h2>WhatsApp e <span class="accent">fiscal</span></h2>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-icon">💬</div>
+          <h3>WhatsApp atendimento</h3>
+          <p>Centralize conversas e pedidos pelo WhatsApp integrado ao painel (plano Business).</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🧾</div>
+          <h3>Módulo fiscal NFC-e</h3>
+          <p>Emissão de nota fiscal eletrônica para conformidade e profissionalismo (plano Business).</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">📈</div>
+          <h3>Relatórios avançados</h3>
+          <p>Vendas, produtos, entregadores e financeiro — dados para decidir com clareza.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">👥</div>
+          <h3>Equipe e permissões</h3>
+          <p>Dono, gerente, cozinha, entregador — cada um vê o que precisa.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. Planos -->
+    <section class="slide dark" data-slide="7">
+      <span class="badge">Planos e preços</span>
+      <h2>Escolha o plano<br><span class="accent">ideal para você</span></h2>
+      <p class="subtitle" style="margin-bottom: 0.5rem;">14 dias grátis · Sem cartão para começar · Opção 2% sobre vendas também disponível</p>
+      <div class="grid-3">
+        <div class="card plan">
+          <h3>Starter</h3>
+          <div class="plan-price">R$ 79,90<span style="font-size:1rem;font-weight:400">/mês</span></div>
+          <p style="font-size:0.85rem;opacity:0.7;">Ideal para começar com delivery digital</p>
+          <ul>
+            <li>Loja online + painel</li>
+            <li>Delivery e balcão</li>
+            <li>Até 300 pedidos/mês</li>
+            <li>Suporte por e-mail</li>
+          </ul>
+        </div>
+        <div class="card plan highlight">
+          <h3>Pro ★</h3>
+          <div class="plan-price">R$ 149,90<span style="font-size:1rem;font-weight:400">/mês</span></div>
+          <p style="font-size:0.85rem;opacity:0.7;">Operação completa com entregador e KDS</p>
+          <ul>
+            <li>Tudo do Starter</li>
+            <li>App entregador + GPS</li>
+            <li>KDS cozinha</li>
+            <li>Relatórios avançados</li>
+            <li>Pedidos ilimitados</li>
+          </ul>
+        </div>
+        <div class="card plan">
+          <h3>Business</h3>
+          <div class="plan-price">R$ 219,90<span style="font-size:1rem;font-weight:400">/mês</span></div>
+          <p style="font-size:0.85rem;opacity:0.7;">WhatsApp, fiscal e suporte prioritário</p>
+          <ul>
+            <li>Tudo do Pro</li>
+            <li>WhatsApp atendimento</li>
+            <li>Módulo fiscal NFC-e</li>
+            <li>Suporte prioritário</li>
+            <li>Onboarding assistido</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8. Multitenant -->
+    <section class="slide light" data-slide="8">
+      <span class="badge">Arquitetura</span>
+      <h2>Multitenant:<br><span class="accent">sua marca, nossa infra</span></h2>
+      <p class="subtitle">
+        Cada restaurante é um tenant isolado — logo, cores, cardápio e domínio próprios —
+        rodando na mesma plataforma segura e escalável.
+      </p>
+      <div class="grid-2" style="margin-top: 2rem;">
+        <div class="card">
+          <h3>🏢 Painel do gestor</h3>
+          <p>Dashboard, pedidos, produtos, equipe, financeiro e configurações em /t/seu-slug</p>
+        </div>
+        <div class="card">
+          <h3>🛒 Loja do cliente</h3>
+          <p>Experiência de pedido white-label em /loja/seu-slug — sua marca em destaque</p>
+        </div>
+        <div class="card">
+          <h3>🔐 Segurança</h3>
+          <p>Dados isolados por tenant, papéis de acesso e autenticação robusta</p>
+        </div>
+        <div class="card">
+          <h3>📈 Escala</h3>
+          <p>Infraestrutura preparada para dezenas de restaurantes na mesma instância</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9. App entregador -->
+    <section class="slide orange" data-slide="9">
+      <span class="badge">App entregador</span>
+      <h2>Motoboy conectado<br>com <span style="color:#FFF8F0">GPS em tempo real</span></h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>📱 App dedicado</h3>
+          <p>Entregador recebe pedidos, confirma coleta e atualiza status pelo celular.</p>
+        </div>
+        <div class="card">
+          <h3>🗺️ Rastreamento</h3>
+          <p>Cliente e gestor acompanham a entrega — menos ligação, mais confiança.</p>
+        </div>
+        <div class="card">
+          <h3>⚡ Fluxo integrado</h3>
+          <p>Pedido pronto na cozinha → notifica entregador → sai para entrega automaticamente.</p>
+        </div>
+        <div class="card">
+          <h3>📊 Controle</h3>
+          <p>Histórico por entregador, tempo médio e produtividade no painel.</p>
+        </div>
+      </div>
+      <p class="subtitle" style="margin-top: 1.5rem; font-size: 0.95rem;">Disponível a partir do plano Pro</p>
+    </section>
+
+    <!-- 10. Benefícios -->
+    <section class="slide light" data-slide="10">
+      <span class="badge">Por que Norfood?</span>
+      <h2>Benefícios <span class="accent">reais</span> para seu negócio</h2>
+      <ul class="benefit-list">
+        <li>Menos erro operacional — cozinha, caixa e delivery sincronizados</li>
+        <li>Canal próprio de vendas — menos dependência de marketplace</li>
+        <li>Setup rápido — cadastro, cardápio e loja online em minutos</li>
+        <li>Custo previsível — planos claros a partir de R$ 79,90/mês</li>
+        <li>Trial 14 dias — teste sem compromisso</li>
+        <li>Suporte humano — time que entende restaurante</li>
+        <li>Feito no Brasil — foco em delivery e operação local</li>
+        <li>Demo ao vivo — veja funcionando antes de contratar</li>
+      </ul>
+    </section>
+
+    <!-- 11. Cases / demo -->
+    <section class="slide dark" data-slide="11">
+      <span class="badge">Demonstração</span>
+      <h2>Veja na <span class="accent">prática</span></h2>
+      <p class="subtitle">
+        Explore a loja e o painel demo antes de decidir. Sem cadastro, sem compromisso.
+      </p>
+      <div class="demo-links">
+        <a class="demo-link" href="https://norfood.com.br/loja/norfood" target="_blank">🛒 Loja demo — norfood.com.br/loja/norfood</a>
+        <a class="demo-link" href="https://norfood.com.br/t/norfood/dashboard" target="_blank">📊 Painel demo — /t/norfood/dashboard</a>
+        <a class="demo-link" href="https://norfood.com.br/cadastro" target="_blank">✨ Cadastro — 14 dias grátis</a>
+      </div>
+      <div class="grid-2" style="margin-top: 2rem;">
+        <div class="card">
+          <h3>Depoimento</h3>
+          <p style="font-style: italic; margin-top: 0.5rem;">
+            "Sou dono de lanchonete e o painel é show. KDS, delivery e balcão num lugar só."
+          </p>
+          <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.6;">— Raimundo, Natal/RN</p>
+        </div>
+        <div class="card">
+          <h3>Números</h3>
+          <p style="margin-top: 0.5rem;">+500 restaurantes · +9 estados · +120 cidades · Operação 24/7</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 12. CTA -->
+    <section class="slide orange" data-slide="12">
+      <span class="badge">Próximo passo</span>
+      <h2>Comece seu trial<br>de 14 dias grátis</h2>
+      <p class="subtitle">
+        Cadastre seu restaurante em minutos. Monte o cardápio, ative a loja online e receba pedidos hoje.
+      </p>
+      <a class="cta-btn" href="https://norfood.com.br/cadastro" target="_blank">
+        Quero ser parceiro → norfood.com.br/cadastro
+      </a>
+      <p class="subtitle" style="margin-top: 1.5rem; font-size: 0.95rem;">
+        Prefere conversar antes? Agende uma demo personalizada com nosso time comercial.
+      </p>
+    </section>
+
+    <!-- 13. Contato -->
+    <section class="slide dark" data-slide="13">
+      <span class="badge">Contato</span>
+      <h2>Vamos <span class="accent">conversar?</span></h2>
+      <div class="contact-grid">
+        <div class="contact-item">
+          <h3>Site</h3>
+          <p>norfood.com.br</p>
+        </div>
+        <div class="contact-item">
+          <h3>E-mail</h3>
+          <p>contato@norfood.com.br</p>
+        </div>
+        <div class="contact-item">
+          <h3>Cadastro</h3>
+          <p>norfood.com.br/cadastro</p>
+        </div>
+        <div class="contact-item">
+          <h3>Demo</h3>
+          <p>norfood.com.br/loja/norfood</p>
+        </div>
+      </div>
+      <p class="subtitle" style="margin-top: 2rem;">
+        Norfood — Sistema de Delivery. Feito com 🧡 no Brasil.
+      </p>
+    </section>
+
+    <!-- 14. Encerramento -->
+    <section class="slide light" data-slide="14">
+      <div class="logo-text" style="text-align: center;">Nor<span>food</span></div>
+      <h2 style="text-align: center; margin-top: 1rem;">Obrigado!</h2>
+      <p class="subtitle" style="text-align: center; margin: 1rem auto 0;">
+        Transforme sua operação de delivery em algo profissional, integrado e lucrativo.
+      </p>
+      <p style="text-align: center; margin-top: 2rem; font-size: 1.5rem; font-weight: 700; color: var(--orange);">
+        norfood.com.br
+      </p>
+    </section>
+
+  </div>
+
+  <script>
+    const slides = document.querySelectorAll(".slide");
+    const progress = document.getElementById("progress");
+    const counter = document.getElementById("counter");
+    let current = 0;
+
+    function show(index) {
+      if (index < 0) index = 0;
+      if (index >= slides.length) index = slides.length - 1;
+      current = index;
+      slides.forEach((s, i) => s.classList.toggle("active", i === current));
+      progress.style.width = ((current + 1) / slides.length * 100) + "%";
+      counter.textContent = (current + 1) + " / " + slides.length;
+    }
+
+    function next() { show(current + 1); }
+    function prev() { show(current - 1); }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") {
+        e.preventDefault();
+        next();
+      } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
+        e.preventDefault();
+        prev();
+      } else if (e.key === "Home") {
+        show(0);
+      } else if (e.key === "End") {
+        show(slides.length - 1);
+      } else if (e.key === "f" || e.key === "F") {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen?.();
+        } else {
+          document.exitFullscreen?.();
+        }
+      }
+    });
+
+    let touchStartX = 0;
+    document.addEventListener("touchstart", (e) => { touchStartX = e.touches[0].clientX; });
+    document.addEventListener("touchend", (e) => {
+      const diff = e.changedTouches[0].clientX - touchStartX;
+      if (Math.abs(diff) > 50) diff < 0 ? next() : prev();
+    });
+
+    show(0);
+  </script>
+</body>
+</html>

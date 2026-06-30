@@ -7,6 +7,7 @@ import { MetricCard } from "@/components/design-system/metric-card";
 import { PageHeader } from "@/components/design-system/page-header";
 import { StatusBadge } from "@/components/design-system/status-badge";
 import { useTenantOptional } from "@/lib/tenant/tenant-context";
+import { tenantQueryKey } from "@/lib/tenant/query-keys";
 
 const STATUS_COLORS: Record<string, string> = {
   aberto: "#FF7A00",
@@ -20,16 +21,19 @@ const STATUS_COLORS: Record<string, string> = {
 export function PainelDashboardPage() {
   const tenantCtx = useTenantOptional();
   const tenantId = tenantCtx?.tenant.id;
+  const tenantSlug = tenantCtx?.tenant.slug;
   const tenantName = tenantCtx?.tenant.name ?? "Painel";
 
   const { data: pedidos = [] } = useQuery({
-    queryKey: ["pedidos", tenantId],
+    queryKey: tenantSlug ? tenantQueryKey("pedidos", tenantSlug) : ["pedidos"],
     queryFn: listarPedidos,
+    enabled: Boolean(tenantId),
     refetchInterval: 60_000,
   });
   const { data: entregas = [] } = useQuery({
-    queryKey: ["entregas", tenantId],
+    queryKey: tenantSlug ? tenantQueryKey("entregas", tenantSlug) : ["entregas"],
     queryFn: listarEntregas,
+    enabled: Boolean(tenantId),
   });
 
   const hoje = new Date().toDateString();

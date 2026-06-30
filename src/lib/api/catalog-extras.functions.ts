@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { resolveTenantIdBySlug } from "@/lib/api/platform-billing.functions";
 
 export type CatalogVariation = {
   id: string;
@@ -35,28 +36,41 @@ export type CatalogExtras = {
   >;
 };
 
-export const fetchCatalogExtrasServer = createServerFn({ method: "GET" }).handler(
-  async (): Promise<CatalogExtras> => {
+export const fetchCatalogExtrasServer = createServerFn({ method: "GET" })
+  .validator((tenantSlug: string) => tenantSlug)
+  .handler(async ({ data: tenantSlug }): Promise<CatalogExtras> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const tenantId = await resolveTenantIdBySlug(tenantSlug);
+    if (!tenantId) {
+      return { grupos: [], adicionais: [], variacoesByProduto: {}, promocoesByProduto: {} };
+    }
 
     const [gruposResult, adicionaisResult, variacoesResult, promocoesResult, produtosResult] =
       await Promise.all([
-        supabaseAdmin.from("grupos_adicionais").select("id,nome,descricao").order("created_at"),
+        supabaseAdmin
+          .from("grupos_adicionais")
+          .select("id,nome,descricao")
+          .eq("tenant_id", tenantId)
+          .order("created_at"),
         supabaseAdmin
           .from("produto_adicionais")
           .select("id,grupo_id,nome,preco,estoque,obrigatorio,minimo,maximo")
+          .eq("tenant_id", tenantId)
           .order("created_at"),
         supabaseAdmin
           .from("produto_variacoes")
           .select("id,produto_id,nome,preco,estoque,status")
+          .eq("tenant_id", tenantId)
           .eq("status", "ativo"),
         supabaseAdmin
           .from("produto_promocoes")
           .select("produto_id,tipo,valor,titulo,ativa")
+          .eq("tenant_id", tenantId)
           .eq("ativa", true),
         supabaseAdmin
           .from("produtos")
           .select("id,preco_promocional")
+          .eq("tenant_id", tenantId)
           .not("preco_promocional", "is", null),
       ]);
 
@@ -114,5 +128,4 @@ export const fetchCatalogExtrasServer = createServerFn({ method: "GET" }).handle
       variacoesByProduto,
       promocoesByProduto,
     };
-  },
-);
+  });

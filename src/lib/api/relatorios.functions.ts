@@ -34,57 +34,93 @@ function extractBairro(observacoes: string | null) {
 
 export const fetchRelatorioDatasetServer = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<RelatorioDataset> => {
+  .validator((tenantSlug: string) => tenantSlug)
+  .handler(async ({ context, data: tenantSlug }): Promise<RelatorioDataset> => {
     await assertStaffUserId(context.userId, "Acesso restrito aos relatorios.");
+    const { resolveStaffTenantId } = await import("@/lib/api/auth-helpers.server");
+    const tenantId = await resolveStaffTenantId(context.userId, tenantSlug);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const [
       pedidosResult,
-      itensResult,
       produtosResult,
-      clientesResult,
       financeiroResult,
       entregasResult,
       notasResult,
-      motoboysResult,
       cuponsResult,
     ] = await Promise.all([
       supabaseAdmin
         .from("pedidos")
         .select("*")
+        .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false })
         .limit(500),
       supabaseAdmin
-        .from("pedido_itens")
-        .select(
-          "id, pedido_id, produto_id, quantidade, preco_unitario, produtos(nome, categoria_id, categorias(nome))",
-        )
-        .limit(2000),
-      supabaseAdmin
         .from("produtos")
-        .select("id, nome, preco, estoque, tempo_preparo_min, ativo, categorias(nome)"),
-      supabaseAdmin.from("profiles").select("id, nome, telefone, pontos_fidelidade, created_at"),
+        .select("id, nome, preco, estoque, tempo_preparo_min, ativo, categorias(nome)")
+        .eq("tenant_id", tenantId),
       supabaseAdmin
         .from("lancamentos_financeiros")
         .select("*")
+        .eq("tenant_id", tenantId)
         .order("data", { ascending: false })
         .limit(500),
-      supabaseAdmin.from("entregas").select("pedido_id, motoboy_id, bairro"),
+      supabaseAdmin.from("entregas").select("pedido_id, motoboy_id, bairro").eq("tenant_id", tenantId),
       supabaseAdmin
         .from("notas_fiscais")
         .select("*")
+        .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false })
         .limit(200),
-      supabaseAdmin.from("user_roles").select("user_id, role").eq("role", "motoboy"),
-      supabaseAdmin.from("cupons").select("*").order("created_at", { ascending: false }).limit(50),
+      supabaseAdmin
+        .from("cupons")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false })
+        .limit(50),
     ]);
 
     if (pedidosResult.error) throw pedidosResult.error;
-    if (itensResult.error) throw itensResult.error;
     if (produtosResult.error) throw produtosResult.error;
-    if (clientesResult.error) throw clientesResult.error;
     if (financeiroResult.error) throw financeiroResult.error;
+
+    const pedidoIds = (pedidosResult.data ?? []).map((pedido) => pedido.id);
+    const clienteIds = [
+      ...new Set(
+        (pedidosResult.data ?? [])
+          .map((pedido) => pedido.cliente_id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+
+    const [itensResult, clientesResult, motoboysResult] = await Promise.all([
+      pedidoIds.length
+        ? supabaseAdmin
+            .from("pedido_itens")
+            .select(
+              "id, pedido_id, produto_id, quantidade, preco_unitario, produtos(nome, categoria_id, categorias(nome))",
+            )
+            .in("pedido_id", pedidoIds)
+            .limit(2000)
+        : Promise.resolve({ data: [], error: null }),
+      clienteIds.length
+        ? supabaseAdmin
+            .from("profiles")
+            .select("id, nome, telefone, pontos_fidelidade, created_at")
+            .in("id", clienteIds)
+        : Promise.resolve({ data: [], error: null }),
+      supabaseAdmin
+        .from("tenant_users")
+        .select("user_id")
+        .eq("tenant_id", tenantId)
+        .eq("role", "entregador")
+        .eq("status", "active"),
+    ]);
+
+    if (itensResult.error) throw itensResult.error;
+    if (clientesResult.error) throw clientesResult.error;
+    if (motoboysResult.error) throw motoboysResult.error;
 
     const itensByPedido = new Map<string, typeof itensResult.data>();
     for (const item of itensResult.data ?? []) {

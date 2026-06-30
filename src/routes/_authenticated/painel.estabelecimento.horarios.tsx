@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Clock, Copy, PauseCircle, PlayCircle, RefreshCw, Save, Store, Timer } from "lucide-react";
 import { toast } from "sonner";
 import { fetchHorariosPainelServer, saveHorariosPainelServer } from "@/lib/api/horarios.functions";
+import { useTenantSlug } from "@/lib/tenant/tenant-context";
 import {
   DIAS_SEMANA,
   ensureFullWeek,
@@ -30,10 +31,11 @@ export const Route = createFileRoute("/_authenticated/painel/estabelecimento/hor
 });
 
 function HorariosPage() {
+  const tenantSlug = useTenantSlug();
   const qc = useQueryClient();
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ["horarios-painel"],
-    queryFn: () => fetchHorariosPainelServer(),
+    queryKey: ["horarios-painel", tenantSlug],
+    queryFn: () => fetchHorariosPainelServer({ data: tenantSlug }),
     retry: 1,
     staleTime: 30_000,
   });
@@ -56,6 +58,7 @@ function HorariosPage() {
       const grade = ensureFullWeek(activeHorarios);
       return saveHorariosPainelServer({
         data: {
+          tenantSlug,
           config: { ...activeConfig, fuso_horario: STORE_TIMEZONE },
           horarios: grade,
         },
@@ -65,9 +68,9 @@ function HorariosPage() {
       toast.success("Horarios salvos e aplicados na operacao.");
       setConfig(null);
       setHorarios(null);
-      qc.setQueryData(["horarios-painel"], result);
-      void qc.invalidateQueries({ queryKey: ["sidebar-operacao"] });
-      void qc.invalidateQueries({ queryKey: ["operational-admin"] });
+      qc.setQueryData(["horarios-painel", tenantSlug], result);
+      void qc.invalidateQueries({ queryKey: ["sidebar-operacao", tenantSlug] });
+      void qc.invalidateQueries({ queryKey: ["operational-admin", tenantSlug] });
     },
     onError: (error: Error) => toast.error(error.message),
   });

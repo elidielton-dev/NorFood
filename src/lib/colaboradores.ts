@@ -55,6 +55,7 @@ export function colaboradorToFormState(colaborador: {
 }
 
 export function formatStaffRoleLabel(role: string) {
+  if (role === "owner") return "Proprietario";
   return STAFF_ROLE_OPTIONS.find((item) => item.value === role)?.label ?? role;
 }
 

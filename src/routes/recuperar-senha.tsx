@@ -3,6 +3,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
+import { buildAppUrl } from "@/lib/app-url";
 import { NorfoodLogo } from "@/components/brand/norfood-logo";
 
 export const Route = createFileRoute("/recuperar-senha")({
@@ -19,8 +20,9 @@ function RecuperarSenhaPage() {
     e.preventDefault();
     setLoading(true);
     try {
+      const next = encodeURIComponent("/login");
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/login`,
+        redirectTo: buildAppUrl(`/auth/callback?next=${next}`),
       });
       if (error) throw error;
       setSent(true);

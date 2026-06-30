@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { assertManagerUserId, assertStaffUserId } from "@/lib/api/auth-helpers.server";
+import { fetchUserRoles } from "@/lib/api/auth-helpers.server";
 import {
   formatPhone,
   isStrongPassword,
@@ -28,7 +28,36 @@ export type SaveColaboradorPayload = {
   tenantId?: string | null;
 };
 
-async function loadColaboradorRow(userId: string): Promise<ColaboradorRow | null> {
+const STAFF_TENANT_ROLES = [
+  "owner",
+  "admin",
+  "gerente",
+  "atendente",
+  "cozinha",
+  "entregador",
+  "financeiro",
+] as const;
+
+function mapTenantRoleToStaffRole(role: string): StaffRole | null {
+  if (role === "entregador") return "motoboy";
+  if (STAFF_ROLE_VALUES.includes(role as StaffRole)) return role as StaffRole;
+  if (role === "atendente") return "garcom";
+  if (role === "cozinha") return "cozinha";
+  if (role === "admin" || role === "owner" || role === "gerente") return "admin";
+  return null;
+}
+
+function displayRolesForMember(tenantRole: string, staffRoles: string[]) {
+  if (tenantRole === "owner") return ["owner"];
+  if (staffRoles.length > 0) return staffRoles;
+  const fallback = mapTenantRoleToStaffRole(tenantRole);
+  return fallback ? [fallback] : [];
+}
+
+async function loadColaboradorRow(
+  userId: string,
+  tenantId?: string,
+): Promise<ColaboradorRow | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   const [{ data: profile, error: profileError }, { data: roles, error: rolesError }, authResult] =
@@ -43,9 +72,35 @@ async function loadColaboradorRow(userId: string): Promise<ColaboradorRow | null
   if (authResult.error) throw authResult.error;
   if (!profile) return null;
 
-  const staffRoles = (roles ?? [])
+  let staffRoles = (roles ?? [])
     .map((row) => row.role)
     .filter((role) => STAFF_ROLE_VALUES.includes(role as StaffRole));
+
+  if (tenantId) {
+    const { data: membership } = await supabaseAdmin
+      .from("tenant_users")
+      .select("role")
+      .eq("tenant_id", tenantId)
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .in("role", [...STAFF_TENANT_ROLES])
+      .maybeSingle();
+
+    if (membership?.role === "owner") {
+      return {
+        id: profile.id,
+        nome: profile.nome,
+        email: authResult.data.user?.email ?? null,
+        telefone: profile.telefone,
+        roles: ["owner"],
+      };
+    }
+
+    if (staffRoles.length === 0) {
+      const fallback = mapTenantRoleToStaffRole(membership?.role ?? "");
+      if (fallback) staffRoles = [fallback];
+    }
+  }
 
   if (staffRoles.length === 0) return null;
 
@@ -89,64 +144,109 @@ async function syncStaffRoles(userId: string, roles: StaffRole[]) {
   if (insertError) throw insertError;
 }
 
-async function assertManagerTenantAccess(managerId: string, tenantId: string) {
+async function assertCanManageColaboradores(userId: string, tenantId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("tenant_users")
     .select("role")
     .eq("tenant_id", tenantId)
-    .eq("user_id", managerId)
+    .eq("user_id", userId)
     .eq("status", "active")
     .in("role", ["owner", "admin", "gerente"])
     .maybeSingle();
   if (error) throw error;
-  if (!data) throw new Error("Voce nao tem permissao para gerenciar colaboradores nesta empresa.");
+  if (data) return;
+
+  const roles = await fetchUserRoles(userId);
+  if (roles.includes("admin") || roles.includes("gerente")) return;
+
+  throw new Error("Voce nao tem permissao para gerenciar colaboradores nesta empresa.");
 }
 
-async function syncMotoboyTenantAccess(userId: string, tenantId: string, isMotoboy: boolean) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+function mapStaffRolesToTenantRoles(roles: StaffRole[]) {
+  const mapped = new Set<(typeof STAFF_TENANT_ROLES)[number]>();
+  for (const role of roles) {
+    if (role === "admin") mapped.add("admin");
+    else if (role === "gerente") mapped.add("gerente");
+    else if (role === "garcom") mapped.add("atendente");
+    else if (role === "cozinha") mapped.add("cozinha");
+    else if (role === "motoboy") mapped.add("entregador");
+  }
+  return [...mapped];
+}
 
-  if (!isMotoboy) {
-    await supabaseAdmin
+const MANAGED_TENANT_ROLES = [
+  "admin",
+  "gerente",
+  "atendente",
+  "cozinha",
+  "entregador",
+] as const;
+
+async function syncColaboradorTenantAccess(
+  userId: string,
+  tenantId: string,
+  roles: StaffRole[],
+) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const desiredRoles = mapStaffRolesToTenantRoles(roles);
+  if (!desiredRoles.length) {
+    throw new Error("Selecione pelo menos um papel com acesso ao restaurante.");
+  }
+
+  const rolesToRemove = MANAGED_TENANT_ROLES.filter((role) => !desiredRoles.includes(role));
+  if (rolesToRemove.length > 0) {
+    const { error: deleteError } = await supabaseAdmin
       .from("tenant_users")
       .delete()
       .eq("tenant_id", tenantId)
       .eq("user_id", userId)
-      .eq("role", "entregador");
-    return;
+      .in("role", [...rolesToRemove]);
+    if (deleteError) throw deleteError;
   }
 
-  const { error: tenantUserError } = await supabaseAdmin.from("tenant_users").upsert(
-    {
-      tenant_id: tenantId,
+  const now = new Date().toISOString();
+  for (const role of desiredRoles) {
+    const { error } = await supabaseAdmin.from("tenant_users").upsert(
+      {
+        tenant_id: tenantId,
+        user_id: userId,
+        role,
+        status: "active",
+        updated_at: now,
+      },
+      { onConflict: "tenant_id,user_id,role" },
+    );
+    if (error) throw error;
+  }
+
+  if (roles.includes("motoboy")) {
+    const { data: existingProfile, error: profileSelectError } = await supabaseAdmin
+      .from("entregador_perfis" as never)
+      .select("user_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (profileSelectError) throw profileSelectError;
+
+    const riderPatch: Record<string, unknown> = {
       user_id: userId,
-      role: "entregador",
-      status: "active",
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "tenant_id,user_id,role" },
-  );
-  if (tenantUserError) throw tenantUserError;
+      tenant_id: tenantId,
+    };
+    if (!existingProfile) {
+      riderPatch.avatar_url = null;
+    }
 
-  const { data: existingProfile, error: profileSelectError } = await supabaseAdmin
-    .from("entregador_perfis" as never)
-    .select("user_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (profileSelectError) throw profileSelectError;
-
-  const riderPatch: Record<string, unknown> = {
-    user_id: userId,
-    tenant_id: tenantId,
-  };
-  if (!existingProfile) {
-    riderPatch.avatar_url = null;
+    const { error: riderProfileError } = await supabaseAdmin
+      .from("entregador_perfis" as never)
+      .upsert(riderPatch, { onConflict: "user_id" });
+    if (riderProfileError) throw riderProfileError;
+  } else {
+    const { error: riderDeleteError } = await supabaseAdmin
+      .from("entregador_perfis" as never)
+      .delete()
+      .eq("user_id", userId);
+    if (riderDeleteError) throw riderDeleteError;
   }
-
-  const { error: riderProfileError } = await supabaseAdmin
-    .from("entregador_perfis" as never)
-    .upsert(riderPatch, { onConflict: "user_id" });
-  if (riderProfileError) throw riderProfileError;
 }
 
 function validatePayload(payload: SaveColaboradorPayload, isCreate: boolean) {
@@ -170,29 +270,53 @@ function validatePayload(payload: SaveColaboradorPayload, isCreate: boolean) {
   }
 }
 
+async function assertColaboradorInTenant(userId: string, tenantId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("tenant_users")
+    .select("user_id")
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .in("role", [...STAFF_TENANT_ROLES])
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Colaborador nao pertence a este restaurante.");
+}
+
 export const fetchColaboradoresServer = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<ColaboradorRow[]> => {
-    await assertStaffUserId(context.userId);
+  .validator((tenantSlug: string) => tenantSlug)
+  .handler(async ({ context, data: tenantSlug }): Promise<ColaboradorRow[]> => {
+    const { resolveStaffTenantId } = await import("@/lib/api/auth-helpers.server");
+    const tenantId = await resolveStaffTenantId(context.userId, tenantSlug);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: roles, error: rolesError } = await supabaseAdmin
-      .from("user_roles")
+    const { data: memberships, error: membershipsError } = await supabaseAdmin
+      .from("tenant_users")
       .select("user_id, role")
-      .in("role", STAFF_ROLE_VALUES);
+      .eq("tenant_id", tenantId)
+      .eq("status", "active")
+      .in("role", [...STAFF_TENANT_ROLES]);
 
-    if (rolesError) throw rolesError;
+    if (membershipsError) throw membershipsError;
 
-    const userIds = [...new Set((roles ?? []).map((row) => row.user_id))];
+    const userIds = [...new Set((memberships ?? []).map((row) => row.user_id))];
     if (userIds.length === 0) return [];
 
-    const { data: profiles, error: profilesError } = await supabaseAdmin
-      .from("profiles")
-      .select("id, nome, telefone")
-      .in("id", userIds);
+    const [{ data: profiles, error: profilesError }, { data: roles, error: rolesError }] =
+      await Promise.all([
+        supabaseAdmin.from("profiles").select("id, nome, telefone").in("id", userIds),
+        supabaseAdmin
+          .from("user_roles")
+          .select("user_id, role")
+          .in("user_id", userIds)
+          .in("role", STAFF_ROLE_VALUES),
+      ]);
 
     if (profilesError) throw profilesError;
+    if (rolesError) throw rolesError;
 
     const rolesByUser = new Map<string, string[]>();
     for (const row of roles ?? []) {
@@ -201,30 +325,46 @@ export const fetchColaboradoresServer = createServerFn({ method: "GET" })
       rolesByUser.set(row.user_id, current);
     }
 
+    const tenantRoleByUser = new Map<string, string>();
+    for (const membership of memberships ?? []) {
+      const existing = tenantRoleByUser.get(membership.user_id);
+      if (!existing || membership.role === "owner") {
+        tenantRoleByUser.set(membership.user_id, membership.role);
+      }
+    }
+
     const rows = await Promise.all(
       (profiles ?? []).map(async (profile) => {
         const authResult = await supabaseAdmin.auth.admin.getUserById(profile.id);
         if (authResult.error) throw authResult.error;
+
+        const staffRoles = rolesByUser.get(profile.id) ?? [];
+        const tenantRole = tenantRoleByUser.get(profile.id) ?? "";
+        const displayRoles = displayRolesForMember(tenantRole, staffRoles);
 
         return {
           id: profile.id,
           nome: profile.nome,
           email: authResult.data.user?.email ?? null,
           telefone: profile.telefone,
-          roles: rolesByUser.get(profile.id) ?? [],
+          roles: displayRoles,
         };
       }),
     );
 
-    return rows.sort((a, b) => (a.nome ?? "").localeCompare(b.nome ?? "", "pt-BR"));
+    return rows
+      .filter((row) => row.roles.length > 0)
+      .sort((a, b) => (a.nome ?? "").localeCompare(b.nome ?? "", "pt-BR"));
   });
 
 export const fetchColaboradorServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { id: string }) => input)
+  .validator((input: { id: string; tenantSlug: string }) => input)
   .handler(async ({ context, data }): Promise<ColaboradorRow> => {
-    await assertStaffUserId(context.userId);
-    const colaborador = await loadColaboradorRow(data.id);
+    const { resolveStaffTenantId } = await import("@/lib/api/auth-helpers.server");
+    const tenantId = await resolveStaffTenantId(context.userId, data.tenantSlug);
+    await assertColaboradorInTenant(data.id, tenantId);
+    const colaborador = await loadColaboradorRow(data.id, tenantId);
     if (!colaborador) throw new Error("Colaborador nao encontrado.");
     return colaborador;
   });
@@ -233,9 +373,6 @@ export const saveColaboradorServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: SaveColaboradorPayload) => input)
   .handler(async ({ context, data }): Promise<ColaboradorRow> => {
-    await assertManagerUserId(context.userId);
-
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const isCreate = !data.id;
     validatePayload(data, isCreate);
 
@@ -243,15 +380,14 @@ export const saveColaboradorServer = createServerFn({ method: "POST" })
     const email = data.email.trim().toLowerCase();
     const telefone = formatPhone(data.telefone);
     const phoneDigits = normalizePhoneDigits(telefone);
-    const isMotoboy = data.roles.includes("motoboy");
     const tenantId = data.tenantId?.trim() || null;
 
-    if (isMotoboy) {
-      if (!tenantId) {
-        throw new Error("Informe a empresa para cadastrar um entregador.");
-      }
-      await assertManagerTenantAccess(context.userId, tenantId);
+    if (!tenantId) {
+      throw new Error("Informe a empresa para cadastrar o colaborador.");
     }
+    await assertCanManageColaboradores(context.userId, tenantId);
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     if (isCreate) {
       await assertPhoneAvailable(phoneDigits);
@@ -274,23 +410,20 @@ export const saveColaboradorServer = createServerFn({ method: "POST" })
         id: userId,
         nome,
         telefone,
-        ...(isMotoboy ? { avatar_url: null } : {}),
         updated_at: new Date().toISOString(),
       });
       if (profileError) throw profileError;
 
       await syncStaffRoles(userId, data.roles);
-      if (isMotoboy && tenantId) {
-        await syncMotoboyTenantAccess(userId, tenantId, true);
-      }
+      await syncColaboradorTenantAccess(userId, tenantId, data.roles);
 
-      const colaborador = await loadColaboradorRow(userId);
+      const colaborador = await loadColaboradorRow(userId, tenantId);
       if (!colaborador) throw new Error("Colaborador criado, mas nao foi possivel recarregar.");
       return colaborador;
     }
 
     const userId = data.id!;
-    const existing = await loadColaboradorRow(userId);
+    const existing = await loadColaboradorRow(userId, tenantId);
     if (!existing) throw new Error("Colaborador nao encontrado.");
 
     await assertPhoneAvailable(phoneDigits, userId);
@@ -313,13 +446,9 @@ export const saveColaboradorServer = createServerFn({ method: "POST" })
     }
 
     await syncStaffRoles(userId, data.roles);
-    if (tenantId) {
-      await syncMotoboyTenantAccess(userId, tenantId, isMotoboy);
-    } else if (isMotoboy) {
-      throw new Error("Informe a empresa para cadastrar um entregador.");
-    }
+    await syncColaboradorTenantAccess(userId, tenantId, data.roles);
 
-    const colaborador = await loadColaboradorRow(userId);
+    const colaborador = await loadColaboradorRow(userId, tenantId);
     if (!colaborador) throw new Error("Colaborador atualizado, mas nao foi possivel recarregar.");
     return colaborador;
   });

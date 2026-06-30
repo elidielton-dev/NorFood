@@ -3,8 +3,8 @@ import type { ProductRecord } from "@/lib/produtos-module";
 
 export const PRODUTOS_MODULE_PRODUCTS_QUERY_KEY = ["produtos-module", "produtos"] as const;
 
-export async function fetchModuleProducts(): Promise<ProductRecord[]> {
-  const remote = await fetchProdutosModuleStoreServer();
+export async function fetchModuleProducts(tenantSlug: string): Promise<ProductRecord[]> {
+  const remote = await fetchProdutosModuleStoreServer({ data: tenantSlug });
   const { needsMigration: _ignored, extrasSchemaReady: _extras, ...store } = remote;
   return store.produtos;
 }

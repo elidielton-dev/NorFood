@@ -5,6 +5,8 @@ import { listarLancamentosFinanceiros, formatBRL, type LancamentoFinanceiro } fr
 import { fetchMercadoPagoPanelServer } from "@/lib/api/mercado-pago-panel.functions";
 import { GestaoCard, GestaoPage, GestaoTable, GestaoTableHead } from "@/components/gestao-ui";
 import { VendaDetalheModal } from "@/components/venda-detalhe-modal";
+import { useTenantSlug } from "@/lib/tenant/tenant-context";
+import { tenantQueryKey } from "@/lib/tenant/query-keys";
 
 function isVendaLancamento(lancamento: LancamentoFinanceiro) {
   return Boolean(lancamento.pedido_id) || /pedido\s*#/i.test(lancamento.descricao);
@@ -15,13 +17,14 @@ export const Route = createFileRoute("/_authenticated/painel/financeiro/extratos
 });
 
 function FinanceiroExtratosPage() {
+  const tenantSlug = useTenantSlug();
   const [pedidoDetalheId, setPedidoDetalheId] = useState<string | null>(null);
   const { data: lancamentos = [] } = useQuery({
-    queryKey: ["financeiro"],
+    queryKey: tenantQueryKey("financeiro", tenantSlug),
     queryFn: listarLancamentosFinanceiros,
   });
   const { data: mp } = useQuery({
-    queryKey: ["mp-panel"],
+    queryKey: tenantQueryKey("mp-panel", tenantSlug),
     queryFn: () => fetchMercadoPagoPanelServer(),
   });
 

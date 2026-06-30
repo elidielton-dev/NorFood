@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { assertStaffUserId } from "@/lib/api/auth-helpers.server";
+import { assertStaffUserId, resolveStaffTenantId } from "@/lib/api/auth-helpers.server";
 import {
   buildDefaultHorariosPainelState,
   isValidHorarioDia,
@@ -15,10 +15,12 @@ import {
 
 export const fetchHorariosPainelServer = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .validator((tenantSlug: string) => tenantSlug)
+  .handler(async ({ context, data: tenantSlug }) => {
     try {
       await assertStaffUserId(context.userId, "Acesso restrito aos horarios da loja.");
-      return await getResolvedOperationalOpenState();
+      const tenantId = await resolveStaffTenantId(context.userId, tenantSlug);
+      return await getResolvedOperationalOpenState(tenantId);
     } catch (error) {
       console.error("[fetchHorariosPainelServer]", error);
       const message = error instanceof Error ? error.message : "Falha ao carregar horarios.";
@@ -29,51 +31,57 @@ export const fetchHorariosPainelServer = createServerFn({ method: "GET" })
     }
   });
 
-export const fetchStoreOpenStatusPublicServer = createServerFn({ method: "GET" }).handler(
-  async () => {
-    const resolved = await getResolvedOperationalOpenState();
+export const fetchStoreOpenStatusPublicServer = createServerFn({ method: "GET" })
+  .validator((tenantSlug: string) => tenantSlug)
+  .handler(async ({ data: tenantSlug }) => {
+    const { resolveTenantIdBySlug } = await import("@/lib/api/platform-billing.functions");
+    const tenantId = await resolveTenantIdBySlug(tenantSlug);
+    const resolved = await getResolvedOperationalOpenState(tenantId ?? undefined);
     return {
       loja_aberta: resolved.loja_aberta,
       status: resolved.status,
       horario_automatico: resolved.config.horario_automatico,
     };
-  },
-);
+  });
 
 export const saveHorariosConfigServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: HorariosConfig) => input)
+  .validator((input: HorariosConfig & { tenantSlug: string }) => input)
   .handler(async ({ context, data }) => {
     await assertStaffUserId(context.userId, "Acesso restrito aos horarios da loja.");
-    await saveHorariosConfigToDb(data);
-    return getResolvedOperationalOpenState();
+    const tenantId = await resolveStaffTenantId(context.userId, data.tenantSlug);
+    const { tenantSlug: _slug, ...config } = data;
+    await saveHorariosConfigToDb(config, tenantId);
+    return getResolvedOperationalOpenState(tenantId);
   });
 
 export const saveHorariosGradeServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { horarios: HorarioDia[] }) => input)
+  .validator((input: { tenantSlug: string; horarios: HorarioDia[] }) => input)
   .handler(async ({ context, data }) => {
     await assertStaffUserId(context.userId, "Acesso restrito aos horarios da loja.");
+    const tenantId = await resolveStaffTenantId(context.userId, data.tenantSlug);
     for (const horario of data.horarios) {
       if (!isValidHorarioDia(horario)) {
         throw new Error("Horario invalido: abertura deve ser antes do fechamento.");
       }
     }
-    await saveHorariosGradeToDb(data.horarios);
-    return getResolvedOperationalOpenState();
+    await saveHorariosGradeToDb(data.horarios, tenantId);
+    return getResolvedOperationalOpenState(tenantId);
   });
 
 export const saveHorariosPainelServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { config: HorariosConfig; horarios: HorarioDia[] }) => input)
+  .validator((input: { tenantSlug: string; config: HorariosConfig; horarios: HorarioDia[] }) => input)
   .handler(async ({ context, data }) => {
     await assertStaffUserId(context.userId, "Acesso restrito aos horarios da loja.");
+    const tenantId = await resolveStaffTenantId(context.userId, data.tenantSlug);
     for (const horario of data.horarios) {
       if (!isValidHorarioDia(horario)) {
         throw new Error("Horario invalido: abertura deve ser antes do fechamento.");
       }
     }
-    await saveHorariosConfigToDb(data.config);
-    await saveHorariosGradeToDb(data.horarios);
-    return getResolvedOperationalOpenState();
+    await saveHorariosConfigToDb(data.config, tenantId);
+    await saveHorariosGradeToDb(data.horarios, tenantId);
+    return getResolvedOperationalOpenState(tenantId);
   });

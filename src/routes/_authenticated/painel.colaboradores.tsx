@@ -23,7 +23,7 @@ import {
   GestaoTableHead,
   StatusPill,
 } from "@/components/gestao-ui";
-import { useTenantId } from "@/lib/tenant/tenant-context";
+import { useTenantId, useTenantSlug } from "@/lib/tenant/tenant-context";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/painel/colaboradores")({
@@ -33,13 +33,14 @@ export const Route = createFileRoute("/_authenticated/painel/colaboradores")({
 function ColaboradoresPage() {
   const queryClient = useQueryClient();
   const tenantId = useTenantId();
+  const tenantSlug = useTenantSlug();
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<ColaboradorFormState>(createEmptyColaboradorForm());
   const [loadingColaboradorId, setLoadingColaboradorId] = useState<string | null>(null);
 
   const { data: colaboradores = [], isLoading } = useQuery({
-    queryKey: ["colaboradores"],
-    queryFn: () => fetchColaboradoresServer(),
+    queryKey: ["colaboradores", tenantSlug],
+    queryFn: () => fetchColaboradoresServer({ data: tenantSlug }),
   });
 
   const saveMutation = useMutation({
@@ -56,7 +57,7 @@ function ColaboradoresPage() {
         },
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["colaboradores"] });
+      queryClient.invalidateQueries({ queryKey: ["colaboradores", tenantSlug] });
       toast.success(
         form.id ? "Colaborador atualizado com sucesso." : "Colaborador criado com sucesso.",
       );
@@ -78,7 +79,7 @@ function ColaboradoresPage() {
   async function handleOpenEdit(colaboradorId: string) {
     setLoadingColaboradorId(colaboradorId);
     try {
-      const colaborador = await fetchColaboradorServer({ data: { id: colaboradorId } });
+      const colaborador = await fetchColaboradorServer({ data: { id: colaboradorId, tenantSlug } });
       setForm(colaboradorToFormState(colaborador));
       setModalOpen(true);
     } catch (error) {

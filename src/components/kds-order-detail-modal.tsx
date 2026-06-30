@@ -36,18 +36,26 @@ import { cn } from "@/lib/utils";
 
 type KdsOrderDetailModalProps = {
   pedido: Pedido | null;
+  tenantSlug: string;
   onClose: () => void;
   onPrint: (pedido: Pedido) => void;
 };
 
-export function KdsOrderDetailModal({ pedido, onClose, onPrint }: KdsOrderDetailModalProps) {
+export function KdsOrderDetailModal({
+  pedido,
+  tenantSlug,
+  onClose,
+  onPrint,
+}: KdsOrderDetailModalProps) {
   const qc = useQueryClient();
   const [updating, setUpdating] = useState(false);
 
   const { data: itens = [], isLoading: loadingItens } = useQuery({
-    queryKey: ["itens", pedido?.id],
+    queryKey: ["itens", tenantSlug, pedido?.id],
     queryFn: () =>
-      fetchKdsOrderItemsServer({ data: { orderId: pedido!.id } }) as Promise<PedidoItem[]>,
+      fetchKdsOrderItemsServer({
+        data: { orderId: pedido!.id, tenantSlug },
+      }) as Promise<PedidoItem[]>,
     enabled: Boolean(pedido?.id),
   });
 
@@ -72,10 +80,10 @@ export function KdsOrderDetailModal({ pedido, onClose, onPrint }: KdsOrderDetail
     try {
       setUpdating(true);
       await updateKdsOrderStatusServer({
-        data: { orderId: pedido!.id, status },
+        data: { orderId: pedido!.id, status, tenantSlug },
       });
       toast.success(`Pedido #${pedido!.numero} atualizado.`);
-      qc.invalidateQueries({ queryKey: ["kds-pedidos"] });
+      qc.invalidateQueries({ queryKey: ["kds-pedidos", tenantSlug] });
       if (status === "entregue") onClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Nao foi possivel atualizar o pedido.");
@@ -88,10 +96,10 @@ export function KdsOrderDetailModal({ pedido, onClose, onPrint }: KdsOrderDetail
     try {
       setUpdating(true);
       await updateKdsOrderStatusServer({
-        data: { orderId: pedido!.id, status: "cancelado" },
+        data: { orderId: pedido!.id, status: "cancelado", tenantSlug },
       });
       toast.success(`Pedido #${pedido!.numero} cancelado`);
-      qc.invalidateQueries({ queryKey: ["kds-pedidos"] });
+      qc.invalidateQueries({ queryKey: ["kds-pedidos", tenantSlug] });
       onClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Nao foi possivel cancelar o pedido.");

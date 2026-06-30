@@ -1,9 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { Building2, Clock3, ExternalLink, Plus, Search } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Building2, Clock3, ExternalLink, Plus, Power, PowerOff, Search } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { AdminShell, AdminStatCard } from "@/components/admin/admin-shell";
-import { fetchAdminTenants, fetchPlatformCapacity, useAdminTenantsSource } from "@/lib/platform-admin/client";
+import {
+  deactivateAdminTenant,
+  fetchAdminTenants,
+  fetchPlatformCapacity,
+  reactivateAdminTenant,
+  useAdminTenantsSource,
+} from "@/lib/platform-admin/client";
+import { NORFOOD_DEMO_TENANT_ID } from "@/lib/tenant/constants";
 import { lojaPath, tenantPath } from "@/lib/tenant/painel-routes";
 import type { TenantStatus } from "@/lib/tenant/types";
 import { isBrowserDemoEnabled } from "@/lib/runtime";
@@ -28,12 +36,58 @@ const STATUS_TONE: Record<TenantStatus, string> = {
 
 function AdminEmpresasPage() {
   const demo = useAdminTenantsSource();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
 
   const { data: tenants = [], isLoading } = useQuery({
     queryKey: ["admin-tenants", demo],
     queryFn: fetchAdminTenants,
   });
+
+  const statusMutation = useMutation({
+    mutationFn: async (input: { tenantId: string; action: "deactivate" | "reactivate" }) => {
+      if (input.action === "deactivate") {
+        return deactivateAdminTenant(input.tenantId);
+      }
+      return reactivateAdminTenant(input.tenantId, "trial");
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-tenants"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-tenant", variables.tenantId] });
+      toast.success(
+        variables.action === "deactivate" ? "Empresa desativada." : "Empresa reativada em trial.",
+      );
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  function handleToggleStatus(tenantId: string, currentStatus: TenantStatus, tenantName: string) {
+    if (tenantId === NORFOOD_DEMO_TENANT_ID) {
+      toast.error("A conta Norfood (demonstração) não pode ser desativada.");
+      return;
+    }
+
+    if (currentStatus === "suspended") {
+      if (
+        !window.confirm(
+          `Reativar "${tenantName}"?\n\nO restaurante voltará em trial e poderá acessar painel e loja.`,
+        )
+      ) {
+        return;
+      }
+      statusMutation.mutate({ tenantId, action: "reactivate" });
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Desativar "${tenantName}"?\n\nPainel e loja ficarão bloqueados até você reativar.`,
+      )
+    ) {
+      return;
+    }
+    statusMutation.mutate({ tenantId, action: "deactivate" });
+  }
 
   const { data: capacity } = useQuery({
     queryKey: ["platform-capacity", demo],
@@ -193,7 +247,34 @@ function AdminEmpresasPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        {tenant.id !== NORFOOD_DEMO_TENANT_ID ? (
+                          tenant.status === "suspended" ? (
+                            <button
+                              type="button"
+                              disabled={statusMutation.isPending}
+                              onClick={() =>
+                                handleToggleStatus(tenant.id, tenant.status, tenant.name)
+                              }
+                              className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800 hover:bg-emerald-100 disabled:opacity-60"
+                            >
+                              <Power className="size-3" />
+                              Reativar
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={statusMutation.isPending}
+                              onClick={() =>
+                                handleToggleStatus(tenant.id, tenant.status, tenant.name)
+                              }
+                              className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-800 hover:bg-rose-100 disabled:opacity-60"
+                            >
+                              <PowerOff className="size-3" />
+                              Desativar
+                            </button>
+                          )
+                        ) : null}
                         <Link
                           to="/admin/$tenantId"
                           params={{ tenantId: tenant.id }}

@@ -9,7 +9,12 @@ import { getCityLabel } from "@/lib/city-config";
 import { fetchDemoSync } from "@/lib/demo-sync-client";
 import { demoStore } from "@/lib/demo-store";
 import { isBrowserDemoEnabled } from "@/lib/runtime";
-import { withTenantId } from "@/lib/tenant/query-filter";
+import { withTenantId, resolveTenantIdForQuery } from "@/lib/tenant/query-filter";
+import { getActiveTenantSlug } from "@/lib/tenant/active-tenant";
+import {
+  listLancamentosPainelServer,
+  listPedidosPainelServer,
+} from "@/lib/api/painel-data.functions";
 
 export type Categoria = {
   id: string;
@@ -347,6 +352,11 @@ export async function listarPedidos(): Promise<Pedido[]> {
     // Best effort: if the sync fails, we still return the current orders.
   }
 
+  const tenantSlug = getActiveTenantSlug();
+  if (tenantSlug) {
+    return (await listPedidosPainelServer({ data: tenantSlug })) as Pedido[];
+  }
+
   const { data, error } = await withTenantId(
     supabase.from("pedidos").select("*").order("created_at", { ascending: false }).limit(100),
   );
@@ -395,6 +405,12 @@ export async function listarLancamentosFinanceiros(): Promise<LancamentoFinancei
       return (await demoStore.listLancamentos()) as LancamentoFinanceiro[];
     }
   }
+
+  const tenantSlug = getActiveTenantSlug();
+  if (tenantSlug) {
+    return (await listLancamentosPainelServer({ data: tenantSlug })) as LancamentoFinanceiro[];
+  }
+
   const { data, error } = await withTenantId(
     supabase
       .from("lancamentos_financeiros")
@@ -423,7 +439,11 @@ export async function criarLancamentoFinanceiro(payload: {
       return await demoStore.createLancamento(payload);
     }
   }
-  const { error } = await supabase.from("lancamentos_financeiros").insert(payload);
+  const tenantId = resolveTenantIdForQuery();
+  const { error } = await supabase.from("lancamentos_financeiros").insert({
+    ...payload,
+    tenant_id: tenantId,
+  });
   if (error) throw error;
 }
 
@@ -476,6 +496,7 @@ export async function criarCupom(payload: {
       return await demoStore.createCupom(payload);
     }
   }
+  const tenantId = resolveTenantIdForQuery();
   const { error } = await supabase.from("cupons").insert({
     codigo: payload.codigo,
     desconto_percentual: payload.desconto_percentual ?? null,
@@ -484,6 +505,7 @@ export async function criarCupom(payload: {
     valido_ate: payload.valido_ate ?? null,
     usos_maximos: payload.usos_maximos ?? null,
     ativo: true,
+    tenant_id: tenantId,
   });
   if (error) throw error;
 }
@@ -718,6 +740,7 @@ export async function criarPedido(opts: {
   }
   const subtotal = opts.itens.reduce((s, i) => s + i.preco_unitario * i.quantidade, 0);
   const taxaEntrega = opts.canal === "delivery" ? Number(opts.taxa_entrega ?? 5) : 0;
+  const tenantId = resolveTenantIdForQuery();
   const { data: pedido, error } = await supabase
     .from("pedidos")
     .insert({
@@ -731,6 +754,7 @@ export async function criarPedido(opts: {
       troco_para: opts.troco_para ?? null,
       endereco: opts.endereco ?? null,
       observacoes: opts.observacoes ?? null,
+      tenant_id: tenantId,
     })
 
     .select()
@@ -750,6 +774,7 @@ export async function criarPedido(opts: {
       bairro: opts.bairro ?? "Raio local",
       taxa: taxaEntrega,
       status: "pendente",
+      tenant_id: tenantId,
     });
   } else {
     await supabase.from("lancamentos_financeiros").insert({
@@ -759,6 +784,7 @@ export async function criarPedido(opts: {
       valor: subtotal + taxaEntrega,
       forma: (opts.forma_pagamento ?? null) as FormaPagamento | null,
       pedido_id: pedido.id,
+      tenant_id: tenantId,
     });
   }
   return pedido as Pedido;

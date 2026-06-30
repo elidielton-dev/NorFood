@@ -86,6 +86,7 @@ import {
   statusVendaTone,
 } from "@/lib/venda-detalhe";
 import { fetchRelatorioDatasetServer } from "@/lib/api/relatorios.functions";
+import { useTenantSlug } from "@/lib/tenant/tenant-context";
 import { fetchAtendimentoStatsServer } from "@/lib/api/atendimento.functions";
 import { hasBrowserSupabaseConfig } from "@/lib/runtime";
 
@@ -103,10 +104,11 @@ function RelatoriosInteligencia() {
 export type { ReportKey };
 
 export function RelatoriosInteligenciaPage({ forcedReport }: { forcedReport?: ReportKey }) {
+  const tenantSlug = useTenantSlug();
   const useRealData = hasBrowserSupabaseConfig();
   const { data: realDataset } = useQuery({
-    queryKey: ["relatorio-dataset-real"],
-    queryFn: () => fetchRelatorioDatasetServer(),
+    queryKey: ["relatorio-dataset-real", tenantSlug],
+    queryFn: () => fetchRelatorioDatasetServer({ data: tenantSlug }),
     enabled: useRealData,
   });
   const { data: atendimentoStats } = useQuery({

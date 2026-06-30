@@ -15,12 +15,17 @@ export type TenantAccessStatus = {
   canAccessBillingPage: boolean;
   inTrial: boolean;
   signupVerified: boolean;
+  suspensionKind?: "admin" | "billing" | null;
+  tenantName?: string | null;
+  tenantSlug?: string | null;
 };
 
 type TenantRow = {
   id: string;
+  name?: string | null;
   status: string;
   slug: string;
+  rejection_reason?: string | null;
 };
 
 type BillingRow = {
@@ -43,17 +48,27 @@ export function evaluateTenantAccess(tenant: TenantRow, billing: BillingRow): Te
       canAccessBillingPage: false,
       inTrial,
       signupVerified,
+      suspensionKind: null,
+      tenantName: tenant.name ?? null,
+      tenantSlug: tenant.slug,
     };
   }
 
   if (tenant.status === "suspended") {
+    const isAdmin = Boolean(tenant.rejection_reason?.trim());
+    const message =
+      tenant.rejection_reason?.trim() ||
+      "Conta suspensa por pendência de plano ou pagamento. Regularize em Estabelecimento → Plano ou fale com suporte@norfood.com.br.";
     return {
       allowed: false,
       reason: "suspended",
-      message: "Restaurante suspenso. Regularize o plano em Estabelecimento → Plano.",
+      message,
       canAccessBillingPage,
       inTrial,
       signupVerified,
+      suspensionKind: isAdmin ? "admin" : "billing",
+      tenantName: tenant.name ?? null,
+      tenantSlug: tenant.slug,
     };
   }
 
@@ -65,6 +80,9 @@ export function evaluateTenantAccess(tenant: TenantRow, billing: BillingRow): Te
       canAccessBillingPage,
       inTrial,
       signupVerified,
+      suspensionKind: "billing",
+      tenantName: tenant.name ?? null,
+      tenantSlug: tenant.slug,
     };
   }
 
@@ -76,6 +94,9 @@ export function evaluateTenantAccess(tenant: TenantRow, billing: BillingRow): Te
       canAccessBillingPage,
       inTrial,
       signupVerified,
+      suspensionKind: "billing",
+      tenantName: tenant.name ?? null,
+      tenantSlug: tenant.slug,
     };
   }
 
@@ -86,6 +107,9 @@ export function evaluateTenantAccess(tenant: TenantRow, billing: BillingRow): Te
     canAccessBillingPage,
     inTrial,
     signupVerified,
+    suspensionKind: null,
+    tenantName: tenant.name ?? null,
+    tenantSlug: tenant.slug,
   };
 }
 
@@ -94,7 +118,7 @@ export async function loadTenantAccessBySlug(slug: string): Promise<TenantAccess
 
   const { data: tenant, error: tenantError } = await supabaseAdmin
     .from("tenants")
-    .select("id, status, slug")
+    .select("id, name, status, slug, rejection_reason")
     .eq("slug", slug)
     .maybeSingle();
   if (tenantError) throw tenantError;
@@ -120,7 +144,7 @@ export async function assertTenantOperationalById(tenantId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: tenant, error } = await supabaseAdmin
     .from("tenants")
-    .select("id, status, slug")
+    .select("id, name, status, slug, rejection_reason")
     .eq("id", tenantId)
     .single();
   if (error) throw error;

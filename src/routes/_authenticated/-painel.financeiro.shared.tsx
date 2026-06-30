@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { Plus, ArrowUp, ArrowDown, Landmark, QrCode } from "lucide-react";
 import { getIntegrationStatus } from "@/lib/api/integrations.functions";
 import { VendaDetalheModal } from "@/components/venda-detalhe-modal";
+import { useTenantSlug } from "@/lib/tenant/tenant-context";
+import { tenantQueryKey } from "@/lib/tenant/query-keys";
 import {
   GestaoButton,
   GestaoCard,
@@ -25,13 +27,14 @@ function isVendaLancamento(lancamento: LancamentoFinanceiro) {
 
 export function FinanceiroFluxoPage() {
   const qc = useQueryClient();
+  const tenantSlug = useTenantSlug();
   const [pedidoDetalheId, setPedidoDetalheId] = useState<string | null>(null);
   const { data: lancamentos = [] } = useQuery({
-    queryKey: ["financeiro"],
+    queryKey: tenantQueryKey("financeiro", tenantSlug),
     queryFn: listarLancamentosFinanceiros,
   });
   const { data: integrations } = useQuery({
-    queryKey: ["integration-status"],
+    queryKey: tenantQueryKey("integration-status", tenantSlug),
     queryFn: () => getIntegrationStatus(),
   });
 
@@ -55,7 +58,7 @@ export function FinanceiroFluxoPage() {
     }
     setDescricao("");
     setValor(0);
-    qc.invalidateQueries({ queryKey: ["financeiro"] });
+    qc.invalidateQueries({ queryKey: tenantQueryKey("financeiro", tenantSlug) });
     toast.success("Lancamento adicionado");
   }
 

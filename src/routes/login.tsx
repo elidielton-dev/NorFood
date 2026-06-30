@@ -1,23 +1,33 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
+import { getAuthenticatedUser } from "@/lib/auth-session";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
-import { resolvePostLoginRoute } from "@/lib/auth-roles";
+import { resolveLoginDestination } from "@/lib/auth-roles";
+import {
+  followInternalRedirect,
+  internalPathToRouterRedirect,
+  sanitizeLoginRedirect,
+} from "@/lib/login-redirect";
 import { NORFOOD_DEMO_TENANT_SLUG } from "@/lib/tenant/constants";
 import { NorfoodLogo } from "@/components/brand/norfood-logo";
 
 export const Route = createFileRoute("/login")({
   ssr: false,
   validateSearch: (search: Record<string, unknown>) => ({
-    redirect:
-      typeof search.redirect === "string" && search.redirect.startsWith("/")
-        ? search.redirect
-        : undefined,
+    redirect: sanitizeLoginRedirect(search.redirect),
   }),
   head: () => ({
     meta: [{ title: "Entrar — Norfood" }],
   }),
+  beforeLoad: async ({ search }) => {
+    if (!isSupabaseConfigured()) return;
+    const user = await getAuthenticatedUser();
+    if (!user) return;
+    const destination = await resolveLoginDestination(search.redirect);
+    throw redirect(internalPathToRouterRedirect(destination));
+  },
   component: LoginPage,
 });
 
@@ -28,13 +38,26 @@ function LoginPage() {
   const [senha, setSenha] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+    void (async () => {
+      const user = await getAuthenticatedUser();
+      if (!user) return;
+      const destination = await resolveLoginDestination(redirectTo);
+      followInternalRedirect(destination);
+    })();
+  }, [redirectTo]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     try {
       if (!isSupabaseConfigured()) {
         toast.success("Modo demo — entrando no painel...");
-        nav({ to: `/t/${NORFOOD_DEMO_TENANT_SLUG}/dashboard` });
+        nav({
+          to: "/t/$tenantSlug/$",
+          params: { tenantSlug: NORFOOD_DEMO_TENANT_SLUG, _splat: "dashboard" },
+        });
         return;
       }
 
@@ -42,15 +65,8 @@ function LoginPage() {
       if (error) throw error;
       await supabase.auth.getSession();
       toast.success("Bem-vindo(a) de volta!");
-      let destination = await resolvePostLoginRoute();
-      if (
-        redirectTo &&
-        (destination === "/admin" || redirectTo.startsWith("/admin")) &&
-        redirectTo.startsWith("/")
-      ) {
-        destination = redirectTo;
-      }
-      nav({ to: destination });
+      const destination = await resolveLoginDestination(redirectTo);
+      followInternalRedirect(destination);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erro inesperado";
       toast.error(message);

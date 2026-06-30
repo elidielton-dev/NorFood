@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { assertStaffUserId } from "@/lib/api/auth-helpers.server";
+import { assertStaffUserId, resolveStaffTenantId } from "@/lib/api/auth-helpers.server";
 import type { Tables } from "@/integrations/supabase/types";
 import type { Pedido, PedidoStatus } from "@/lib/db";
 import { getOrderNeighborhood } from "@/lib/db";
@@ -29,19 +29,45 @@ export type DeliveryPanelData = {
   riderProfiles: RiderProfileRow[];
 };
 
-type UpdateKdsOrderStatusInput = {
+type TenantScopedInput = {
+  tenantSlug: string;
+};
+
+type UpdateKdsOrderStatusInput = TenantScopedInput & {
   orderId: string;
   status: PedidoStatus;
 };
 
-type FetchKdsOrderItemsInput = {
+type FetchKdsOrderItemsInput = TenantScopedInput & {
   orderId: string;
 };
 
+async function loadTenantDeliveryContext(userId: string, tenantSlug: string) {
+  await assertStaffUserId(userId, "Acesso restrito ao painel de entregas.");
+  const tenantId = await resolveStaffTenantId(userId, tenantSlug);
+  return { tenantId };
+}
+
+async function assertPedidoBelongsToTenant(tenantId: string, orderId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("pedidos")
+    .select("id, tenant_id")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data || (data as { tenant_id?: string | null }).tenant_id !== tenantId) {
+    throw new Error("Pedido não encontrado neste restaurante.");
+  }
+}
+
 export const fetchDeliveryPanelDataServer = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<DeliveryPanelData> => {
-    await assertStaffUserId(context.userId, "Acesso restrito ao painel de entregas.");
+  .validator((tenantSlug: string) => tenantSlug)
+  .handler(async ({ context, data: tenantSlug }): Promise<DeliveryPanelData> => {
+    const { tenantId } = await loadTenantDeliveryContext(context.userId, tenantSlug);
+    const { assertTenantPlanFeature } = await import("@/lib/tenant/tenant-plan.server");
+    await assertTenantPlanFeature(tenantId, "delivery_app");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { expireStalePendingMercadoPagoOrders } = await import("@/lib/api/mercado-pago.server");
@@ -51,50 +77,104 @@ export const fetchDeliveryPanelDataServer = createServerFn({ method: "GET" })
     const [
       pedidosResult,
       entregasResult,
-      locationsResult,
       routesResult,
-      profilesResult,
-      riderProfilesResult,
+      tenantRidersResult,
     ] = await Promise.all([
       supabaseAdmin
         .from("pedidos")
         .select("*")
+        .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false })
         .limit(100),
       supabaseAdmin
         .from("entregas")
         .select("*")
+        .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false })
         .limit(100),
-      supabaseAdmin.from("entregadores_localizacao").select("*"),
-      supabaseAdmin.from("rotas_entrega").select("*").order("ordem_entrega", { ascending: true }),
-      supabaseAdmin.from("profiles").select("id,nome,telefone,avatar_url"),
       supabaseAdmin
-        .from("entregador_perfis" as never)
-        .select("user_id,online,updated_at,vehicle,plate,support_phone"),
+        .from("rotas_entrega")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .order("ordem_entrega", { ascending: true }),
+      supabaseAdmin
+        .from("tenant_users")
+        .select("user_id")
+        .eq("tenant_id", tenantId)
+        .eq("status", "active")
+        .eq("role", "entregador"),
     ]);
 
     if (pedidosResult.error) throw pedidosResult.error;
     if (entregasResult.error) throw entregasResult.error;
-    if (locationsResult.error) throw locationsResult.error;
     if (routesResult.error) throw routesResult.error;
+    if (tenantRidersResult.error) throw tenantRidersResult.error;
+
+    const pedidos = pedidosResult.data ?? [];
+    const entregas = entregasResult.data ?? [];
+    const routes = routesResult.data ?? [];
+
+    const riderIds = new Set<string>();
+    for (const row of tenantRidersResult.data ?? []) {
+      riderIds.add(row.user_id);
+    }
+    for (const pedido of pedidos) {
+      if (pedido.entregador_id) riderIds.add(pedido.entregador_id);
+    }
+    for (const entrega of entregas) {
+      if (entrega.motoboy_id) riderIds.add(entrega.motoboy_id);
+    }
+    for (const route of routes) {
+      riderIds.add(route.entregador_id);
+    }
+
+    const riderIdList = [...riderIds];
+
+    const [locationsResult, profilesResult, riderProfilesResult] = await Promise.all([
+      riderIdList.length
+        ? supabaseAdmin
+            .from("entregadores_localizacao")
+            .select("*")
+            .in("entregador_id", riderIdList)
+        : Promise.resolve({ data: [] as LocationRow[], error: null }),
+      riderIdList.length
+        ? supabaseAdmin
+            .from("profiles")
+            .select("id,nome,telefone,avatar_url")
+            .in("id", riderIdList)
+        : Promise.resolve({ data: [] as ProfileRow[], error: null }),
+      riderIdList.length
+        ? supabaseAdmin
+            .from("entregador_perfis" as never)
+            .select("user_id,online,updated_at,vehicle,plate,support_phone")
+            .in("user_id", riderIdList)
+        : Promise.resolve({ data: [] as RiderProfileRow[], error: null }),
+    ]);
+
+    if (locationsResult.error) throw locationsResult.error;
     if (profilesResult.error) throw profilesResult.error;
     if (riderProfilesResult.error) throw riderProfilesResult.error;
 
+    const riderProfiles = (riderProfilesResult.data ?? []) as RiderProfileRow[];
+
     return {
-      pedidos: pedidosResult.data ?? [],
-      entregas: entregasResult.data ?? [],
+      pedidos,
+      entregas,
       locations: locationsResult.data ?? [],
-      routes: routesResult.data ?? [],
+      routes,
       profiles: (profilesResult.data ?? []) as ProfileRow[],
-      riderProfiles: (riderProfilesResult.data ?? []) as RiderProfileRow[],
+      riderProfiles,
     };
   });
 
 export const fetchKdsOrdersServer = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<Pedido[]> => {
+  .validator((tenantSlug: string) => tenantSlug)
+  .handler(async ({ context, data: tenantSlug }): Promise<Pedido[]> => {
     await assertStaffUserId(context.userId, "Acesso restrito ao KDS.");
+    const tenantId = await resolveStaffTenantId(context.userId, tenantSlug);
+    const { assertTenantPlanFeature } = await import("@/lib/tenant/tenant-plan.server");
+    await assertTenantPlanFeature(tenantId, "kds");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -102,9 +182,13 @@ export const fetchKdsOrdersServer = createServerFn({ method: "GET" })
       supabaseAdmin
         .from("pedidos")
         .select("*")
+        .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false })
         .limit(100),
-      supabaseAdmin.from("entregas").select("pedido_id, bairro"),
+      supabaseAdmin
+        .from("entregas")
+        .select("pedido_id, bairro")
+        .eq("tenant_id", tenantId),
     ]);
 
     if (pedidosResult.error) throw pedidosResult.error;
@@ -126,6 +210,10 @@ export const fetchKdsOrderItemsServer = createServerFn({ method: "POST" })
   .validator((input: FetchKdsOrderItemsInput) => input)
   .handler(async ({ context, data }) => {
     await assertStaffUserId(context.userId, "Acesso restrito ao KDS.");
+    const tenantId = await resolveStaffTenantId(context.userId, data.tenantSlug);
+    const { assertTenantPlanFeature } = await import("@/lib/tenant/tenant-plan.server");
+    await assertTenantPlanFeature(tenantId, "kds");
+    await assertPedidoBelongsToTenant(tenantId, data.orderId);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -146,13 +234,18 @@ export const updateKdsOrderStatusServer = createServerFn({ method: "POST" })
   .validator((input: UpdateKdsOrderStatusInput) => input)
   .handler(async ({ context, data }) => {
     await assertStaffUserId(context.userId, "Acesso restrito ao KDS.");
+    const tenantId = await resolveStaffTenantId(context.userId, data.tenantSlug);
+    const { assertTenantPlanFeature } = await import("@/lib/tenant/tenant-plan.server");
+    await assertTenantPlanFeature(tenantId, "kds");
+    await assertPedidoBelongsToTenant(tenantId, data.orderId);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { error: orderError } = await supabaseAdmin
       .from("pedidos")
       .update({ status: data.status })
-      .eq("id", data.orderId);
+      .eq("id", data.orderId)
+      .eq("tenant_id", tenantId);
     if (orderError) throw orderError;
 
     if (data.status === "cancelado") {
@@ -160,11 +253,13 @@ export const updateKdsOrderStatusServer = createServerFn({ method: "POST" })
         supabaseAdmin
           .from("entregas")
           .update({ status: "cancelado" })
-          .eq("pedido_id", data.orderId),
+          .eq("pedido_id", data.orderId)
+          .eq("tenant_id", tenantId),
         supabaseAdmin
           .from("rotas_entrega")
           .update({ status: "cancelado" })
-          .eq("pedido_id", data.orderId),
+          .eq("pedido_id", data.orderId)
+          .eq("tenant_id", tenantId),
       ]);
       if (deliveryResult.error) throw deliveryResult.error;
       if (routeResult.error) throw routeResult.error;
@@ -176,11 +271,13 @@ export const updateKdsOrderStatusServer = createServerFn({ method: "POST" })
         supabaseAdmin
           .from("entregas")
           .update({ status: "entregue", entregue_em: deliveredAt })
-          .eq("pedido_id", data.orderId),
+          .eq("pedido_id", data.orderId)
+          .eq("tenant_id", tenantId),
         supabaseAdmin
           .from("rotas_entrega")
           .update({ status: "entregue" })
-          .eq("pedido_id", data.orderId),
+          .eq("pedido_id", data.orderId)
+          .eq("tenant_id", tenantId),
       ]);
       if (deliveryResult.error) throw deliveryResult.error;
       if (routeResult.error) throw routeResult.error;
@@ -189,6 +286,7 @@ export const updateKdsOrderStatusServer = createServerFn({ method: "POST" })
         .from("pedidos")
         .select("canal")
         .eq("id", data.orderId)
+        .eq("tenant_id", tenantId)
         .maybeSingle();
       if (pedidoRow?.canal) {
         const { tryAutoEmitNfceForPedido } = await import("@/lib/api/fiscal.server");

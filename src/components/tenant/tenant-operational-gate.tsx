@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { TenantSuspendedScreen } from "@/components/tenant/tenant-suspended-screen";
 import { getTenantAccessStatusServer } from "@/lib/api/platform-billing.functions";
-import { tenantPath } from "@/lib/tenant/painel-routes";
 import { useTenantOptional } from "@/lib/tenant/tenant-context";
 import { cn } from "@/lib/utils";
 
@@ -25,13 +25,32 @@ export function TenantOperationalGate({
     queryFn: () => getTenantAccessStatusServer({ data: slug! }),
     enabled: Boolean(slug),
     staleTime: 30_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 
   if (!slug || isLoading) return <>{children}</>;
   if (!access || access.allowed || allowWhenBlocked) return <>{children}</>;
 
-  const planoHref = tenantPath(slug, "estabelecimento/plano");
   const isPending = access.reason === "pending_approval";
+  const isSuspendedLike =
+    access.reason === "suspended" ||
+    access.reason === "overdue" ||
+    access.reason === "trial_expired";
+
+  if (isSuspendedLike) {
+    return (
+      <TenantSuspendedScreen
+        slug={slug}
+        tenantName={access.tenantName ?? tenantCtx?.tenant.name}
+        message={access.message}
+        reason={access.reason}
+        suspensionKind={access.suspensionKind}
+        canAccessBillingPage={access.canAccessBillingPage}
+        mode={mode}
+      />
+    );
+  }
 
   return (
     <div className="mx-auto flex min-h-[50vh] max-w-lg flex-col items-center justify-center px-6 py-16 text-center">
@@ -51,34 +70,17 @@ export function TenantOperationalGate({
               : "text-amber-700 dark:text-amber-400",
           )}
         >
-          {mode === "loja"
-            ? isPending
-              ? "Loja em preparação"
-              : "Loja indisponível"
-            : isPending
-              ? "Cadastro em análise"
-              : "Painel pausado"}
+          {mode === "loja" ? "Loja em preparação" : "Cadastro em análise"}
         </p>
-        <h2 className="mt-2 text-lg font-semibold text-foreground">
-          {isPending ? "Aguardando aprovação" : "Regularize seu plano"}
-        </h2>
+        <h2 className="mt-2 text-lg font-semibold text-foreground">Aguardando aprovação</h2>
         <p className="mt-3 text-sm text-muted-foreground">{access.message}</p>
-        {isPending ? (
-          <Link
-            to="/cadastro/aguardando/$slug"
-            params={{ slug }}
-            className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-[#111111] px-6 text-sm font-medium text-white hover:bg-[#333]"
-          >
-            Ver status do cadastro
-          </Link>
-        ) : access.canAccessBillingPage ? (
-          <Link
-            to={planoHref}
-            className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-[#FF9100] px-6 text-sm font-medium text-white hover:bg-[#FF5C00]"
-          >
-            Ir para plano e pagamento
-          </Link>
-        ) : null}
+        <Link
+          to="/cadastro/aguardando/$slug"
+          params={{ slug }}
+          className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-[#111111] px-6 text-sm font-medium text-white hover:bg-[#333]"
+        >
+          Ver status do cadastro
+        </Link>
       </div>
     </div>
   );

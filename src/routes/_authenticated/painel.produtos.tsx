@@ -39,6 +39,7 @@ import {
 } from "recharts";
 import {
   fetchProdutosModuleStoreServer,
+  saveProductRecordServer,
   saveProdutosModuleStoreServer,
 } from "@/lib/api/produtos-module.functions";
 import { formatBRL, listarProdutos } from "@/lib/db";
@@ -49,13 +50,11 @@ import {
   clearLegacyModuleStore,
   createId,
   createSku,
-  defaultAddonGroups,
-  defaultAddons,
-  defaultCategories,
   normalizeProduct,
   PRODUCT_IMAGES,
   PRODUTOS_MODULE_STORAGE_KEY,
   readLegacyModuleStore,
+  sanitizeProductForPersistence,
   type ModuleStore,
   type ProductRecord,
   type ProductStatus,
@@ -64,6 +63,7 @@ import {
   type StockAction,
 } from "@/lib/produtos-module";
 import { hasBrowserSupabaseConfig } from "@/lib/runtime";
+import { useTenantSlug } from "@/lib/tenant/tenant-context";
 import { usePainelNavigate } from "@/lib/painel/use-painel-navigate";
 import { usePainelSearch } from "@/lib/painel/use-painel-search";
 import {
@@ -114,7 +114,19 @@ const parseProdutosSearch = (search: Record<string, unknown>) => ({
   editar: typeof search.editar === "string" ? search.editar : undefined,
 });
 
+function extractApiError(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message.trim()) return error.message;
+  if (typeof error === "object" && error !== null) {
+    const record = error as { message?: unknown; error?: unknown };
+    if (typeof record.message === "string" && record.message.trim()) return record.message;
+    if (typeof record.error === "string" && record.error.trim()) return record.error;
+  }
+  if (typeof error === "string" && error.trim()) return error;
+  return fallback;
+}
+
 function ProdutosPage() {
+  const tenantSlug = useTenantSlug();
   const { tab: tabFromSearch, editar: editarFromSearch } = usePainelSearch(parseProdutosSearch);
   const navigate = usePainelNavigate();
   const queryClient = useQueryClient();
@@ -123,7 +135,7 @@ function ProdutosPage() {
   const [extrasSchemaReady, setExtrasSchemaReady] = useState(true);
 
   const { data: moduleStore, isLoading } = useQuery({
-    queryKey: ["produtos-module"],
+    queryKey: ["produtos-module", tenantSlug],
     queryFn: async (): Promise<ModuleStore> => {
       if (!useSupabase) {
         const legacy = readLegacyModuleStore();
@@ -132,20 +144,20 @@ function ProdutosPage() {
         return buildSeedModuleStore(baseProdutos);
       }
 
-      const remote = await fetchProdutosModuleStoreServer();
+      const remote = await fetchProdutosModuleStoreServer({ data: tenantSlug });
       setExtrasSchemaReady(remote.extrasSchemaReady);
       const legacy = readLegacyModuleStore();
       if (legacy && remote.needsMigration) {
-        await saveProdutosModuleStoreServer({ data: { store: legacy } });
+        await saveProdutosModuleStoreServer({ data: { tenantSlug, store: legacy } });
         clearLegacyModuleStore();
-        const synced = await fetchProdutosModuleStoreServer();
+        const synced = await fetchProdutosModuleStoreServer({ data: tenantSlug });
         const { needsMigration: _ignored, ...store } = synced;
         return store;
       }
 
       if (remote.needsMigration) {
         const { needsMigration: _ignored, ...store } = remote;
-        await saveProdutosModuleStoreServer({ data: { store } });
+        await saveProdutosModuleStoreServer({ data: { tenantSlug, store } });
         return store;
       }
 
@@ -155,7 +167,8 @@ function ProdutosPage() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: (store: ModuleStore) => saveProdutosModuleStoreServer({ data: { store } }),
+    mutationFn: (store: ModuleStore) =>
+      saveProdutosModuleStoreServer({ data: { tenantSlug, store } }),
     onError: (error: unknown) => {
       const message =
         error instanceof Error
@@ -200,7 +213,8 @@ function ProdutosPage() {
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [fichaProdutoId, setFichaProdutoId] = useState<string | null>(null);
   const [form, setForm] = useState<ProductRecord>(() => blankProduct());
-  const [novaCategoria, setNovaCategoria] = useState({ nome: "", descricao: "", icone: "🍯" });
+  const [novaCategoria, setNovaCategoria] = useState({ nome: "", descricao: "", icone: "🍿" });
+  const [salvandoCategoria, setSalvandoCategoria] = useState(false);
   const [novoGrupo, setNovoGrupo] = useState({ nome: "", descricao: "" });
   const [novoAdicional, setNovoAdicional] = useState({
     nome: "",
@@ -209,7 +223,7 @@ function ProdutosPage() {
     obrigatorio: false,
     min: 0,
     max: 1,
-    grupoId: defaultAddonGroups[0].id,
+    grupoId: "",
   });
   const [novaPromocao, setNovaPromocao] = useState({
     productId: "",
@@ -227,7 +241,7 @@ function ProdutosPage() {
   });
 
   function persistStore(next: ModuleStore) {
-    queryClient.setQueryData(["produtos-module"], next);
+    queryClient.setQueryData(["produtos-module", tenantSlug], next);
     queryClient.setQueryData(PRODUTOS_MODULE_PRODUCTS_QUERY_KEY, next.produtos);
     if (useSupabase) {
       saveMutation.mutate(next);
@@ -241,9 +255,15 @@ function ProdutosPage() {
   function validateProductForm(product: ProductRecord) {
     if (!product.nome.trim()) return "Informe o nome do produto.";
     if (!product.categoria.trim()) return "Escolha uma categoria.";
-    if (!(Number(product.precoVenda) > 0)) return "Informe um preco de venda maior que zero.";
+    if (!(Number(product.precoVenda) > 0)) return "Informe um preço de venda maior que zero.";
     if (product.ncm.trim() && !isValidNcm(product.ncm)) {
-      return "NCM invalido. Use 8 digitos (ex.: 22021000).";
+      return "NCM inválido. Use 8 dígitos (ex.: 19059090).";
+    }
+    const variacaoIncompleta = product.variacoes.some(
+      (variacao) => !variacao.nome.trim() && variacao.preco > 0,
+    );
+    if (variacaoIncompleta) {
+      return "Preencha o nome de todas as variações ou remova as linhas vazias.";
     }
     return null;
   }
@@ -251,19 +271,19 @@ function ProdutosPage() {
   async function handleSaveProduct() {
     if (!moduleStore) return;
 
-    const prepared = {
+    const prepared = sanitizeProductForPersistence({
       ...form,
-      nome: form.nome.trim(),
       sku: form.sku.trim() || createSku(form.nome),
       codigoBarras: form.codigoBarras.replace(/\D/g, ""),
       gtin: (form.gtin.trim() || form.codigoBarras).replace(/\D/g, "") || "",
       ncm: form.ncm.replace(/\D/g, "").slice(0, 8),
       status:
         form.estoque <= 0 ? (form.autoPauseSemEstoque ? "indisponivel" : form.status) : form.status,
-      foto: form.foto || PRODUCT_IMAGES[Math.floor(Math.random() * PRODUCT_IMAGES.length)],
-      fichaTecnica: form.fichaTecnica ?? [],
-      variacoes: form.variacoes ?? [],
-    };
+      foto:
+        form.foto && !form.foto.startsWith("data:")
+          ? form.foto
+          : PRODUCT_IMAGES[Math.floor(Math.random() * PRODUCT_IMAGES.length)],
+    });
 
     const validationError = validateProductForm(prepared);
     if (validationError) {
@@ -271,33 +291,43 @@ function ProdutosPage() {
       return;
     }
 
-    const nextStore: ModuleStore = {
-      ...moduleStore,
-      produtos: moduleStore.produtos.some((produto) => produto.id === prepared.id)
-        ? moduleStore.produtos.map((produto) => (produto.id === prepared.id ? prepared : produto))
-        : [prepared, ...moduleStore.produtos],
-    };
+    const toastId = "produto-save";
+    toast.loading("Salvando produto...", { id: toastId });
 
-    if (useSupabase) {
-      const toastId = "produto-save";
-      toast.loading("Salvando produto...", { id: toastId });
-      try {
-        await saveProdutosModuleStoreServer({ data: { store: nextStore } });
-        queryClient.setQueryData(["produtos-module"], nextStore);
-        queryClient.setQueryData(PRODUTOS_MODULE_PRODUCTS_QUERY_KEY, nextStore.produtos);
-        toast.success(
-          editingId ? "Produto atualizado e salvo no banco." : "Produto criado e salvo no banco.",
-          { id: toastId },
-        );
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Nao foi possivel salvar o produto no Supabase.";
-        toast.error(message, { id: toastId });
-        return;
+    try {
+      let savedProduct = prepared;
+
+      if (useSupabase) {
+        const { productId } = await saveProductRecordServer({
+          data: {
+            tenantSlug,
+            product: prepared,
+            categorias: moduleStore.categorias,
+          },
+        });
+        savedProduct = { ...prepared, id: productId };
       }
-    } else {
+
+      const nextStore: ModuleStore = {
+        ...moduleStore,
+        produtos: moduleStore.produtos.some((produto) => produto.id === prepared.id)
+          ? moduleStore.produtos.map((produto) =>
+              produto.id === prepared.id ? savedProduct : produto,
+            )
+          : [savedProduct, ...moduleStore.produtos],
+      };
+
       persistStore(nextStore);
-      toast.success(editingId ? "Produto atualizado na vitrine." : "Produto criado na vitrine.");
+      toast.success(
+        editingId ? "Produto atualizado e salvo no banco." : "Produto criado e salvo no banco.",
+        { id: toastId },
+      );
+    } catch (error) {
+      toast.error(
+        extractApiError(error, "Não foi possível salvar o produto. Verifique categoria e foto."),
+        { id: toastId },
+      );
+      return;
     }
 
     setEditingId(null);
@@ -307,12 +337,9 @@ function ProdutosPage() {
   }
 
   const produtos = useMemo(() => moduleStore?.produtos ?? [], [moduleStore]);
-  const categorias = useMemo(() => moduleStore?.categorias ?? defaultCategories, [moduleStore]);
-  const gruposAdicionais = useMemo(
-    () => moduleStore?.gruposAdicionais ?? defaultAddonGroups,
-    [moduleStore],
-  );
-  const adicionais = useMemo(() => moduleStore?.adicionais ?? defaultAddons, [moduleStore]);
+  const categorias = useMemo(() => moduleStore?.categorias ?? [], [moduleStore]);
+  const gruposAdicionais = useMemo(() => moduleStore?.gruposAdicionais ?? [], [moduleStore]);
+  const adicionais = useMemo(() => moduleStore?.adicionais ?? [], [moduleStore]);
   const promocoes = useMemo(() => moduleStore?.promocoes ?? [], [moduleStore]);
   const movimentos = useMemo(() => moduleStore?.movimentos ?? [], [moduleStore]);
   const vendasSimuladas = useMemo(() => moduleStore?.vendasSimuladas ?? [], [moduleStore]);
@@ -516,23 +543,45 @@ function ProdutosPage() {
     });
   }
 
-  function handleCreateCategory() {
-    if (!novaCategoria.nome.trim()) return toast.error("Informe o nome da categoria.");
-    updateStore((current) => ({
-      ...current,
+  async function handleCreateCategory() {
+    if (!moduleStore) return;
+    if (!novaCategoria.nome.trim()) {
+      toast.error("Informe o nome da categoria.");
+      return;
+    }
+
+    const nextStore: ModuleStore = {
+      ...moduleStore,
       categorias: [
-        ...current.categorias,
+        ...moduleStore.categorias,
         {
           id: createId("cat"),
           nome: novaCategoria.nome.trim(),
           descricao: novaCategoria.descricao.trim(),
-          icone: novaCategoria.icone.trim() || "🍯",
-          ordem: current.categorias.length + 1,
+          icone: novaCategoria.icone.trim() || "🍿",
+          ordem: moduleStore.categorias.length + 1,
           status: "ativo",
         },
       ],
-    }));
-    setNovaCategoria({ nome: "", descricao: "", icone: "🍯" });
+    };
+
+    setSalvandoCategoria(true);
+    const toastId = "categoria-save";
+    try {
+      if (useSupabase) {
+        toast.loading("Salvando categoria...", { id: toastId });
+        await saveProdutosModuleStoreServer({ data: { tenantSlug, store: nextStore } });
+      }
+      persistStore(nextStore);
+      setNovaCategoria({ nome: "", descricao: "", icone: "🍿" });
+      toast.success("Categoria criada com sucesso.", { id: toastId });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Não foi possível salvar a categoria.";
+      toast.error(message, { id: toastId });
+    } finally {
+      setSalvandoCategoria(false);
+    }
   }
 
   function handleCreateGroup() {
@@ -1049,39 +1098,53 @@ function ProdutosPage() {
 
       {tab === "categorias" && (
         <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-          <PanelCard title="Cadastrar categoria" subtitle="Ordem, ícone e status de exibição">
+          <PanelCard
+            title="Cadastrar categoria"
+            subtitle="Organize seu cardápio em seções (ex.: Pipocas doces, Salgadas, Bebidas)"
+          >
             <div className="grid gap-3">
               <TextField
                 label="Nome da categoria"
                 value={novaCategoria.nome}
+                placeholder="Ex.: Pipocas doces"
                 onChange={(value) => setNovaCategoria((current) => ({ ...current, nome: value }))}
               />
               <TextField
-                label="Descrição"
+                label="Descrição (opcional)"
                 value={novaCategoria.descricao}
+                placeholder="Ex.: Pipocas caramelizadas e tradicionais"
                 onChange={(value) =>
                   setNovaCategoria((current) => ({ ...current, descricao: value }))
                 }
               />
               <TextField
-                label="Ícone / emoji"
+                label="Ícone / emoji (opcional)"
                 value={novaCategoria.icone}
+                placeholder="🍿"
                 onChange={(value) => setNovaCategoria((current) => ({ ...current, icone: value }))}
               />
-              <button
-                onClick={handleCreateCategory}
-                className="rounded-2xl bg-sage px-4 py-3 text-sm font-semibold text-primary-foreground"
+              <GestaoButton
+                type="button"
+                onClick={() => void handleCreateCategory()}
+                disabled={salvandoCategoria}
               >
-                Criar categoria
-              </button>
+                {salvandoCategoria ? "Salvando..." : "Criar categoria"}
+              </GestaoButton>
             </div>
           </PanelCard>
 
           <PanelCard
-            title="Categorias da vitrine"
-            subtitle="Exibição organizada para doces, bebidas e kits"
+            title="Categorias do cardápio"
+            subtitle={
+              categorias.length > 0
+                ? "Categorias visíveis na loja online e no painel"
+                : "Nenhuma categoria ainda — crie a primeira ao lado"
+            }
           >
             <div className="space-y-3">
+              {categorias.length === 0 ? (
+                <EmptyState text="Cadastre categorias como Pipocas, Combos ou Bebidas para organizar seus produtos." />
+              ) : null}
               {categorias
                 .slice()
                 .sort((a, b) => a.ordem - b.ordem)
@@ -1747,11 +1810,13 @@ function TextField({
   label,
   value,
   onChange,
+  placeholder,
   className = "",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  placeholder?: string;
   className?: string;
 }) {
   return (
@@ -1761,6 +1826,7 @@ function TextField({
       </p>
       <input
         value={value}
+        placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-2xl border border-[color:var(--honey-line)] bg-background px-3 py-3 text-sm"
       />

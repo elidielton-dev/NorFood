@@ -305,6 +305,29 @@ export function createSku(name: string) {
     .toUpperCase();
 }
 
+export function sanitizeProductForPersistence(product: ProductRecord): ProductRecord {
+  let foto = product.foto?.trim() ?? "";
+  if (foto.startsWith("data:")) {
+    foto = PRODUCT_IMAGES[0] ?? "";
+  }
+
+  const variacoes = (product.variacoes ?? []).filter((variacao) => variacao.nome.trim().length > 0);
+  const fichaTecnica = (product.fichaTecnica ?? []).filter(
+    (item) => item.ingrediente.trim().length > 0,
+  );
+
+  return {
+    ...product,
+    nome: product.nome.trim(),
+    categoria: product.categoria.trim(),
+    foto,
+    variacoes,
+    fichaTecnica,
+    alergenos: Array.isArray(product.alergenos) ? product.alergenos : [],
+    disponivelCanais: Array.isArray(product.disponivelCanais) ? product.disponivelCanais : [],
+  };
+}
+
 export function blankProduct(): ProductRecord {
   return {
     id: createId("prod"),
@@ -334,32 +357,7 @@ export function blankProduct(): ProductRecord {
     status: "ativo",
     disponivelCanais: ["balcao", "mesas", "delivery", "qrcode", "quero_delivery", "whatsapp"],
     variacoes: [],
-    fichaTecnica: [
-      {
-        id: createId("tec"),
-        ingrediente: "Farinha especial",
-        quantidade: 0.2,
-        unidade: "kg",
-        custoUnitario: 12,
-        fornecedor: "Fornecedor local",
-      },
-      {
-        id: createId("tec"),
-        ingrediente: "Leite condensado",
-        quantidade: 1,
-        unidade: "un",
-        custoUnitario: 6.9,
-        fornecedor: "Atacado doce",
-      },
-      {
-        id: createId("tec"),
-        ingrediente: "Mel artesanal",
-        quantidade: 0.08,
-        unidade: "kg",
-        custoUnitario: 32,
-        fornecedor: "Apiário parceiro",
-      },
-    ],
+    fichaTecnica: [],
     autoPauseSemEstoque: true,
     vendas: 0,
     receita: 0,

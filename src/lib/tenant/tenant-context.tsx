@@ -15,19 +15,37 @@ type TenantContextValue = {
 
 const TenantContext = createContext<TenantContextValue | null>(null);
 
-export function TenantProvider({ slug, children }: { slug: string; children: ReactNode }) {
+type TenantProviderProps = {
+  slug: string;
+  /** Tenant já resolvido no beforeLoad — evita spinner e segunda requisição. */
+  initialTenant?: Tenant | null;
+  children: ReactNode;
+};
+
+export function TenantProvider({ slug, initialTenant, children }: TenantProviderProps) {
   const fallbackTenant = resolveTenantBySlug(slug);
   const fallbackSettings = FALLBACK_TENANT_SETTINGS[slug] ?? null;
+  const seedTenant = initialTenant ?? fallbackTenant;
 
-  const { data: tenantFromServer, isLoading: loadingTenant, isFetching: fetchingTenant } =
-    useQuery({
-      queryKey: ["tenant", slug],
-      queryFn: () => fetchTenantBySlugServer({ data: slug }),
-      staleTime: 5 * 60_000,
-      retry: 1,
-    });
+  const {
+    data: tenantFromServer,
+    isLoading: loadingTenant,
+    isFetching: fetchingTenant,
+    isError: tenantError,
+  } = useQuery({
+    queryKey: ["tenant", slug],
+    queryFn: () => fetchTenantBySlugServer({ data: slug }),
+    initialData: initialTenant ?? undefined,
+    staleTime: 5 * 60_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
 
-  const tenant = tenantFromServer ?? fallbackTenant;
+  const tenant = tenantFromServer ?? seedTenant;
+
+  if (tenant) {
+    setActiveTenant(tenant);
+  }
 
   const {
     data: settingsFromServer,
@@ -37,8 +55,9 @@ export function TenantProvider({ slug, children }: { slug: string; children: Rea
     queryKey: ["tenant-settings", slug],
     queryFn: () => fetchTenantSettingsServer({ data: slug }),
     staleTime: 60_000,
-    enabled: Boolean(tenant),
+    enabled: Boolean(tenant?.id),
     retry: 1,
+    refetchOnWindowFocus: false,
   });
 
   const settings = settingsFromServer ?? fallbackSettings;
@@ -49,22 +68,21 @@ export function TenantProvider({ slug, children }: { slug: string; children: Rea
       tenant,
       settings,
       isLoading:
-        (loadingTenant || fetchingTenant || loadingSettings || fetchingSettings) &&
-        !fallbackTenant,
+        !seedTenant &&
+        (loadingTenant || fetchingTenant || loadingSettings || fetchingSettings),
     };
   }, [
     tenant,
     settings,
+    seedTenant,
     loadingTenant,
     fetchingTenant,
     loadingSettings,
     fetchingSettings,
-    fallbackTenant,
   ]);
 
   useEffect(() => {
     if (!tenant) return;
-    setActiveTenant(tenant);
     applyTenantBranding(tenant);
     return () => {
       setActiveTenant(null);
@@ -73,9 +91,20 @@ export function TenantProvider({ slug, children }: { slug: string; children: Rea
   }, [tenant]);
 
   if (!value) {
+    if (loadingTenant && !seedTenant) {
+      return (
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      );
+    }
+
     return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-2 px-4 text-center">
+        <p className="text-sm font-medium text-foreground">Restaurante não encontrado</p>
+        <p className="text-xs text-muted-foreground">
+          {tenantError ? "Não foi possível carregar os dados da loja." : "Verifique o endereço da loja."}
+        </p>
       </div>
     );
   }

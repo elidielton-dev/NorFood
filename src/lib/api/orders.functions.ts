@@ -44,12 +44,17 @@ export const createDeliveryOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: CreateDeliveryOrderPayload) => input)
   .handler(async ({ data, context }) => {
+    let tenantId: string | null = null;
     if (data.tenantSlug) {
       const { assertTenantOperationalBySlug } = await import("@/lib/tenant/tenant-access.server");
       await assertTenantOperationalBySlug(data.tenantSlug);
+      const { resolveTenantIdBySlug } = await import("@/lib/api/platform-billing.functions");
+      const { assertCanCreateTenantOrder } = await import("@/lib/tenant/tenant-plan.server");
+      tenantId = await resolveTenantIdBySlug(data.tenantSlug);
+      await assertCanCreateTenantOrder(tenantId);
     }
 
-    const config = await getOperationalConfig();
+    const config = await getOperationalConfig(tenantId ?? undefined);
     if (!config.loja_aberta) {
       throw new Error("A loja esta fechada no momento. Tente novamente mais tarde.");
     }
@@ -67,7 +72,7 @@ export const createDeliveryOrder = createServerFn({ method: "POST" })
       checkStock: true,
     });
 
-    const taxaEntrega = await resolveDeliveryFeeFromDb(data.bairro);
+    const taxaEntrega = await resolveDeliveryFeeFromDb(data.bairro, tenantId ?? undefined);
 
     if (subtotal < Number(config.pedido_minimo)) {
       throw new Error(
@@ -78,7 +83,7 @@ export const createDeliveryOrder = createServerFn({ method: "POST" })
     let desconto = 0;
     let cupomId: string | null = null;
     if (data.cupom_codigo) {
-      const coupon = await validateCoupon(data.cupom_codigo, subtotal);
+      const coupon = await validateCoupon(data.cupom_codigo, subtotal, tenantId ?? undefined);
       if (coupon) {
         desconto = coupon.desconto;
         cupomId = coupon.cupom_id;

@@ -26,15 +26,17 @@ function normalizeNeighborhood(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
 
-export async function resolveDeliveryFeeFromDb(bairro: string) {
+export async function resolveDeliveryFeeFromDb(bairro: string, tenantId?: string) {
   const neighborhood = normalizeNeighborhood(bairro);
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-  const { data: bairroRow, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from("bairros_entrega")
     .select("taxa, ativo")
-    .ilike("nome", neighborhood)
-    .maybeSingle();
+    .ilike("nome", neighborhood);
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+
+  const { data: bairroRow, error } = await query.maybeSingle();
 
   if (!error && bairroRow?.ativo) {
     return Number(bairroRow.taxa);
@@ -48,7 +50,7 @@ export async function resolveDeliveryFeeFromDb(bairro: string) {
   );
 }
 
-export async function getOperationalConfig() {
+export async function getOperationalConfig(tenantId?: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const {
     resolveEffectiveLojaAberta,
@@ -63,8 +65,8 @@ export async function getOperationalConfig() {
     const { fetchHorariosConfigFromDb, fetchHorariosFromDb } =
       await import("@/lib/api/horarios.server");
     const [horariosConfigResult, horariosResult] = await Promise.all([
-      fetchHorariosConfigFromDb(),
-      fetchHorariosFromDb(),
+      fetchHorariosConfigFromDb(tenantId),
+      fetchHorariosFromDb(tenantId),
     ]);
     horariosConfig = horariosConfigResult.config;
     horarios = horariosResult.horarios;
@@ -72,11 +74,13 @@ export async function getOperationalConfig() {
     // Mantem defaults se horarios ainda nao estiverem no banco.
   }
 
-  const { data, error } = await supabaseAdmin
+  let configQuery = supabaseAdmin
     .from("config_operacional")
-    .select("pedido_minimo, loja_aberta, valor_padrao_entrega, pontos_por_real")
-    .eq("id", "default")
-    .maybeSingle();
+    .select("pedido_minimo, loja_aberta, valor_padrao_entrega, pontos_por_real");
+  if (tenantId) configQuery = configQuery.eq("tenant_id", tenantId);
+  else configQuery = configQuery.eq("id", "default");
+
+  const { data, error } = await configQuery.maybeSingle();
 
   if (error || !data) {
     return {
@@ -249,16 +253,16 @@ export async function validateAndPriceOrderItems(
 export async function validateCoupon(
   codigo: string,
   subtotal: number,
+  tenantId?: string,
 ): Promise<CouponValidationResult | null> {
   const normalized = codigo.trim().toUpperCase();
   if (!normalized) return null;
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data: cupom, error } = await supabaseAdmin
-    .from("cupons")
-    .select("*")
-    .eq("codigo", normalized)
-    .maybeSingle();
+  let query = supabaseAdmin.from("cupons").select("*").eq("codigo", normalized);
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+
+  const { data: cupom, error } = await query.maybeSingle();
   if (error) throw error;
   if (!cupom) throw new Error("Cupom invalido ou inexistente.");
   if (!cupom.ativo) throw new Error("Este cupom nao esta mais ativo.");

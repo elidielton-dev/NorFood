@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { TenantOperationalGate } from "@/components/tenant/tenant-operational-gate";
+import { TenantPlanGate } from "@/components/tenant/tenant-plan-gate";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
@@ -7,6 +8,7 @@ import { Bell, Building2, ChevronDown, LogOut, Menu, Search, X } from "lucide-re
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import { fetchOperationalStatusServer } from "@/lib/api/operational-config.functions";
+import { getTenantPlanFeaturesServer } from "@/lib/api/platform-billing.functions";
 import { fetchUserTenantsServer } from "@/lib/api/tenant.functions";
 import { useTenant } from "@/lib/tenant/tenant-context";
 import { TenantBrandLogo } from "@/components/brand/norfood-logo";
@@ -34,21 +36,28 @@ export function PainelShell({ tenantSlug, userRole }: PainelShellProps) {
   const [desktopExpanded, setDesktopExpanded] = useState(false);
   const [email, setEmail] = useState("");
 
+  const { data: planFeatures } = useQuery({
+    queryKey: ["tenant-plan-features", tenantSlug],
+    queryFn: () => getTenantPlanFeaturesServer({ data: tenantSlug }),
+    staleTime: 60_000,
+    retry: 1,
+  });
+
   const sections = useMemo(
-    () => getTenantSidebarSections(tenantSlug, userRole),
-    [tenantSlug, userRole],
+    () => getTenantSidebarSections(tenantSlug, userRole, planFeatures?.planId),
+    [tenantSlug, userRole, planFeatures?.planId],
   );
 
   const allSidebarItems = useMemo(
-    () => getAllTenantSidebarItems(tenantSlug, userRole),
-    [tenantSlug, userRole],
+    () => getAllTenantSidebarItems(tenantSlug, userRole, planFeatures?.planId),
+    [tenantSlug, userRole, planFeatures?.planId],
   );
 
   const homeItem = useMemo(() => getTenantSidebarHomeItem(tenantSlug), [tenantSlug]);
 
   const { data: operacao } = useQuery({
-    queryKey: ["sidebar-operacao", tenant.id],
-    queryFn: fetchOperationalStatusServer,
+    queryKey: ["sidebar-operacao", tenantSlug],
+    queryFn: () => fetchOperationalStatusServer({ data: tenantSlug }),
     staleTime: 60_000,
   });
 
@@ -189,7 +198,9 @@ export function PainelShell({ tenantSlug, userRole }: PainelShellProps) {
               </div>
             ) : null}
             <TenantOperationalGate mode="painel" allowWhenBlocked={isPlanoPage}>
-              <Outlet />
+              <TenantPlanGate tenantSlug={tenantSlug}>
+                <Outlet />
+              </TenantPlanGate>
             </TenantOperationalGate>
           </div>
         </main>

@@ -1,4 +1,4 @@
-import { createFileRoute, useSearch } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CreditCard, RefreshCw, Smartphone } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -13,7 +13,9 @@ import {
 } from "@/components/gestao-ui";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  deleteOwnRestaurantServer,
   getTenantBillingOverviewServer,
+  getTenantPlanFeaturesServer,
   payBillingInvoiceCheckoutServer,
   payBillingInvoicePixServer,
   refreshBillingInvoicePixServer,
@@ -23,7 +25,11 @@ import {
   getBillingModelLabel,
   getPlanLabel,
   isInTrial,
+  BILLING_PLANS,
 } from "@/lib/platform/billing-plans";
+import { listPlanMarketingFeatures } from "@/lib/platform/plan-features";
+import { NORFOOD_DEMO_TENANT_SLUG } from "@/lib/tenant/constants";
+
 import { useTenant } from "@/lib/tenant/tenant-context";
 
 export const Route = createFileRoute("/_authenticated/painel/estabelecimento/plano")({
@@ -32,8 +38,11 @@ export const Route = createFileRoute("/_authenticated/painel/estabelecimento/pla
 
 function PlanoNorfoodPage() {
   const { tenant } = useTenant();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const search = useSearch({ strict: false }) as { fatura?: string };
+  const [deleteConfirmSlug, setDeleteConfirmSlug] = useState("");
+  const [showDeleteForm, setShowDeleteForm] = useState(false);
   const [pixData, setPixData] = useState<{
     invoiceId: string;
     qrCode: string;
@@ -45,6 +54,12 @@ function PlanoNorfoodPage() {
   const { data, isLoading } = useQuery({
     queryKey,
     queryFn: () => getTenantBillingOverviewServer({ data: tenant.slug }),
+  });
+
+  const { data: planFeatures } = useQuery({
+    queryKey: ["tenant-plan-features", tenant.slug],
+    queryFn: () => getTenantPlanFeaturesServer({ data: tenant.slug }),
+    staleTime: 60_000,
   });
 
   const activeInvoice = useMemo(() => {
@@ -109,9 +124,25 @@ function PlanoNorfoodPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      await deleteOwnRestaurantServer({
+        data: { tenantSlug: tenant.slug, confirmSlug: deleteConfirmSlug },
+        headers: await authHeaders(),
+      });
+    },
+    onSuccess: async () => {
+      await supabase.auth.signOut();
+      toast.success("Conta excluída. Até logo!");
+      navigate({ to: "/" });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   const billing = data?.billing;
   const inTrial = data?.in_trial ?? false;
   const mpEnabled = data?.mercado_pago_enabled ?? false;
+  const isDemoTenant = tenant.slug === NORFOOD_DEMO_TENANT_SLUG;
 
   const planDescription = billing
     ? billing.billing_model === "monthly"
@@ -161,6 +192,24 @@ function PlanoNorfoodPage() {
                 })}
                 {isInTrial(billing.trial_ends_at) ? "" : " (encerrado)"}
               </p>
+            ) : null}
+            {planFeatures?.monthlyOrderLimit != null ? (
+              <p className="text-sm text-[#6B7280]">
+                Pedidos este mês:{" "}
+                <strong>
+                  {planFeatures.monthlyOrderCount}/{planFeatures.monthlyOrderLimit}
+                </strong>
+                {planFeatures.ordersRemaining === 0 ? (
+                  <span className="text-rose-600"> — limite atingido</span>
+                ) : null}
+              </p>
+            ) : null}
+            {planFeatures?.planId && BILLING_PLANS[planFeatures.planId] ? (
+              <ul className="mt-2 space-y-1 text-sm text-[#6B7280]">
+                {listPlanMarketingFeatures(planFeatures.planId).map((feature) => (
+                  <li key={feature}>• {feature}</li>
+                ))}
+              </ul>
             ) : null}
           </div>
         )}
@@ -244,6 +293,62 @@ function PlanoNorfoodPage() {
               </li>
             ))}
           </ul>
+        </GestaoCard>
+      ) : null}
+
+      {!isDemoTenant ? (
+        <GestaoCard className="border-red-200 bg-red-50/40">
+          <GestaoSectionTitle
+            title="Excluir conta"
+            description="Remove permanentemente o restaurante e todos os dados associados."
+          />
+          {showDeleteForm ? (
+            <div className="mt-4 space-y-3">
+              <GestaoAlert tone="warning">
+                Esta ação é irreversível. Pedidos, produtos e configurações serão apagados.
+              </GestaoAlert>
+              <label className="block text-sm font-medium text-[#111111]">
+                Digite <code className="rounded bg-white px-1">{tenant.slug}</code> para confirmar
+                <input
+                  type="text"
+                  value={deleteConfirmSlug}
+                  onChange={(e) => setDeleteConfirmSlug(e.target.value)}
+                  className="mt-2 h-10 w-full rounded-lg border border-red-200 bg-white px-3 text-sm outline-none focus:border-red-400"
+                  placeholder={tenant.slug}
+                  autoComplete="off"
+                />
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <GestaoButton
+                  variant="danger"
+                  disabled={
+                    deleteMutation.isPending ||
+                    deleteConfirmSlug.trim().toLowerCase() !== tenant.slug
+                  }
+                  onClick={() => deleteMutation.mutate()}
+                >
+                  Excluir conta permanentemente
+                </GestaoButton>
+                <GestaoButton
+                  variant="secondary"
+                  onClick={() => {
+                    setShowDeleteForm(false);
+                    setDeleteConfirmSlug("");
+                  }}
+                >
+                  Cancelar
+                </GestaoButton>
+              </div>
+            </div>
+          ) : (
+            <GestaoButton
+              className="mt-4"
+              variant="danger"
+              onClick={() => setShowDeleteForm(true)}
+            >
+              Excluir minha conta
+            </GestaoButton>
+          )}
         </GestaoCard>
       ) : null}
     </GestaoPage>

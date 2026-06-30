@@ -15,6 +15,8 @@ import {
   GestaoSelect,
   StatusPill,
 } from "@/components/gestao-ui";
+import { useTenantSlug } from "@/lib/tenant/tenant-context";
+import { tenantQueryKey } from "@/lib/tenant/query-keys";
 
 export const Route = createFileRoute("/_authenticated/painel/cupons")({
   component: Cupons,
@@ -22,8 +24,9 @@ export const Route = createFileRoute("/_authenticated/painel/cupons")({
 
 function Cupons() {
   const qc = useQueryClient();
+  const tenantSlug = useTenantSlug();
   const { data: cupons = [] } = useQuery({
-    queryKey: ["cupons"],
+    queryKey: tenantQueryKey("cupons", tenantSlug),
     queryFn: listarCupons,
   });
 
@@ -48,7 +51,7 @@ function Cupons() {
       setCodigo("");
       setValidoAte("");
       setUsosMaximos("");
-      qc.invalidateQueries({ queryKey: ["cupons"] });
+      qc.invalidateQueries({ queryKey: tenantQueryKey("cupons", tenantSlug) });
     } catch (error: any) {
       toast.error(error.message);
     }
@@ -58,7 +61,7 @@ function Cupons() {
     const { error } = await supabase.from("cupons").update({ ativo: false }).eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Cupom desativado.");
-    qc.invalidateQueries({ queryKey: ["cupons"] });
+    qc.invalidateQueries({ queryKey: tenantQueryKey("cupons", tenantSlug) });
   }
 
   return (

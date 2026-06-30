@@ -5,6 +5,7 @@ import { assertCanCreateTenant } from "@/lib/platform/platform-limits";
 import { listFallbackTenants } from "@/lib/tenant/tenants-fallback";
 import { upsertTenantBillingRecord } from "@/lib/api/platform-billing.functions";
 import type { BillingModel, BillingPlanId } from "@/lib/platform/billing-plans";
+import { NORFOOD_DEMO_TENANT_ID } from "@/lib/tenant/constants";
 import type { TenantStatus } from "@/lib/tenant/types";
 
 export type AdminTenantRow = {
@@ -28,6 +29,7 @@ export type AdminTenantRow = {
   city: string | null;
   state: string | null;
   created_at: string | null;
+  rejection_reason: string | null;
 };
 
 export type CreateTenantAdminPayload = {
@@ -79,6 +81,7 @@ async function loadOwnerInfo(tenantId: string) {
   const { data: userData } = await supabaseAdmin.auth.admin.getUserById(data.user_id);
   const email = userData.user?.email ?? null;
   const name =
+    (userData.user?.user_metadata?.nome as string | undefined) ??
     (userData.user?.user_metadata?.name as string | undefined) ??
     userData.user?.user_metadata?.full_name ??
     null;
@@ -121,6 +124,7 @@ function mapTenantRow(
     city: (row.city as string | null) ?? null,
     state: (row.state as string | null) ?? null,
     created_at: (row.created_at as string | null) ?? null,
+    rejection_reason: (row.rejection_reason as string | null) ?? null,
   };
 }
 
@@ -247,16 +251,8 @@ async function ensureTenantOwner(
     updated_at: new Date().toISOString(),
   });
 
-  const { error: linkError } = await supabaseAdmin.from("tenant_users").upsert(
-    {
-      tenant_id: tenantId,
-      user_id: userId!,
-      role: "owner",
-      status: "active",
-    },
-    { onConflict: "tenant_id,user_id,role" },
-  );
-  if (linkError) throw linkError;
+  const { registerOwnerAsColaboradorAdmin } = await import("@/lib/tenant/tenant-owner-access.server");
+  await registerOwnerAsColaboradorAdmin(supabaseAdmin, tenantId, userId!);
 }
 
 export const createTenantAdminServer = createServerFn({ method: "POST" })
@@ -348,6 +344,123 @@ export const updateTenantAdminServer = createServerFn({ method: "POST" })
     return updated;
   });
 
+export const deactivateTenantAdminServer = createServerFn({ method: "POST" })
+  .middleware([requirePlatformAdmin])
+  .validator((payload: { tenantId: string; reason?: string }) => payload)
+  .handler(async ({ data, context }): Promise<AdminTenantRow> => {
+    if (isDemoBackend()) {
+      throw new Error("Desativação disponível apenas com Supabase configurado.");
+    }
+    if (data.tenantId === NORFOOD_DEMO_TENANT_ID) {
+      throw new Error("A conta Norfood (demonstração) não pode ser desativada.");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { notifyTenantSuspended } = await import("@/lib/signup/tenant-approval-notify.server");
+
+    const { data: tenant, error } = await supabaseAdmin
+      .from("tenants")
+      .select("id, name, slug, status")
+      .eq("id", data.tenantId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!tenant) throw new Error("Empresa não encontrada.");
+    if (tenant.status === "suspended") {
+      throw new Error("Esta empresa já está desativada.");
+    }
+
+    const now = new Date().toISOString();
+    const reason =
+      data.reason?.trim() ||
+      "Conta desativada pelo administrador da plataforma. Entre em contato com suporte@norfood.com.br.";
+
+    const { error: updateError } = await supabaseAdmin
+      .from("tenants")
+      .update({
+        status: "suspended",
+        rejection_reason: reason,
+        updated_at: now,
+      })
+      .eq("id", data.tenantId);
+    if (updateError) throw updateError;
+
+    const owner = await loadOwnerInfo(data.tenantId);
+    if (owner.owner_email) {
+      const notifyResult = await notifyTenantSuspended({
+        email: owner.owner_email,
+        ownerName: owner.owner_name ?? owner.owner_email.split("@")[0],
+        restaurantName: tenant.name,
+        slug: tenant.slug,
+        reason,
+        phone: owner.owner_phone,
+        kind: "admin",
+      });
+      if (!notifyResult.email.ok) {
+        console.error("[admin] e-mail de suspensão não enviado:", tenant.slug, notifyResult.email);
+      }
+    } else {
+      console.warn("[admin] desativação sem e-mail do owner:", tenant.slug, data.tenantId);
+    }
+
+    console.info("[admin] tenant deactivated:", tenant.name, "by", context.userId);
+    const updated = await getTenantAdminServer({ data: data.tenantId });
+    if (!updated) throw new Error("Empresa não encontrada após desativação.");
+    return updated;
+  });
+
+export const reactivateTenantAdminServer = createServerFn({ method: "POST" })
+  .middleware([requirePlatformAdmin])
+  .validator((payload: { tenantId: string; status?: Extract<TenantStatus, "trial" | "active"> }) => payload)
+  .handler(async ({ data, context }): Promise<AdminTenantRow> => {
+    if (isDemoBackend()) {
+      throw new Error("Reativação disponível apenas com Supabase configurado.");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { notifyTenantReactivated } = await import("@/lib/signup/tenant-approval-notify.server");
+
+    const { data: tenant, error } = await supabaseAdmin
+      .from("tenants")
+      .select("id, name, slug, status")
+      .eq("id", data.tenantId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!tenant) throw new Error("Empresa não encontrada.");
+    if (tenant.status !== "suspended") {
+      throw new Error("Só é possível reativar empresas desativadas.");
+    }
+
+    const nextStatus = data.status ?? "trial";
+    const now = new Date().toISOString();
+
+    const { error: updateError } = await supabaseAdmin
+      .from("tenants")
+      .update({
+        status: nextStatus,
+        rejection_reason: null,
+        rejected_at: null,
+        updated_at: now,
+      })
+      .eq("id", data.tenantId);
+    if (updateError) throw updateError;
+
+    const owner = await loadOwnerInfo(data.tenantId);
+    if (owner.owner_email) {
+      void notifyTenantReactivated({
+        email: owner.owner_email,
+        ownerName: owner.owner_name ?? owner.owner_email.split("@")[0],
+        restaurantName: tenant.name,
+        slug: tenant.slug,
+        phone: owner.owner_phone,
+      }).catch((err) => console.error("[admin] notify reactivated failed:", err));
+    }
+
+    console.info("[admin] tenant reactivated:", tenant.name, "as", nextStatus, "by", context.userId);
+    const updated = await getTenantAdminServer({ data: data.tenantId });
+    if (!updated) throw new Error("Empresa não encontrada após reativação.");
+    return updated;
+  });
+
 export const approveTenantAdminServer = createServerFn({ method: "POST" })
   .middleware([requirePlatformAdmin])
   .validator((tenantId: string) => tenantId)
@@ -386,18 +499,77 @@ export const approveTenantAdminServer = createServerFn({ method: "POST" })
 
     const owner = await loadOwnerInfo(tenantId);
     if (owner.owner_email) {
-      void notifyTenantApproved({
+      const { data: ownerLink } = await supabaseAdmin
+        .from("tenant_users")
+        .select("user_id")
+        .eq("tenant_id", tenantId)
+        .eq("role", "owner")
+        .eq("status", "active")
+        .maybeSingle();
+      if (ownerLink?.user_id) {
+        const { registerOwnerAsColaboradorAdmin } = await import(
+          "@/lib/tenant/tenant-owner-access.server"
+        );
+        await registerOwnerAsColaboradorAdmin(supabaseAdmin, tenantId, ownerLink.user_id);
+      }
+
+      const notifyResult = await notifyTenantApproved({
         email: owner.owner_email,
         ownerName: owner.owner_name ?? owner.owner_email.split("@")[0],
         restaurantName: tenant.name,
         slug: tenant.slug,
         phone: owner.owner_phone,
-      }).catch((err) => console.error("[admin] notify approved failed:", err));
+      });
+      if (!notifyResult.email.ok) {
+        console.error("[admin] e-mail de aprovação não enviado:", tenant.slug, notifyResult.email);
+      }
+    } else {
+      console.warn("[admin] aprovação sem e-mail do owner:", tenant.slug, tenantId);
     }
 
     const updated = await getTenantAdminServer({ data: tenantId });
     if (!updated) throw new Error("Empresa não encontrada após aprovação.");
     return updated;
+  });
+
+export const resendTenantApprovalEmailAdminServer = createServerFn({ method: "POST" })
+  .middleware([requirePlatformAdmin])
+  .validator((tenantId: string) => tenantId)
+  .handler(async ({ data: tenantId }) => {
+    if (isDemoBackend()) {
+      throw new Error("Reenvio disponível apenas com Supabase configurado.");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { notifyTenantApproved } = await import("@/lib/signup/tenant-approval-notify.server");
+
+    const { data: tenant, error } = await supabaseAdmin
+      .from("tenants")
+      .select("id, name, slug, status")
+      .eq("id", tenantId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!tenant) throw new Error("Empresa não encontrada.");
+    if (!["trial", "active"].includes(tenant.status)) {
+      throw new Error("Só é possível reenviar e-mail para restaurantes já aprovados.");
+    }
+
+    const owner = await loadOwnerInfo(tenantId);
+    if (!owner.owner_email) throw new Error("E-mail do responsável não encontrado.");
+
+    const result = await notifyTenantApproved({
+      email: owner.owner_email,
+      ownerName: owner.owner_name ?? owner.owner_email.split("@")[0],
+      restaurantName: tenant.name,
+      slug: tenant.slug,
+      phone: owner.owner_phone,
+    });
+
+    if (!result.email.ok) {
+      throw new Error("Não foi possível enviar o e-mail de aprovação. Verifique Resend/domínio.");
+    }
+
+    return { ok: true as const, emailId: result.email.id };
   });
 
 export const rejectTenantAdminServer = createServerFn({ method: "POST" })
@@ -409,11 +581,11 @@ export const rejectTenantAdminServer = createServerFn({ method: "POST" })
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { notifyTenantRejected } = await import("@/lib/signup/tenant-approval-notify.server");
+    const { notifyTenantSuspended } = await import("@/lib/signup/tenant-approval-notify.server");
 
     const { data: tenant, error } = await supabaseAdmin
       .from("tenants")
-      .select("id, name, status")
+      .select("id, name, slug, status")
       .eq("id", data.tenantId)
       .maybeSingle();
     if (error) throw error;
@@ -437,19 +609,56 @@ export const rejectTenantAdminServer = createServerFn({ method: "POST" })
     if (updateError) throw updateError;
 
     const owner = await loadOwnerInfo(data.tenantId);
+    const rejectReason =
+      data.reason?.trim() || "Cadastro não aprovado pela equipe Norfood neste momento.";
     if (owner.owner_email) {
-      void notifyTenantRejected({
+      void notifyTenantSuspended({
         email: owner.owner_email,
         ownerName: owner.owner_name ?? owner.owner_email.split("@")[0],
         restaurantName: tenant.name,
-        reason: data.reason,
+        slug: tenant.slug,
+        reason: rejectReason,
         phone: owner.owner_phone,
-      }).catch((err) => console.error("[admin] notify rejected failed:", err));
+        kind: "admin",
+      }).catch((err) => console.error("[admin] notify suspended (reject) failed:", err));
     }
 
     const updated = await getTenantAdminServer({ data: data.tenantId });
     if (!updated) throw new Error("Empresa não encontrada após rejeição.");
     return updated;
+  });
+
+export const deleteTenantAdminServer = createServerFn({ method: "POST" })
+  .middleware([requirePlatformAdmin])
+  .validator((payload: { tenantId: string; confirmSlug: string }) => payload)
+  .handler(async ({ data, context }): Promise<{ ok: true; slug: string }> => {
+    if (isDemoBackend()) {
+      throw new Error("Exclusão disponível apenas com Supabase configurado.");
+    }
+    if (data.tenantId === NORFOOD_DEMO_TENANT_ID) {
+      throw new Error("A conta Norfood (demonstração) não pode ser excluída.");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { purgeTenantData } = await import("@/lib/tenant/tenant-delete.server");
+
+    const { data: tenant, error } = await supabaseAdmin
+      .from("tenants")
+      .select("id, name, slug")
+      .eq("id", data.tenantId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!tenant) throw new Error("Empresa não encontrada.");
+
+    const confirmSlug = data.confirmSlug.trim().toLowerCase();
+    if (confirmSlug !== tenant.slug) {
+      throw new Error("Confirmação incorreta. Digite o slug da empresa exatamente como exibido.");
+    }
+
+    await purgeTenantData(supabaseAdmin, data.tenantId);
+
+    console.info("[admin] tenant deleted:", tenant.name, tenant.slug, "by", context.userId);
+    return { ok: true as const, slug: tenant.slug };
   });
 
 export const checkPlatformAdminAccessServer = createServerFn({ method: "GET" })

@@ -8,6 +8,7 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -125,6 +126,19 @@ function RootComponent() {
 
   useEffect(() => {
     clearTenantBranding();
+  }, []);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+    void supabase.auth.getSession();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "TOKEN_REFRESHED" || event === "SIGNED_IN") {
+        void supabase.auth.getSession();
+      }
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
   return (

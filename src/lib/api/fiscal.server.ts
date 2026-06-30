@@ -240,6 +240,16 @@ async function persistNotaFiscal(input: {
 export async function emitNfceForPedido(pedidoId: string, consumidorCpf?: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+  const { data: pedidoRow } = await supabaseAdmin
+    .from("pedidos")
+    .select("tenant_id")
+    .eq("id", pedidoId)
+    .maybeSingle();
+  if (pedidoRow?.tenant_id) {
+    const { assertTenantPlanFeature } = await import("@/lib/tenant/tenant-plan.server");
+    await assertTenantPlanFeature(pedidoRow.tenant_id, "fiscal");
+  }
+
   const { data: existing } = await supabaseAdmin
     .from("notas_fiscais")
     .select("*")

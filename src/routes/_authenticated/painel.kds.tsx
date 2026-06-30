@@ -46,6 +46,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { printHtmlReceipt } from "@/lib/print";
 import { isDemoSession } from "@/lib/runtime";
 import { cn } from "@/lib/utils";
+import { useTenantSlug } from "@/lib/tenant/tenant-context";
 
 export const Route = createFileRoute("/_authenticated/painel/kds")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -59,6 +60,7 @@ const parseKdsSearch = (search: Record<string, unknown>) => ({
 });
 
 function DeliveryFlowPage() {
+  const tenantSlug = useTenantSlug();
   const { foco } = usePainelSearch(parseKdsSearch);
   const qc = useQueryClient();
   const navigate = usePainelNavigate();
@@ -69,13 +71,13 @@ function DeliveryFlowPage() {
     isFetching,
     isFetched,
   } = useQuery({
-    queryKey: ["kds-pedidos"],
-    queryFn: fetchKdsOrdersServer,
+    queryKey: ["kds-pedidos", tenantSlug],
+    queryFn: () => fetchKdsOrdersServer({ data: tenantSlug }),
     refetchInterval: 60_000,
   });
   const { data: operacao } = useQuery({
-    queryKey: ["kds-operacao"],
-    queryFn: fetchOperationalStatusServer,
+    queryKey: ["kds-operacao", tenantSlug],
+    queryFn: () => fetchOperationalStatusServer({ data: tenantSlug }),
     staleTime: 60_000,
   });
   const [reciboPedido, setReciboPedido] = useState<Pedido | null>(null);
@@ -87,14 +89,14 @@ function DeliveryFlowPage() {
     const ch = supabase
       .channel("kds")
       .on("postgres_changes", { event: "*", schema: "public", table: "pedidos" }, () => {
-        qc.invalidateQueries({ queryKey: ["kds-pedidos"] });
+        qc.invalidateQueries({ queryKey: ["kds-pedidos", tenantSlug] });
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [qc]);
+  }, [qc, tenantSlug]);
 
   useEffect(() => {
     if (!isFetched || isLoading) return;
@@ -208,7 +210,7 @@ function DeliveryFlowPage() {
             <KdsTopButton
               icon={<RefreshCw className={cn("size-3.5", isFetching && "animate-spin")} />}
               label="Atualizar"
-              onClick={() => qc.invalidateQueries({ queryKey: ["kds-pedidos"] })}
+              onClick={() => qc.invalidateQueries({ queryKey: ["kds-pedidos", tenantSlug] })}
             />
             <KdsTopButton
               icon={<Bell className="size-3.5" />}
@@ -270,6 +272,7 @@ function DeliveryFlowPage() {
               iconClass={column.iconClass}
               iconBg={column.iconBg}
               pedidos={column.pedidos}
+              tenantSlug={tenantSlug}
               onPrint={setReciboPedido}
               onOpenDetail={setDetalhePedido}
             />
@@ -279,6 +282,7 @@ function DeliveryFlowPage() {
 
       <KdsOrderDetailModal
         pedido={detalhePedido}
+        tenantSlug={tenantSlug}
         onClose={() => setDetalhePedido(null)}
         onPrint={(pedido) => {
           setDetalhePedido(null);
@@ -287,7 +291,11 @@ function DeliveryFlowPage() {
       />
 
       {reciboPedido ? (
-        <ReciboModal pedido={reciboPedido} onClose={() => setReciboPedido(null)} />
+        <ReciboModal
+          pedido={reciboPedido}
+          tenantSlug={tenantSlug}
+          onClose={() => setReciboPedido(null)}
+        />
       ) : null}
     </div>
   );
@@ -336,6 +344,7 @@ function KdsColumn({
   iconClass,
   iconBg,
   pedidos,
+  tenantSlug,
   onPrint,
   onOpenDetail,
 }: {
@@ -344,6 +353,7 @@ function KdsColumn({
   iconClass: string;
   iconBg: string;
   pedidos: Pedido[];
+  tenantSlug: string;
   onPrint: (pedido: Pedido) => void;
   onOpenDetail: (pedido: Pedido) => void;
 }) {
@@ -375,6 +385,7 @@ function KdsColumn({
               <KdsOrderCard
                 key={pedido.id}
                 pedido={pedido}
+                tenantSlug={tenantSlug}
                 onPrint={onPrint}
                 onOpenDetail={onOpenDetail}
               />
@@ -388,18 +399,22 @@ function KdsColumn({
 
 function KdsOrderCard({
   pedido,
+  tenantSlug,
   onPrint,
   onOpenDetail,
 }: {
   pedido: Pedido;
+  tenantSlug: string;
   onPrint: (pedido: Pedido) => void;
   onOpenDetail: (pedido: Pedido) => void;
 }) {
   const qc = useQueryClient();
   const { data: itens = [] } = useQuery({
-    queryKey: ["itens", pedido.id],
+    queryKey: ["itens", tenantSlug, pedido.id],
     queryFn: () =>
-      fetchKdsOrderItemsServer({ data: { orderId: pedido.id } }) as Promise<PedidoItem[]>,
+      fetchKdsOrderItemsServer({
+        data: { orderId: pedido.id, tenantSlug },
+      }) as Promise<PedidoItem[]>,
   });
   const [updating, setUpdating] = useState(false);
 
@@ -416,10 +431,11 @@ function KdsOrderCard({
         data: {
           orderId: pedido.id,
           status,
+          tenantSlug,
         },
       });
       toast.success(`Pedido #${pedido.numero} atualizado.`);
-      qc.invalidateQueries({ queryKey: ["kds-pedidos"] });
+      qc.invalidateQueries({ queryKey: ["kds-pedidos", tenantSlug] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Nao foi possivel atualizar o pedido.");
     } finally {
@@ -434,10 +450,11 @@ function KdsOrderCard({
         data: {
           orderId: pedido.id,
           status: "cancelado",
+          tenantSlug,
         },
       });
       toast.success(`Pedido #${pedido.numero} cancelado`);
-      qc.invalidateQueries({ queryKey: ["kds-pedidos"] });
+      qc.invalidateQueries({ queryKey: ["kds-pedidos", tenantSlug] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Nao foi possivel cancelar o pedido.");
     } finally {
@@ -566,11 +583,21 @@ function KdsOrderCard({
   );
 }
 
-function ReciboModal({ pedido, onClose }: { pedido: Pedido; onClose: () => void }) {
+function ReciboModal({
+  pedido,
+  tenantSlug,
+  onClose,
+}: {
+  pedido: Pedido;
+  tenantSlug: string;
+  onClose: () => void;
+}) {
   const { data: itens = [] } = useQuery({
-    queryKey: ["itens", pedido.id],
+    queryKey: ["itens", tenantSlug, pedido.id],
     queryFn: () =>
-      fetchKdsOrderItemsServer({ data: { orderId: pedido.id } }) as Promise<PedidoItem[]>,
+      fetchKdsOrderItemsServer({
+        data: { orderId: pedido.id, tenantSlug },
+      }) as Promise<PedidoItem[]>,
   });
   const resumo = getPedidoResumo(pedido);
 

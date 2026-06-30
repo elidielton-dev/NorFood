@@ -13,14 +13,13 @@ import type {
   TechnicalItem,
 } from "@/lib/produtos-module";
 import {
-  buildSeedModuleStore,
   createSku,
   defaultAddonGroups,
   defaultAddons,
   defaultCategories,
   isUuid,
+  sanitizeProductForPersistence,
 } from "@/lib/produtos-module";
-import type { Produto } from "@/lib/db";
 
 type DbCategoria = {
   id: string;
@@ -165,10 +164,13 @@ async function upsertProdutoRow(
   row: Record<string, unknown>,
 ) {
   let current = { ...row };
+  let lastError: { message: string } | null = null;
 
-  for (let attempt = 0; attempt < 6; attempt++) {
-    const { error } = await supabaseAdmin.from("produtos").upsert(current);
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const { error } = await supabaseAdmin.from("produtos").upsert(current, { onConflict: "id" });
     if (!error) return;
+
+    lastError = error;
 
     if (isMissingExtrasColumnError(error.message)) {
       current = stripRowKeys(current, [
@@ -212,10 +214,134 @@ async function upsertProdutoRow(
       continue;
     }
 
-    throw error;
+    throw new Error(`Erro ao salvar produto: ${error.message}`);
   }
 
-  throw new Error("Nao foi possivel salvar produto: schema do banco incompleto.");
+  throw new Error(
+    lastError?.message
+      ? `Erro ao salvar produto: ${lastError.message}`
+      : "Nao foi possivel salvar produto: schema do banco incompleto.",
+  );
+}
+
+function buildProdutoRow(
+  produto: ProductRecord,
+  tenantId: string,
+  productId: string,
+  categoriaId: string | null,
+) {
+  return {
+    id: productId,
+    tenant_id: tenantId,
+    nome: produto.nome,
+    descricao: produto.descricaoCompleta || produto.descricaoCurta || null,
+    preco: produto.precoVenda,
+    imagem_url: produto.foto || null,
+    tempo_preparo_min: produto.tempoPreparo,
+    destaque: produto.destaque,
+    ativo: produto.status === "ativo",
+    estoque: produto.estoque,
+    categoria_id: categoriaId,
+    sku: produto.sku,
+    subcategoria: produto.subcategoria,
+    preco_promocional: produto.precoPromocional,
+    custo_producao: produto.custoProducao,
+    estoque_minimo: produto.estoqueMinimo,
+    unidade: produto.unidade,
+    descricao_curta: produto.descricaoCurta,
+    ingredientes: produto.ingredientes,
+    alergenos: produto.alergenos,
+    peso_aproximado: produto.pesoAproximado,
+    serve_pessoas: produto.servePessoas,
+    validade: produto.validade,
+    recomendado: produto.recomendado,
+    novo: produto.novo,
+    mais_vendido: produto.maisVendido,
+    status_produto: produto.status,
+    disponivel_canais: produto.disponivelCanais,
+    auto_pause_sem_estoque: produto.autoPauseSemEstoque,
+    vendas_count: produto.vendas,
+    receita_total: produto.receita,
+    codigo_barras: produto.codigoBarras || null,
+    frete_gratis: produto.freteGratis,
+    primeiro_pedido: produto.primeiroPedido,
+    pesavel: produto.pesavel,
+    quero_desconto: produto.queroDesconto,
+    ncm: produto.ncm?.trim() || null,
+    cfop: produto.cfop?.trim() || "5102",
+    csosn: produto.csosn?.trim() || "102",
+    origem: produto.origem ?? 0,
+    gtin: produto.gtin?.trim() || produto.codigoBarras?.trim() || null,
+  };
+}
+
+async function upsertProdutoVariacoesAndFicha(
+  supabaseAdmin: Awaited<
+    ReturnType<typeof import("@/integrations/supabase/client.server")>
+  >["supabaseAdmin"],
+  produto: ProductRecord,
+  productId: string,
+) {
+  await supabaseAdmin.from("produto_variacoes").delete().eq("produto_id", productId);
+  if (produto.variacoes.length > 0) {
+    const { error: varError } = await supabaseAdmin.from("produto_variacoes").insert(
+      produto.variacoes.map((variacao) => ({
+        id: isUuid(variacao.id) ? variacao.id : undefined,
+        produto_id: productId,
+        nome: variacao.nome.trim(),
+        preco: variacao.preco,
+        estoque: variacao.estoque,
+        tempo_preparo: variacao.tempoPreparo,
+        status: variacao.status,
+      })),
+    );
+    if (varError) throw new Error(`Erro ao salvar variações: ${varError.message}`);
+  }
+
+  await supabaseAdmin.from("produto_ficha_tecnica").delete().eq("produto_id", productId);
+  if (produto.fichaTecnica.length > 0) {
+    const { error: fichaError } = await supabaseAdmin.from("produto_ficha_tecnica").insert(
+      produto.fichaTecnica.map((item) => ({
+        id: isUuid(item.id) ? item.id : undefined,
+        produto_id: productId,
+        ingrediente: item.ingrediente,
+        quantidade: item.quantidade,
+        unidade: item.unidade,
+        custo_unitario: item.custoUnitario,
+        fornecedor: item.fornecedor,
+      })),
+    );
+    if (fichaError) throw new Error(`Erro ao salvar ficha técnica: ${fichaError.message}`);
+  }
+}
+
+/** Salva um único produto (sem regravar promoções/movimentos de todo o tenant). */
+export async function saveProductRecord(
+  product: ProductRecord,
+  categorias: ProductCategory[],
+  tenantId: string,
+): Promise<{ productId: string }> {
+  const produto = sanitizeProductForPersistence(product);
+
+  if (!produto.nome.trim()) throw new Error("Informe o nome do produto.");
+  if (!produto.categoria.trim()) {
+    throw new Error("Escolha uma categoria. Cadastre em Produtos → Categorias se necessário.");
+  }
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const categoriaIdByNome = await upsertCategorias(supabaseAdmin, categorias, tenantId);
+  const categoriaId = categoriaIdByNome.get(produto.categoria) ?? null;
+  if (!categoriaId) {
+    throw new Error(
+      `Categoria "${produto.categoria}" não encontrada. Atualize a página e tente novamente.`,
+    );
+  }
+
+  const productId = isUuid(produto.id) ? produto.id : crypto.randomUUID();
+  await upsertProdutoRow(supabaseAdmin, buildProdutoRow(produto, tenantId, productId, categoriaId));
+  await upsertProdutoVariacoesAndFicha(supabaseAdmin, produto, productId);
+
+  return { productId };
 }
 
 function parseCanais(value: unknown): SellChannel[] {
@@ -296,45 +422,70 @@ function mapProduto(
   };
 }
 
-export async function fetchProdutosModuleStore(): Promise<ProdutosModuleFetchResult> {
+export async function fetchProdutosModuleStore(tenantId: string): Promise<ProdutosModuleFetchResult> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   const [
     categoriasResult,
     produtosResult,
-    variacoesResult,
-    fichaResult,
     gruposResult,
     adicionaisResult,
     promocoesResult,
     movimentosResult,
   ] = await Promise.all([
-    supabaseAdmin.from("categorias").select("*").order("ordem"),
-    supabaseAdmin.from("produtos").select("*, categorias(nome)").order("nome"),
-    supabaseAdmin.from("produto_variacoes").select("*"),
-    supabaseAdmin.from("produto_ficha_tecnica").select("*"),
-    supabaseAdmin.from("grupos_adicionais").select("*").order("created_at"),
-    supabaseAdmin.from("produto_adicionais").select("*").order("created_at"),
-    supabaseAdmin.from("produto_promocoes").select("*").order("created_at", { ascending: false }),
+    supabaseAdmin.from("categorias").select("*").eq("tenant_id", tenantId).order("ordem"),
+    supabaseAdmin
+      .from("produtos")
+      .select("*, categorias(nome)")
+      .eq("tenant_id", tenantId)
+      .order("nome"),
+    supabaseAdmin
+      .from("grupos_adicionais")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("created_at"),
+    supabaseAdmin
+      .from("produto_adicionais")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("created_at"),
+    supabaseAdmin
+      .from("produto_promocoes")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false }),
     supabaseAdmin
       .from("produto_movimentos_estoque")
       .select("*")
+      .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(500),
   ]);
 
   if (categoriasResult.error) throw categoriasResult.error;
   if (produtosResult.error) throw produtosResult.error;
-  if (variacoesResult.error) throw variacoesResult.error;
-  if (fichaResult.error) throw fichaResult.error;
   if (gruposResult.error) throw gruposResult.error;
   if (adicionaisResult.error) throw adicionaisResult.error;
   if (promocoesResult.error) throw promocoesResult.error;
   if (movimentosResult.error) throw movimentosResult.error;
 
+  const produtosDb = (produtosResult.data ?? []) as DbProduto[];
+  const productIds = produtosDb.map((produto) => produto.id);
+
+  const [variacoesResult, fichaResult] = await Promise.all([
+    productIds.length
+      ? supabaseAdmin.from("produto_variacoes").select("*").in("produto_id", productIds)
+      : Promise.resolve({ data: [] as DbVariacao[], error: null }),
+    productIds.length
+      ? supabaseAdmin.from("produto_ficha_tecnica").select("*").in("produto_id", productIds)
+      : Promise.resolve({ data: [] as DbFicha[], error: null }),
+  ]);
+
+  if (variacoesResult.error) throw variacoesResult.error;
+  if (fichaResult.error) throw fichaResult.error;
+
   const extrasSchemaReady = await checkProdutosExtrasSchema();
 
-  const produtosDb = (produtosResult.data ?? []) as DbProduto[];
   const needsMigration =
     produtosDb.length > 0 && !produtosDb.some((produto) => Boolean(produto.sku));
 
@@ -369,20 +520,13 @@ export async function fetchProdutosModuleStore(): Promise<ProdutosModuleFetchRes
   const categorias =
     (categoriasResult.data ?? []).length > 0
       ? (categoriasResult.data as DbCategoria[]).map(mapCategoria)
-      : defaultCategories;
+      : [];
 
   const produtos = produtosDb.map((row) =>
     mapProduto(row, variacoesByProduto.get(row.id) ?? [], fichaByProduto.get(row.id) ?? []),
   );
 
   if (produtos.length === 0) {
-    const { data: baseRows, error } = await supabaseAdmin.from("produtos").select("*").limit(50);
-    if (error) throw error;
-    const baseProdutos = (baseRows ?? []) as Produto[];
-    if (baseProdutos.length > 0) {
-      const seeded = buildSeedModuleStore(baseProdutos);
-      return { ...seeded, needsMigration: true, extrasSchemaReady };
-    }
     return {
       produtos: [],
       categorias: defaultCategories,
@@ -458,6 +602,7 @@ async function upsertCategorias(
     ReturnType<typeof import("@/integrations/supabase/client.server")>
   >["supabaseAdmin"],
   categorias: ProductCategory[],
+  tenantId: string,
 ) {
   const idByNome = new Map<string, string>();
 
@@ -469,6 +614,7 @@ async function upsertCategorias(
       ativo: categoria.status === "ativo",
       descricao: categoria.descricao,
       status_categoria: categoria.status,
+      tenant_id: tenantId,
     };
 
     if (isUuid(categoria.id)) {
@@ -485,6 +631,7 @@ async function upsertCategorias(
     const { data: existing } = await supabaseAdmin
       .from("categorias")
       .select("id, nome")
+      .eq("tenant_id", tenantId)
       .eq("nome", categoria.nome)
       .maybeSingle();
 
@@ -492,7 +639,8 @@ async function upsertCategorias(
       const { error } = await supabaseAdmin
         .from("categorias")
         .update(payload)
-        .eq("id", existing.id);
+        .eq("id", existing.id)
+        .eq("tenant_id", tenantId);
       if (error) throw error;
       idByNome.set(categoria.nome, existing.id);
       continue;
@@ -515,11 +663,12 @@ async function upsertGrupos(
     ReturnType<typeof import("@/integrations/supabase/client.server")>
   >["supabaseAdmin"],
   grupos: AddonGroup[],
+  tenantId: string,
 ) {
   const idMap = new Map<string, string>();
 
   for (const grupo of grupos) {
-    const payload = { nome: grupo.nome, descricao: grupo.descricao };
+    const payload = { nome: grupo.nome, descricao: grupo.descricao, tenant_id: tenantId };
 
     if (isUuid(grupo.id)) {
       const { error } = await supabaseAdmin
@@ -542,118 +691,65 @@ async function upsertGrupos(
   return idMap;
 }
 
-export async function saveProdutosModuleStore(store: ModuleStore) {
+export async function saveProdutosModuleStore(store: ModuleStore, tenantId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-  const categoriaIdByNome = await upsertCategorias(supabaseAdmin, store.categorias);
-  const grupoIdMap = await upsertGrupos(supabaseAdmin, store.gruposAdicionais);
+  const categoriaIdByNome = await upsertCategorias(supabaseAdmin, store.categorias, tenantId);
+  const grupoIdMap = await upsertGrupos(supabaseAdmin, store.gruposAdicionais, tenantId);
 
   const productIdMap = new Map<string, string>();
   const keptProductIds: string[] = [];
 
-  for (const produto of store.produtos) {
+  for (const rawProduto of store.produtos) {
+    const produto = sanitizeProductForPersistence(rawProduto);
     const categoriaId = categoriaIdByNome.get(produto.categoria) ?? null;
     const productId = isUuid(produto.id) ? produto.id : crypto.randomUUID();
     productIdMap.set(produto.id, productId);
     keptProductIds.push(productId);
 
-    const row = {
-      id: productId,
-      nome: produto.nome,
-      descricao: produto.descricaoCompleta || produto.descricaoCurta || null,
-      preco: produto.precoVenda,
-      imagem_url: produto.foto || null,
-      tempo_preparo_min: produto.tempoPreparo,
-      destaque: produto.destaque,
-      ativo: produto.status === "ativo",
-      estoque: produto.estoque,
-      categoria_id: categoriaId,
-      sku: produto.sku,
-      subcategoria: produto.subcategoria,
-      preco_promocional: produto.precoPromocional,
-      custo_producao: produto.custoProducao,
-      estoque_minimo: produto.estoqueMinimo,
-      unidade: produto.unidade,
-      descricao_curta: produto.descricaoCurta,
-      ingredientes: produto.ingredientes,
-      alergenos: produto.alergenos,
-      peso_aproximado: produto.pesoAproximado,
-      serve_pessoas: produto.servePessoas,
-      validade: produto.validade,
-      recomendado: produto.recomendado,
-      novo: produto.novo,
-      mais_vendido: produto.maisVendido,
-      status_produto: produto.status,
-      disponivel_canais: produto.disponivelCanais,
-      auto_pause_sem_estoque: produto.autoPauseSemEstoque,
-      vendas_count: produto.vendas,
-      receita_total: produto.receita,
-      codigo_barras: produto.codigoBarras || null,
-      frete_gratis: produto.freteGratis,
-      primeiro_pedido: produto.primeiroPedido,
-      pesavel: produto.pesavel,
-      quero_desconto: produto.queroDesconto,
-      ncm: produto.ncm?.trim() || null,
-      cfop: produto.cfop?.trim() || "5102",
-      csosn: produto.csosn?.trim() || "102",
-      origem: produto.origem ?? 0,
-      gtin: produto.gtin?.trim() || produto.codigoBarras?.trim() || null,
-    };
-
-    await upsertProdutoRow(supabaseAdmin, row);
-
-    await supabaseAdmin.from("produto_variacoes").delete().eq("produto_id", productId);
-    if (produto.variacoes.length > 0) {
-      const { error: varError } = await supabaseAdmin.from("produto_variacoes").insert(
-        produto.variacoes.map((variacao) => ({
-          id: isUuid(variacao.id) ? variacao.id : undefined,
-          produto_id: productId,
-          nome: variacao.nome,
-          preco: variacao.preco,
-          estoque: variacao.estoque,
-          tempo_preparo: variacao.tempoPreparo,
-          status: variacao.status,
-        })),
-      );
-      if (varError) throw varError;
-    }
-
-    await supabaseAdmin.from("produto_ficha_tecnica").delete().eq("produto_id", productId);
-    if (produto.fichaTecnica.length > 0) {
-      const { error: fichaError } = await supabaseAdmin.from("produto_ficha_tecnica").insert(
-        produto.fichaTecnica.map((item) => ({
-          id: isUuid(item.id) ? item.id : undefined,
-          produto_id: productId,
-          ingrediente: item.ingrediente,
-          quantidade: item.quantidade,
-          unidade: item.unidade,
-          custo_unitario: item.custoUnitario,
-          fornecedor: item.fornecedor,
-        })),
-      );
-      if (fichaError) throw fichaError;
-    }
+    await upsertProdutoRow(
+      supabaseAdmin,
+      buildProdutoRow(produto, tenantId, productId, categoriaId),
+    );
+    await upsertProdutoVariacoesAndFicha(supabaseAdmin, produto, productId);
   }
 
-  const { data: allProducts } = await supabaseAdmin.from("produtos").select("id");
+  const { data: allProducts } = await supabaseAdmin
+    .from("produtos")
+    .select("id")
+    .eq("tenant_id", tenantId);
   const toDelete = (allProducts ?? [])
     .map((row) => row.id)
     .filter((id) => !keptProductIds.includes(id));
   if (toDelete.length > 0) {
-    const { error } = await supabaseAdmin.from("produtos").delete().in("id", toDelete);
+    const { error } = await supabaseAdmin
+      .from("produtos")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .in("id", toDelete);
     if (error) throw error;
   }
 
-  const { data: allGrupos } = await supabaseAdmin.from("grupos_adicionais").select("id");
+  const { data: allGrupos } = await supabaseAdmin
+    .from("grupos_adicionais")
+    .select("id")
+    .eq("tenant_id", tenantId);
   const keptGrupoIds = [...grupoIdMap.values()];
   const gruposToDelete = (allGrupos ?? [])
     .map((row) => row.id)
     .filter((id) => !keptGrupoIds.includes(id));
   if (gruposToDelete.length > 0) {
-    await supabaseAdmin.from("grupos_adicionais").delete().in("id", gruposToDelete);
+    await supabaseAdmin
+      .from("grupos_adicionais")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .in("id", gruposToDelete);
   }
 
-  const { data: allAdicionais } = await supabaseAdmin.from("produto_adicionais").select("id");
+  const { data: allAdicionais } = await supabaseAdmin
+    .from("produto_adicionais")
+    .select("id")
+    .eq("tenant_id", tenantId);
   const keptAdicionalIds: string[] = [];
 
   for (const adicional of store.adicionais) {
@@ -663,6 +759,7 @@ export async function saveProdutosModuleStore(store: ModuleStore) {
 
     const { error } = await supabaseAdmin.from("produto_adicionais").upsert({
       id: adicionalId,
+      tenant_id: tenantId,
       grupo_id: grupoId,
       nome: adicional.nome,
       preco: adicional.preco,
@@ -678,19 +775,21 @@ export async function saveProdutosModuleStore(store: ModuleStore) {
     .map((row) => row.id)
     .filter((id) => !keptAdicionalIds.includes(id));
   if (adicionaisToDelete.length > 0) {
-    await supabaseAdmin.from("produto_adicionais").delete().in("id", adicionaisToDelete);
+    await supabaseAdmin
+      .from("produto_adicionais")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .in("id", adicionaisToDelete);
   }
 
   const resolveProductId = (id: string) => productIdMap.get(id) ?? id;
 
-  await supabaseAdmin
-    .from("produto_promocoes")
-    .delete()
-    .neq("id", "00000000-0000-0000-0000-000000000000");
+  await supabaseAdmin.from("produto_promocoes").delete().eq("tenant_id", tenantId);
   if (store.promocoes.length > 0) {
     const { error } = await supabaseAdmin.from("produto_promocoes").insert(
       store.promocoes.map((promocao) => ({
         id: isUuid(promocao.id) ? promocao.id : undefined,
+        tenant_id: tenantId,
         produto_id: resolveProductId(promocao.productId),
         tipo: promocao.tipo,
         valor: promocao.valor,
@@ -703,14 +802,12 @@ export async function saveProdutosModuleStore(store: ModuleStore) {
     if (error) throw error;
   }
 
-  await supabaseAdmin
-    .from("produto_movimentos_estoque")
-    .delete()
-    .neq("id", "00000000-0000-0000-0000-000000000000");
+  await supabaseAdmin.from("produto_movimentos_estoque").delete().eq("tenant_id", tenantId);
   if (store.movimentos.length > 0) {
     const { error } = await supabaseAdmin.from("produto_movimentos_estoque").insert(
       store.movimentos.map((movimento) => ({
         id: isUuid(movimento.id) ? movimento.id : undefined,
+        tenant_id: tenantId,
         produto_id: resolveProductId(movimento.productId),
         acao: movimento.acao,
         quantidade: movimento.quantidade,

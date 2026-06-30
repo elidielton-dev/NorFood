@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Palette, Store } from "lucide-react";
 import { fetchOperationalAdminServer } from "@/lib/api/operational-config.functions";
+import { useTenantSlug } from "@/lib/tenant/tenant-context";
 import logo from "@/assets/logo-norfood.png";
 import { NORFOOD_BRAND_NAME, NORFOOD_TAGLINE } from "@/lib/brand/norfood";
 import { GestaoCard, GestaoPage, GestaoSectionTitle } from "@/components/gestao-ui";
@@ -11,9 +12,10 @@ export const Route = createFileRoute("/_authenticated/painel/estabelecimento/vis
 });
 
 function EstabelecimentoVisualPage() {
+  const tenantSlug = useTenantSlug();
   const { data } = useQuery({
-    queryKey: ["operational-admin"],
-    queryFn: () => fetchOperationalAdminServer(),
+    queryKey: ["operational-admin", tenantSlug],
+    queryFn: () => fetchOperationalAdminServer({ data: tenantSlug }),
   });
 
   const config = data?.config;

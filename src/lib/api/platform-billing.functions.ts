@@ -618,16 +618,8 @@ export const registerRestaurantServer = createServerFn({ method: "POST" })
       },
     });
 
-    const { error: linkError } = await supabaseAdmin.from("tenant_users").upsert(
-      {
-        tenant_id: tenantId,
-        user_id: context.userId,
-        role: "owner",
-        status: "active",
-      },
-      { onConflict: "tenant_id,user_id,role" },
-    );
-    if (linkError) throw linkError;
+    const { registerOwnerAsColaboradorAdmin } = await import("@/lib/tenant/tenant-owner-access.server");
+    await registerOwnerAsColaboradorAdmin(supabaseAdmin, tenantId, context.userId);
 
     await upsertTenantBillingRecord(tenantId, {
       billingModel: data.billingModel,
@@ -772,7 +764,7 @@ async function assertUserCanManageTenant(userId: string, tenantId: string) {
   }
 }
 
-async function resolveTenantIdBySlug(slug: string) {
+export async function resolveTenantIdBySlug(slug: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("tenants")
@@ -966,6 +958,124 @@ export const adminPayBillingInvoicePixServer = createServerFn({ method: "POST" }
     const { createPlatformBillingPix } =
       await import("@/lib/api/platform-billing-mercadopago.server");
     return createPlatformBillingPix(data.invoiceId);
+  });
+
+async function assertUserIsTenantOwner(userId: string, tenantId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("tenant_users")
+    .select("role, status")
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+    .eq("role", "owner")
+    .maybeSingle();
+  if (error) throwSupabaseError(error, "Erro ao verificar proprietário.");
+  if (!data || data.status !== "active") {
+    throw new Error("Apenas o proprietário pode excluir esta conta.");
+  }
+}
+
+export const deleteOwnRestaurantServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { tenantSlug: string; confirmSlug: string }) => input)
+  .handler(async ({ data, context }) => {
+    if (isDemoBackend()) {
+      throw new Error("Exclusão de conta indisponível no modo demo.");
+    }
+
+    const { NORFOOD_DEMO_TENANT_ID } = await import("@/lib/tenant/constants");
+    const tenantId = await resolveTenantIdBySlug(data.tenantSlug);
+    if (tenantId === NORFOOD_DEMO_TENANT_ID) {
+      throw new Error("A conta de demonstração não pode ser excluída.");
+    }
+
+    await assertUserIsTenantOwner(context.userId, tenantId);
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { purgeTenantData } = await import("@/lib/tenant/tenant-delete.server");
+
+    const { data: tenant, error } = await supabaseAdmin
+      .from("tenants")
+      .select("slug")
+      .eq("id", tenantId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!tenant) throw new Error("Restaurante não encontrado.");
+
+    const confirmSlug = data.confirmSlug.trim().toLowerCase();
+    if (confirmSlug !== tenant.slug) {
+      throw new Error("Confirmação incorreta. Digite o endereço da loja exatamente como cadastrado.");
+    }
+
+    await purgeTenantData(supabaseAdmin, tenantId);
+    return { ok: true as const };
+  });
+
+import type { PlanFeatureKey } from "@/lib/platform/plan-features";
+
+export type TenantPlanFeaturesResponse = {
+  planId: BillingPlanId;
+  planLabel: string;
+  billingModel: BillingModel;
+  inTrial: boolean;
+  features: PlanFeatureKey[];
+  monthlyOrderLimit: number | null;
+  monthlyOrderCount: number;
+  ordersRemaining: number | null;
+};
+
+export const getTenantPlanFeaturesServer = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((tenantSlug: string) => tenantSlug)
+  .handler(async ({ data: tenantSlug, context }): Promise<TenantPlanFeaturesResponse> => {
+    if (isDemoBackend()) {
+      return {
+        planId: "business",
+        planLabel: "Business",
+        billingModel: "monthly",
+        inTrial: true,
+        features: [
+          "kds",
+          "delivery_app",
+          "relatorios_avancados",
+          "whatsapp",
+          "fiscal",
+          "unlimited_orders",
+        ],
+        monthlyOrderLimit: null,
+        monthlyOrderCount: 0,
+        ordersRemaining: null,
+      };
+    }
+
+    const tenantId = await resolveTenantIdBySlug(tenantSlug);
+    const { isPlatformAdminUserId } = await import("@/lib/api/auth-helpers.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (!(await isPlatformAdminUserId(context.userId))) {
+      const { data: membership } = await supabaseAdmin
+        .from("tenant_users")
+        .select("role")
+        .eq("tenant_id", tenantId)
+        .eq("user_id", context.userId)
+        .eq("status", "active")
+        .maybeSingle();
+      if (!membership) {
+        throw new Error("Sem acesso a este restaurante.");
+      }
+    }
+
+    const { loadTenantPlanSnapshot } = await import("@/lib/tenant/tenant-plan.server");
+    const snapshot = await loadTenantPlanSnapshot(tenantId);
+    return {
+      planId: snapshot.planId,
+      planLabel: snapshot.planLabel,
+      billingModel: snapshot.billingModel,
+      inTrial: snapshot.inTrial,
+      features: snapshot.features,
+      monthlyOrderLimit: snapshot.monthlyOrderLimit,
+      monthlyOrderCount: snapshot.monthlyOrderCount,
+      ordersRemaining: snapshot.ordersRemaining,
+    };
   });
 
 export const getTenantAccessStatusServer = createServerFn({ method: "GET" })

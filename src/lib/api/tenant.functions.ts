@@ -14,7 +14,6 @@ export const fetchTenantBySlugServer = createServerFn({ method: "GET" })
         .from("tenants")
         .select("*")
         .eq("slug", slug)
-        .in("status", ["active", "trial"])
         .maybeSingle();
       if (error) {
         console.warn("[fetchTenantBySlugServer]", error.message);
@@ -31,10 +30,21 @@ export const fetchTenantSettingsServer = createServerFn({ method: "GET" })
   .validator((slug: string) => slug)
   .handler(async ({ data: slug }): Promise<TenantSettings | null> => {
     const fallback = FALLBACK_TENANT_SETTINGS[slug] ?? null;
-    const tenantId = TENANT_ID_BY_SLUG[slug];
-    if (!tenantId) return fallback;
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: tenant, error: tenantError } = await supabaseAdmin
+        .from("tenants")
+        .select("id")
+        .eq("slug", slug)
+        .maybeSingle();
+      if (tenantError) {
+        console.warn("[fetchTenantSettingsServer]", tenantError.message);
+        return fallback;
+      }
+
+      const tenantId = tenant?.id ?? TENANT_ID_BY_SLUG[slug];
+      if (!tenantId) return fallback;
+
       const { data, error } = await supabaseAdmin
         .from("tenant_settings")
         .select("*")
@@ -77,7 +87,9 @@ export const fetchUserTenantsServer = createServerFn({ method: "GET" })
         role: row.role,
         tenant: row.tenants as unknown as Tenant,
       }));
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("Unauthorized")) throw error;
       return [];
     }
   });

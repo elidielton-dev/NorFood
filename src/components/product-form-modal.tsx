@@ -1,6 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
-import { ImagePlus, Info, Plus, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Camera, HelpCircle, ImagePlus, Info, Loader2, Plus, Trash2, Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { formatBRL } from "@/lib/db";
 import {
   GestaoButton,
@@ -23,6 +33,10 @@ import {
   type ProductVariation,
   type SellChannel,
 } from "@/lib/produtos-module";
+import { uploadProductImageServer } from "@/lib/api/produtos-module.functions";
+import { useTenantOptional } from "@/lib/tenant/tenant-context";
+import { hasBrowserSupabaseConfig } from "@/lib/runtime";
+import { toast } from "sonner";
 
 type ProductFormModalProps = {
   open: boolean;
@@ -56,6 +70,11 @@ export function ProductFormModal({
   onSave,
 }: ProductFormModalProps) {
   const [activeTab, setActiveTab] = useState<ModalTab>("geral");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [variacaoHelpOpen, setVariacaoHelpOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const tenantSlug = useTenantOptional()?.tenant.slug;
+  const useSupabase = hasBrowserSupabaseConfig();
   const emPromocao = form.precoPromocional != null;
   const descontoPercent = calcDiscountPercent(form.precoVenda, form.precoPromocional);
   const precoAtual = emPromocao ? (form.precoPromocional ?? form.precoVenda) : form.precoVenda;
@@ -72,6 +91,52 @@ export function ProductFormModal({
 
   function patchForm(patch: Partial<ProductRecord>) {
     setForm((current) => ({ ...current, ...patch }));
+  }
+
+  async function handlePhotoFileSelected(file: File | null) {
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Selecione um arquivo de imagem (JPG, PNG ou WebP).");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Imagem muito grande. Tamanho máximo: 5 MB.");
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result ?? ""));
+        reader.onerror = () => reject(new Error("Não foi possível ler a imagem."));
+        reader.readAsDataURL(file);
+      });
+
+      if (!useSupabase) {
+        patchForm({ foto: dataUrl });
+        toast.success("Foto aplicada (modo demo local).");
+        return;
+      }
+
+      const { url } = await uploadProductImageServer({
+        data: {
+          tenantSlug,
+          productId: editingId,
+          mimeType: file.type,
+          base64: dataUrl,
+        },
+      });
+      patchForm({ foto: url });
+      toast.success("Foto enviada com sucesso.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao enviar foto.");
+    } finally {
+      setUploadingPhoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   }
 
   function updateVariation(variationId: string, patch: Partial<ProductVariation>) {
@@ -114,8 +179,8 @@ export function ProductFormModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[min(92vh,900px)] w-[calc(100vw-1rem)] max-w-5xl flex-col gap-0 overflow-hidden rounded-2xl border-[color:var(--honey-line)] p-0 sm:w-full">
         <DialogHeader className="shrink-0 border-b border-[color:var(--honey-line)] px-4 py-4 sm:px-6">
-          <DialogTitle className="font-display text-xl lowercase text-sage sm:text-2xl">
-            {editingId ? "editar produto" : "novo produto"}
+          <DialogTitle className="font-display text-xl text-sage sm:text-2xl">
+            {editingId ? "Editar produto" : "Novo produto"}
           </DialogTitle>
         </DialogHeader>
 
@@ -130,16 +195,67 @@ export function ProductFormModal({
           {activeTab === "geral" ? (
             <div className="grid gap-6 md:grid-cols-[minmax(140px,200px)_1fr]">
               <div className="space-y-3">
-                <div className="overflow-hidden rounded-2xl border border-dashed border-[color:var(--honey-line)] bg-[color:var(--gestao-cream)]/40">
+                <div className="relative overflow-hidden rounded-2xl border border-dashed border-[color:var(--honey-line)] bg-[color:var(--gestao-cream)]/40">
                   <img
                     src={form.foto || PRODUCT_IMAGES[0]}
-                    alt={form.nome || "Preview"}
+                    alt={form.nome || "Pré-visualização do produto"}
                     className="aspect-square w-full object-cover md:max-h-48"
                   />
+                  {uploadingPhoto ? (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                      <Loader2 className="size-8 animate-spin text-white" />
+                    </div>
+                  ) : null}
                 </div>
-                <GestaoField label="URL da foto">
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => void handlePhotoFileSelected(e.target.files?.[0] ?? null)}
+                />
+
+                <GestaoButton
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  className="w-full"
+                  disabled={uploadingPhoto}
+                  onClick={() => {
+                    fileInputRef.current?.removeAttribute("capture");
+                    fileInputRef.current?.click();
+                  }}
+                >
+                  {uploadingPhoto ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Upload className="size-3.5" />
+                  )}
+                  {uploadingPhoto ? "Enviando..." : "Escolher foto"}
+                </GestaoButton>
+
+                <GestaoButton
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="w-full sm:hidden"
+                  disabled={uploadingPhoto}
+                  onClick={() => {
+                    if (fileInputRef.current) {
+                      fileInputRef.current.accept = "image/*";
+                      fileInputRef.current.setAttribute("capture", "environment");
+                      fileInputRef.current.click();
+                    }
+                  }}
+                >
+                  <Camera className="size-3.5" />
+                  Tirar foto
+                </GestaoButton>
+
+                <GestaoField label="Ou cole a URL da foto">
                   <GestaoInput
-                    value={form.foto}
+                    value={form.foto.startsWith("data:") ? "" : form.foto}
                     onChange={(e) => patchForm({ foto: e.target.value })}
                     placeholder="https://..."
                   />
@@ -149,6 +265,7 @@ export function ProductFormModal({
                   variant="secondary"
                   size="sm"
                   className="w-full"
+                  disabled={uploadingPhoto}
                   onClick={() =>
                     patchForm({
                       foto: PRODUCT_IMAGES[Math.floor(Math.random() * PRODUCT_IMAGES.length)],
@@ -234,17 +351,26 @@ export function ProductFormModal({
                 </div>
 
                 <GestaoField label="Categoria" required>
-                  <GestaoSelect
-                    value={form.categoria}
-                    onChange={(e) => patchForm({ categoria: e.target.value })}
-                  >
-                    <option value="">Selecione</option>
-                    {categorias.map((categoria) => (
-                      <option key={categoria.id} value={categoria.nome}>
-                        {categoria.nome}
-                      </option>
-                    ))}
-                  </GestaoSelect>
+                  {categorias.length === 0 ? (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                      Cadastre uma categoria antes de salvar o produto. Vá em{" "}
+                      <strong>Produtos → Categorias</strong> e clique em{" "}
+                      <strong>Criar categoria</strong>.
+                    </div>
+                  ) : (
+                    <GestaoSelect
+                      value={form.categoria}
+                      onChange={(e) => patchForm({ categoria: e.target.value })}
+                    >
+                      <option value="">Selecione uma categoria</option>
+                      {categorias.map((categoria) => (
+                        <option key={categoria.id} value={categoria.nome}>
+                          {categoria.icone ? `${categoria.icone} ` : ""}
+                          {categoria.nome}
+                        </option>
+                      ))}
+                    </GestaoSelect>
+                  )}
                 </GestaoField>
 
                 <GestaoField label="Status">
@@ -252,9 +378,9 @@ export function ProductFormModal({
                     value={form.status}
                     onChange={(value) => patchForm({ status: value })}
                     options={[
-                      { value: "ativo", label: "ativo" },
-                      { value: "indisponivel", label: "em falta" },
-                      { value: "pausado", label: "oculto" },
+                      { value: "ativo", label: "Ativo" },
+                      { value: "indisponivel", label: "Em falta" },
+                      { value: "pausado", label: "Oculto" },
                     ]}
                   />
                 </GestaoField>
@@ -313,9 +439,45 @@ export function ProductFormModal({
 
           {activeTab === "variacao" ? (
             <>
+              <div className="mb-4 rounded-2xl border border-sky-200 bg-sky-50/80 px-4 py-4 text-sm text-sky-950">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="font-semibold">O que são variações?</p>
+                    <p className="mt-1 text-sky-900/90">
+                      Use quando o mesmo produto tem tamanhos, sabores ou opções com preços
+                      diferentes. Na loja, o cliente escolhe a variação antes de adicionar ao
+                      carrinho.
+                    </p>
+                    <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-sky-900/80">
+                      <li>
+                        <strong>Pipocaria:</strong> Pequena R$ 12 · Média R$ 18 · Grande R$ 25
+                      </li>
+                      <li>
+                        <strong>Combo:</strong> Individual · Duplo · Família
+                      </li>
+                      <li>
+                        <strong>Sabor:</strong> Tradicional · Caramelo · Chocolate
+                      </li>
+                    </ul>
+                  </div>
+                  <GestaoButton
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => setVariacaoHelpOpen(true)}
+                  >
+                    <HelpCircle className="size-3.5" />
+                    Guia completo
+                  </GestaoButton>
+                </div>
+              </div>
+
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-muted-foreground">
-                  Variações de tamanho, sabor ou embalagem.
+                  {form.variacoes.length > 0
+                    ? `${form.variacoes.length} variação(ões) cadastrada(s).`
+                    : "Nenhuma variação — o produto usa apenas o preço da aba Geral."}
                 </p>
                 <GestaoButton
                   type="button"
@@ -327,7 +489,7 @@ export function ProductFormModal({
                         ...form.variacoes,
                         {
                           id: createId("var"),
-                          nome: "Nova variação",
+                          nome: "",
                           preco: form.precoVenda,
                           estoque: form.estoque,
                           tempoPreparo: form.tempoPreparo,
@@ -342,11 +504,48 @@ export function ProductFormModal({
                 </GestaoButton>
               </div>
               {form.variacoes.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-[color:var(--honey-line)] px-4 py-10 text-center text-sm text-muted-foreground">
-                  Nenhuma variação cadastrada.
+                <div className="rounded-2xl border border-dashed border-[color:var(--honey-line)] px-4 py-10 text-center">
+                  <p className="text-sm font-medium text-[color:var(--gestao-ink)]">
+                    Produto sem variações
+                  </p>
+                  <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                    Se o preço é único, não precisa cadastrar variação. Clique em{" "}
+                    <strong>Adicionar variação</strong> para criar tamanhos ou sabores com preços
+                    próprios.
+                  </p>
+                  <GestaoButton
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    className="mt-4"
+                    onClick={() =>
+                      patchForm({
+                        variacoes: [
+                          {
+                            id: createId("var"),
+                            nome: "Pequena",
+                            preco: form.precoVenda,
+                            estoque: form.estoque,
+                            tempoPreparo: form.tempoPreparo,
+                            status: "ativo",
+                          },
+                        ],
+                      })
+                    }
+                  >
+                    <Plus className="size-3.5" />
+                    Começar com exemplo (Pequena)
+                  </GestaoButton>
                 </div>
               ) : (
                 <div className="space-y-3">
+                  <div className="hidden gap-2 px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground sm:grid sm:grid-cols-[1.2fr_repeat(3,1fr)_auto]">
+                    <span>Nome da opção</span>
+                    <span>Preço (R$)</span>
+                    <span>Estoque</span>
+                    <span>Preparo (min)</span>
+                    <span className="text-right">Remover</span>
+                  </div>
                   {form.variacoes.map((variacao) => (
                     <div
                       key={variacao.id}
@@ -355,7 +554,7 @@ export function ProductFormModal({
                       <GestaoInput
                         value={variacao.nome}
                         onChange={(e) => updateVariation(variacao.id, { nome: e.target.value })}
-                        placeholder="Nome"
+                        placeholder="Ex.: Média"
                       />
                       <GestaoInput
                         type="number"
@@ -363,7 +562,7 @@ export function ProductFormModal({
                         onChange={(e) =>
                           updateVariation(variacao.id, { preco: Number(e.target.value) || 0 })
                         }
-                        placeholder="Preço"
+                        placeholder="0,00"
                       />
                       <GestaoInput
                         type="number"
@@ -371,7 +570,7 @@ export function ProductFormModal({
                         onChange={(e) =>
                           updateVariation(variacao.id, { estoque: Number(e.target.value) || 0 })
                         }
-                        placeholder="Estoque"
+                        placeholder="Qtd."
                       />
                       <GestaoInput
                         type="number"
@@ -381,12 +580,13 @@ export function ProductFormModal({
                             tempoPreparo: Number(e.target.value) || 0,
                           })
                         }
-                        placeholder="Min"
+                        placeholder="Minutos"
                       />
                       <GestaoButton
                         type="button"
                         variant="ghost"
                         size="sm"
+                        aria-label="Remover variação"
                         onClick={() =>
                           patchForm({
                             variacoes: form.variacoes.filter((item) => item.id !== variacao.id),
@@ -399,6 +599,57 @@ export function ProductFormModal({
                   ))}
                 </div>
               )}
+
+              <AlertDialog open={variacaoHelpOpen} onOpenChange={setVariacaoHelpOpen}>
+                <AlertDialogContent className="max-w-lg">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Como cadastrar variações</AlertDialogTitle>
+                    <AlertDialogDescription asChild>
+                      <div className="space-y-3 text-left text-sm text-muted-foreground">
+                        <p>
+                          Variações servem para o cliente escolher tamanho, sabor ou tipo do mesmo
+                          produto, cada um com preço e estoque próprios.
+                        </p>
+                        <div>
+                          <p className="font-medium text-foreground">Passo a passo</p>
+                          <ol className="mt-2 list-decimal space-y-1 pl-5">
+                            <li>Clique em <strong>Adicionar variação</strong>.</li>
+                            <li>
+                              Informe o <strong>nome</strong> (ex.: Pequena, Média, Grande).
+                            </li>
+                            <li>
+                              Defina o <strong>preço</strong> e o <strong>estoque</strong> de cada
+                              opção.
+                            </li>
+                            <li>
+                              Salve o produto. Na loja online, o cliente verá as opções antes de
+                              comprar.
+                            </li>
+                          </ol>
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">Quando usar</p>
+                          <ul className="mt-2 list-disc space-y-1 pl-5">
+                            <li>Pipoca em tamanhos diferentes</li>
+                            <li>Combos individual ou família</li>
+                            <li>Mesmo item com sabores distintos</li>
+                          </ul>
+                        </div>
+                        <p>
+                          Se o produto tem preço único, deixe esta aba vazia e use apenas o preço
+                          da aba <strong>Geral</strong>.
+                        </p>
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Fechar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => setVariacaoHelpOpen(false)}>
+                      Entendi
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </>
           ) : null}
 
@@ -589,7 +840,7 @@ function FeatureToggle({
         size="sm"
         onClick={() => onChange(!checked)}
       >
-        {checked ? "ativo" : "inativo"}
+        {checked ? "Ativo" : "Inativo"}
       </GestaoButton>
     </div>
   );

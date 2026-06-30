@@ -1,5 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getAuthenticatedUser } from "@/lib/auth-session";
 import { canUseBrowserStorage } from "@/lib/runtime";
+import { getActiveTenantSlug } from "@/lib/tenant/active-tenant";
 import {
   DEMO_CUSTOMER_EMAIL,
   DEMO_CUSTOMER_NAME,
@@ -13,10 +15,25 @@ import {
   syncCustomerProfile,
 } from "@/lib/api/customer-auth.functions";
 
-const ACCOUNTS_STORAGE_KEY = "abelha-mel-customer-accounts-v1";
-const SESSION_STORAGE_KEY = "abelha-mel-customer-session-v1";
-const RESET_STORAGE_KEY = "abelha-mel-customer-reset-v1";
+const RESET_STORAGE_SUFFIX = "reset-v1";
 export const CUSTOMER_AUTH_EVENT = "abelha-mel-customer-auth-change";
+
+function resolveCustomerStorageScope(): string {
+  const slug = getActiveTenantSlug();
+  if (slug) return slug;
+  if (canUseBrowserStorage()) {
+    const match = window.location.pathname.match(/\/t\/([^/]+)/);
+    if (match?.[1]) return match[1];
+  }
+  return "global";
+}
+
+function scopedStorageKey(kind: "accounts" | "session" | "reset") {
+  const scope = resolveCustomerStorageScope();
+  if (kind === "accounts") return `norfood-customer:${scope}:accounts-v1`;
+  if (kind === "session") return `norfood-customer:${scope}:session-v1`;
+  return `norfood-customer:${scope}:${RESET_STORAGE_SUFFIX}`;
+}
 
 type CustomerAccountRecord = {
   id: string;
@@ -161,7 +178,7 @@ function getCustomerRecoveryRedirectUrl() {
 function readAccounts() {
   if (!canUseBrowserStorage()) return [] as CustomerAccountRecord[];
 
-  const raw = window.localStorage.getItem(ACCOUNTS_STORAGE_KEY);
+  const raw = window.localStorage.getItem(scopedStorageKey("accounts"));
   if (!raw) return [];
 
   try {
@@ -173,13 +190,13 @@ function readAccounts() {
 
 function writeAccounts(accounts: CustomerAccountRecord[]) {
   if (!canUseBrowserStorage()) return;
-  window.localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accounts));
+  window.localStorage.setItem(scopedStorageKey("accounts"), JSON.stringify(accounts));
 }
 
 function readSession() {
   if (!canUseBrowserStorage()) return null;
 
-  const raw = window.localStorage.getItem(SESSION_STORAGE_KEY);
+  const raw = window.localStorage.getItem(scopedStorageKey("session"));
   if (!raw) return null;
 
   try {
@@ -193,17 +210,17 @@ function writeSession(session: CustomerSession | null) {
   if (!canUseBrowserStorage()) return;
 
   if (!session) {
-    window.localStorage.removeItem(SESSION_STORAGE_KEY);
+    window.localStorage.removeItem(scopedStorageKey("session"));
     return;
   }
 
-  window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+  window.localStorage.setItem(scopedStorageKey("session"), JSON.stringify(session));
 }
 
 function readResetRecord() {
   if (!canUseBrowserStorage()) return null;
 
-  const raw = window.localStorage.getItem(RESET_STORAGE_KEY);
+  const raw = window.localStorage.getItem(scopedStorageKey("reset"));
   if (!raw) return null;
 
   try {
@@ -217,11 +234,11 @@ function writeResetRecord(record: CustomerPasswordResetRecord | null) {
   if (!canUseBrowserStorage()) return;
 
   if (!record) {
-    window.localStorage.removeItem(RESET_STORAGE_KEY);
+    window.localStorage.removeItem(scopedStorageKey("reset"));
     return;
   }
 
-  window.localStorage.setItem(RESET_STORAGE_KEY, JSON.stringify(record));
+  window.localStorage.setItem(scopedStorageKey("reset"), JSON.stringify(record));
 }
 
 function emitAuthChanged(event = "LOCAL_CHANGED", account: CustomerAccount | null = null) {
@@ -282,10 +299,13 @@ function toCustomerAccountFromUser(user: {
 }
 
 async function getSupabaseAccount() {
-  const { data, error } = await supabase.auth.getUser();
-  if (error) throw error;
-  const user = data.user;
+  const user = await getAuthenticatedUser();
   return user ? toCustomerAccountFromUser(user) : null;
+}
+
+function persistCustomerSession(account: CustomerAccount | null) {
+  if (!account) return;
+  writeSession({ userId: account.id });
 }
 
 async function signUpLocalCustomerAccount(input: CustomerAccountInput) {
@@ -450,9 +470,13 @@ export function ensureDemoLocalCustomerAccount() {
 export async function getCurrentCustomerAccount() {
   if (canUseSupabaseCustomerAuth()) {
     try {
-      return await getSupabaseAccount();
+      const account = await getSupabaseAccount();
+      if (account) {
+        persistCustomerSession(account);
+        return account;
+      }
     } catch {
-      return getCurrentLocalCustomerAccount();
+      // fallback local abaixo
     }
   }
 
@@ -491,6 +515,7 @@ export async function signUpCustomerAccount(input: CustomerAccountInput) {
 
     const account = await getSupabaseAccount();
     emitAuthChanged("SIGNED_IN", account);
+    persistCustomerSession(account);
     return account;
   } catch (error) {
     if (error instanceof Error) throw error;
@@ -518,6 +543,7 @@ export async function signInCustomerAccount(identifier: string, password: string
 
     const account = await getSupabaseAccount();
     emitAuthChanged("SIGNED_IN", account);
+    persistCustomerSession(account);
     return account;
   } catch (error) {
     if (error instanceof Error) throw error;

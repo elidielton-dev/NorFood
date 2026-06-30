@@ -35,6 +35,8 @@ import {
   GestaoSelect,
   GestaoStat,
 } from "@/components/gestao-ui";
+import { useTenantSlug } from "@/lib/tenant/tenant-context";
+import { tenantQueryKey } from "@/lib/tenant/query-keys";
 
 export const Route = createFileRoute("/_authenticated/painel/mesas")({
   component: MesasPage,
@@ -47,9 +49,19 @@ type CarrinhoMesaItem = {
 
 function MesasPage() {
   const qc = useQueryClient();
-  const { data: mesas = [] } = useQuery({ queryKey: ["mesas"], queryFn: listarMesas });
-  const { data: produtos = [] } = useQuery({ queryKey: ["produtos"], queryFn: listarProdutos });
-  const { data: pedidos = [] } = useQuery({ queryKey: ["pedidos"], queryFn: listarPedidos });
+  const tenantSlug = useTenantSlug();
+  const { data: mesas = [] } = useQuery({
+    queryKey: tenantQueryKey("mesas", tenantSlug),
+    queryFn: listarMesas,
+  });
+  const { data: produtos = [] } = useQuery({
+    queryKey: tenantQueryKey("produtos", tenantSlug),
+    queryFn: listarProdutos,
+  });
+  const { data: pedidos = [] } = useQuery({
+    queryKey: tenantQueryKey("pedidos", tenantSlug),
+    queryFn: listarPedidos,
+  });
 
   const [mesaCriando, setMesaCriando] = useState<Mesa | null>(null);
   const [mesaDetalhe, setMesaDetalhe] = useState<Mesa | null>(null);
@@ -91,9 +103,10 @@ function MesasPage() {
           data: {
             mesaId: mesa.id,
             status: "livre",
+            tenantSlug: tenantSlug!,
           },
         });
-        await qc.invalidateQueries({ queryKey: ["mesas"] });
+        await qc.invalidateQueries({ queryKey: tenantQueryKey("mesas", tenantSlug) });
         toast.info(
           `Mesa ${mesa.numero} estava ocupada sem pedido. Ela foi liberada para novo atendimento.`,
         );
@@ -148,6 +161,7 @@ function MesasPage() {
       const pedido = await openMesaOrderServer({
         data: {
           mesaId: mesaAtual.id,
+          tenantSlug: tenantSlug!,
           forma_pagamento: formaPagamento,
           observacoes: `Mesa ${mesaAtual.numero}`,
           itens: carrinho.map((item) => ({
@@ -161,8 +175,8 @@ function MesasPage() {
       setMesaCriando(null);
       setCarrinho([]);
       await Promise.all([
-        qc.invalidateQueries({ queryKey: ["mesas"] }),
-        qc.invalidateQueries({ queryKey: ["pedidos"] }),
+        qc.invalidateQueries({ queryKey: tenantQueryKey("mesas", tenantSlug) }),
+        qc.invalidateQueries({ queryKey: tenantQueryKey("pedidos", tenantSlug) }),
       ]);
       setPedidoDetalhe(pedido);
       setMesaDetalhe(mesaAtual);
@@ -186,12 +200,13 @@ function MesasPage() {
         data: {
           mesaId: mesa.id,
           pedidoId: pedido.id,
+          tenantSlug: tenantSlug!,
         },
       });
       toast.success(`Mesa ${mesa.numero} finalizada e liberada.`);
       await Promise.all([
-        qc.invalidateQueries({ queryKey: ["mesas"] }),
-        qc.invalidateQueries({ queryKey: ["pedidos"] }),
+        qc.invalidateQueries({ queryKey: tenantQueryKey("mesas", tenantSlug) }),
+        qc.invalidateQueries({ queryKey: tenantQueryKey("pedidos", tenantSlug) }),
       ]);
       setPedidoDetalhe(null);
       setMesaDetalhe(null);

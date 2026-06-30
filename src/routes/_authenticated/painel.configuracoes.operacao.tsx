@@ -11,6 +11,7 @@ import {
   type BairroEntrega,
   type OperationalConfig,
 } from "@/lib/api/operational-config.functions";
+import { useTenantSlug } from "@/lib/tenant/tenant-context";
 import {
   GestaoButton,
   GestaoCard,
@@ -28,10 +29,11 @@ export const Route = createFileRoute("/_authenticated/painel/configuracoes/opera
 });
 
 function ConfiguracaoOperacaoPage() {
+  const tenantSlug = useTenantSlug();
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
-    queryKey: ["operational-admin"],
-    queryFn: () => fetchOperationalAdminServer(),
+    queryKey: ["operational-admin", tenantSlug],
+    queryFn: () => fetchOperationalAdminServer({ data: tenantSlug }),
   });
 
   const [config, setConfig] = useState<OperationalConfig | null>(null);
@@ -46,10 +48,11 @@ function ConfiguracaoOperacaoPage() {
   const activeConfig = config ?? data?.config ?? null;
 
   const saveConfigMutation = useMutation({
-    mutationFn: (payload: OperationalConfig) => saveOperationalConfigServer({ data: payload }),
+    mutationFn: (payload: OperationalConfig) =>
+      saveOperationalConfigServer({ data: { ...payload, tenantSlug } }),
     onSuccess: () => {
       toast.success("Configuração operacional salva.");
-      void qc.invalidateQueries({ queryKey: ["operational-admin"] });
+      void qc.invalidateQueries({ queryKey: ["operational-admin", tenantSlug] });
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -62,20 +65,20 @@ function ConfiguracaoOperacaoPage() {
       latitude?: number | null;
       longitude?: number | null;
       ativo: boolean;
-    }) => saveBairroEntregaServer({ data: payload }),
+    }) => saveBairroEntregaServer({ data: { ...payload, tenantSlug } }),
     onSuccess: () => {
       toast.success("Bairro salvo.");
       setNovoBairro({ nome: "", taxa: 5, latitude: "", longitude: "", ativo: true });
-      void qc.invalidateQueries({ queryKey: ["operational-admin"] });
+      void qc.invalidateQueries({ queryKey: ["operational-admin", tenantSlug] });
     },
     onError: (error: Error) => toast.error(error.message),
   });
 
   const deleteBairroMutation = useMutation({
-    mutationFn: (id: string) => deleteBairroEntregaServer({ data: { id } }),
+    mutationFn: (id: string) => deleteBairroEntregaServer({ data: { id, tenantSlug } }),
     onSuccess: () => {
       toast.success("Bairro removido.");
-      void qc.invalidateQueries({ queryKey: ["operational-admin"] });
+      void qc.invalidateQueries({ queryKey: ["operational-admin", tenantSlug] });
     },
     onError: (error: Error) => toast.error(error.message),
   });

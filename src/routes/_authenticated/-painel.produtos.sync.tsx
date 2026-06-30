@@ -11,6 +11,7 @@ import {
   partitionProdutosBySync,
   PRODUTOS_MODULE_PRODUCTS_QUERY_KEY,
 } from "@/lib/produtos-sync";
+import { useTenantSlug } from "@/lib/tenant/tenant-context";
 import {
   GestaoButton,
   GestaoEmptyState,
@@ -21,9 +22,10 @@ import {
 } from "@/components/gestao-ui";
 
 export function ProdutosSyncPage({ mode }: { mode: "sincronizados" | "pendentes" }) {
+  const tenantSlug = useTenantSlug();
   const { data: produtos = [], isLoading } = useQuery({
-    queryKey: PRODUTOS_MODULE_PRODUCTS_QUERY_KEY,
-    queryFn: fetchModuleProducts,
+    queryKey: [...PRODUTOS_MODULE_PRODUCTS_QUERY_KEY, tenantSlug],
+    queryFn: () => fetchModuleProducts(tenantSlug),
   });
 
   const { sincronizados, pendentes } = partitionProdutosBySync(produtos);

@@ -45,11 +45,14 @@ function mapNota(
   };
 }
 
-export async function fetchVendaDetalhe(pedidoId: string): Promise<VendaDetalhe> {
+export async function fetchVendaDetalhe(pedidoId: string, tenantId?: string): Promise<VendaDetalhe> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+  let pedidoQuery = supabaseAdmin.from("pedidos").select("*").eq("id", pedidoId);
+  if (tenantId) pedidoQuery = pedidoQuery.eq("tenant_id", tenantId);
+
   const [pedidoResult, itensResult, notaResult, entregaResult] = await Promise.all([
-    supabaseAdmin.from("pedidos").select("*").eq("id", pedidoId).maybeSingle(),
+    pedidoQuery.maybeSingle(),
     supabaseAdmin
       .from("pedido_itens")
       .select(

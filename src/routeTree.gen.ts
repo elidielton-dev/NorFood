@@ -24,7 +24,9 @@ import { Route as TTenantSlugRouteImport } from './routes/t.$tenantSlug'
 import { Route as LojaTenantSlugRouteImport } from './routes/loja.$tenantSlug'
 import { Route as EntregadorLoginRouteImport } from './routes/entregador.login'
 import { Route as EntregadorExpoGoRouteImport } from './routes/entregador.expo-go'
+import { Route as ContaSuspensaSlugRouteImport } from './routes/conta-suspensa.$slug'
 import { Route as CardapioTokenRouteImport } from './routes/cardapio.$token'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ApiSignupClientMetaRouteImport } from './routes/api/signup-client-meta'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as AdminNovaRouteImport } from './routes/admin.nova'
@@ -177,10 +179,20 @@ const EntregadorExpoGoRoute = EntregadorExpoGoRouteImport.update({
   path: '/expo-go',
   getParentRoute: () => EntregadorRoute,
 } as any)
+const ContaSuspensaSlugRoute = ContaSuspensaSlugRouteImport.update({
+  id: '/conta-suspensa/$slug',
+  path: '/conta-suspensa/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CardapioTokenRoute = CardapioTokenRouteImport.update({
   id: '/cardapio/$token',
   path: '/cardapio/$token',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => AuthRoute,
 } as any)
 const ApiSignupClientMetaRoute = ApiSignupClientMetaRouteImport.update({
   id: '/api/signup-client-meta',
@@ -626,7 +638,7 @@ const AuthenticatedPainelConfiguracoesImpressorasDeliveryRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/cadastro': typeof CadastroRouteWithChildren
   '/entregador': typeof EntregadorRouteWithChildren
   '/login': typeof LoginRoute
@@ -642,7 +654,9 @@ export interface FileRoutesByFullPath {
   '/admin/nova': typeof AdminNovaRoute
   '/api/health': typeof ApiHealthRoute
   '/api/signup-client-meta': typeof ApiSignupClientMetaRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/cardapio/$token': typeof CardapioTokenRoute
+  '/conta-suspensa/$slug': typeof ContaSuspensaSlugRoute
   '/entregador/expo-go': typeof EntregadorExpoGoRoute
   '/entregador/login': typeof EntregadorLoginRoute
   '/loja/$tenantSlug': typeof LojaTenantSlugRoute
@@ -719,7 +733,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/cadastro': typeof CadastroRouteWithChildren
   '/entregador': typeof EntregadorRouteWithChildren
   '/login': typeof LoginRoute
@@ -734,7 +748,9 @@ export interface FileRoutesByTo {
   '/admin/nova': typeof AdminNovaRoute
   '/api/health': typeof ApiHealthRoute
   '/api/signup-client-meta': typeof ApiSignupClientMetaRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/cardapio/$token': typeof CardapioTokenRoute
+  '/conta-suspensa/$slug': typeof ContaSuspensaSlugRoute
   '/entregador/expo-go': typeof EntregadorExpoGoRoute
   '/entregador/login': typeof EntregadorLoginRoute
   '/loja/$tenantSlug': typeof LojaTenantSlugRoute
@@ -808,7 +824,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/admin': typeof AdminRouteWithChildren
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/cadastro': typeof CadastroRouteWithChildren
   '/entregador': typeof EntregadorRouteWithChildren
   '/login': typeof LoginRoute
@@ -824,7 +840,9 @@ export interface FileRoutesById {
   '/admin/nova': typeof AdminNovaRoute
   '/api/health': typeof ApiHealthRoute
   '/api/signup-client-meta': typeof ApiSignupClientMetaRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/cardapio/$token': typeof CardapioTokenRoute
+  '/conta-suspensa/$slug': typeof ContaSuspensaSlugRoute
   '/entregador/expo-go': typeof EntregadorExpoGoRoute
   '/entregador/login': typeof EntregadorLoginRoute
   '/loja/$tenantSlug': typeof LojaTenantSlugRoute
@@ -920,7 +938,9 @@ export interface FileRouteTypes {
     | '/admin/nova'
     | '/api/health'
     | '/api/signup-client-meta'
+    | '/auth/callback'
     | '/cardapio/$token'
+    | '/conta-suspensa/$slug'
     | '/entregador/expo-go'
     | '/entregador/login'
     | '/loja/$tenantSlug'
@@ -1012,7 +1032,9 @@ export interface FileRouteTypes {
     | '/admin/nova'
     | '/api/health'
     | '/api/signup-client-meta'
+    | '/auth/callback'
     | '/cardapio/$token'
+    | '/conta-suspensa/$slug'
     | '/entregador/expo-go'
     | '/entregador/login'
     | '/loja/$tenantSlug'
@@ -1101,7 +1123,9 @@ export interface FileRouteTypes {
     | '/admin/nova'
     | '/api/health'
     | '/api/signup-client-meta'
+    | '/auth/callback'
     | '/cardapio/$token'
+    | '/conta-suspensa/$slug'
     | '/entregador/expo-go'
     | '/entregador/login'
     | '/loja/$tenantSlug'
@@ -1181,7 +1205,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AdminRoute: typeof AdminRouteWithChildren
-  AuthRoute: typeof AuthRoute
+  AuthRoute: typeof AuthRouteWithChildren
   CadastroRoute: typeof CadastroRouteWithChildren
   EntregadorRoute: typeof EntregadorRouteWithChildren
   LoginRoute: typeof LoginRoute
@@ -1191,6 +1215,7 @@ export interface RootRouteChildren {
   ApiHealthRoute: typeof ApiHealthRoute
   ApiSignupClientMetaRoute: typeof ApiSignupClientMetaRoute
   CardapioTokenRoute: typeof CardapioTokenRoute
+  ContaSuspensaSlugRoute: typeof ContaSuspensaSlugRoute
   TTenantSlugRoute: typeof TTenantSlugRouteWithChildren
   ApiCronAtendimentoHoursRoute: typeof ApiCronAtendimentoHoursRoute
   ApiEntregadorExpoGoUrlRoute: typeof ApiEntregadorExpoGoUrlRoute
@@ -1308,12 +1333,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EntregadorExpoGoRouteImport
       parentRoute: typeof EntregadorRoute
     }
+    '/conta-suspensa/$slug': {
+      id: '/conta-suspensa/$slug'
+      path: '/conta-suspensa/$slug'
+      fullPath: '/conta-suspensa/$slug'
+      preLoaderRoute: typeof ContaSuspensaSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cardapio/$token': {
       id: '/cardapio/$token'
       path: '/cardapio/$token'
       fullPath: '/cardapio/$token'
       preLoaderRoute: typeof CardapioTokenRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/api/signup-client-meta': {
       id: '/api/signup-client-meta'
@@ -2154,6 +2193,16 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface AuthRouteChildren {
+  AuthCallbackRoute: typeof AuthCallbackRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthCallbackRoute: AuthCallbackRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 interface CadastroRouteChildren {
   CadastroAguardandoSlugRoute: typeof CadastroAguardandoSlugRoute
 }
@@ -2210,7 +2259,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AdminRoute: AdminRouteWithChildren,
-  AuthRoute: AuthRoute,
+  AuthRoute: AuthRouteWithChildren,
   CadastroRoute: CadastroRouteWithChildren,
   EntregadorRoute: EntregadorRouteWithChildren,
   LoginRoute: LoginRoute,
@@ -2220,6 +2269,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiHealthRoute: ApiHealthRoute,
   ApiSignupClientMetaRoute: ApiSignupClientMetaRoute,
   CardapioTokenRoute: CardapioTokenRoute,
+  ContaSuspensaSlugRoute: ContaSuspensaSlugRoute,
   TTenantSlugRoute: TTenantSlugRouteWithChildren,
   ApiCronAtendimentoHoursRoute: ApiCronAtendimentoHoursRoute,
   ApiEntregadorExpoGoUrlRoute: ApiEntregadorExpoGoUrlRoute,

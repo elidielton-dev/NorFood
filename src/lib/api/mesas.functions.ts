@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Enums, Tables } from "@/integrations/supabase/types";
-import { assertStaffUserId } from "@/lib/api/auth-helpers.server";
+import { assertStaffUserId, resolveStaffTenantId } from "@/lib/api/auth-helpers.server";
 import { validateAndPriceOrderItems } from "@/lib/api/order-validation.server";
 
 type FormaPagamento = Enums<"forma_pagamento">;
@@ -11,6 +11,7 @@ type PedidoRow = Tables<"pedidos">;
 
 type OpenMesaInput = {
   mesaId: string;
+  tenantSlug: string;
   forma_pagamento: string;
   observacoes?: string | null;
   itens: Array<{
@@ -23,18 +24,35 @@ type OpenMesaInput = {
 type FinalizeMesaInput = {
   mesaId: string;
   pedidoId: string;
+  tenantSlug: string;
 };
 
 type UpdateMesaStatusInput = {
   mesaId: string;
   status: MesaStatus;
+  tenantSlug: string;
 };
+
+async function assertMesaBelongsToTenant(mesaId: string, tenantId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("mesas")
+    .select("id, tenant_id")
+    .eq("id", mesaId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data || (data as { tenant_id?: string | null }).tenant_id !== tenantId) {
+    throw new Error("Mesa não encontrada neste restaurante.");
+  }
+}
 
 export const updateMesaStatusServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: UpdateMesaStatusInput) => input)
   .handler(async ({ context, data }): Promise<MesaRow> => {
     await assertStaffUserId(context.userId, "Acesso restrito ao painel de mesas.");
+    const tenantId = await resolveStaffTenantId(context.userId, data.tenantSlug);
+    await assertMesaBelongsToTenant(data.mesaId, tenantId);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: mesa, error } = await supabaseAdmin
@@ -53,6 +71,8 @@ export const openMesaOrderServer = createServerFn({ method: "POST" })
   .validator((input: OpenMesaInput) => input)
   .handler(async ({ context, data }): Promise<PedidoRow> => {
     await assertStaffUserId(context.userId, "Acesso restrito ao painel de mesas.");
+    const tenantId = await resolveStaffTenantId(context.userId, data.tenantSlug);
+    await assertMesaBelongsToTenant(data.mesaId, tenantId);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { itens, subtotal } = await validateAndPriceOrderItems(data.itens, {
@@ -89,6 +109,7 @@ export const openMesaOrderServer = createServerFn({ method: "POST" })
       .insert({
         canal: "mesa",
         mesa_id: data.mesaId,
+        tenant_id: tenantId,
         status: "aberto",
         subtotal,
         desconto: 0,
@@ -125,6 +146,7 @@ export const openMesaOrderServer = createServerFn({ method: "POST" })
       valor: subtotal,
       forma: data.forma_pagamento as FormaPagamento,
       pedido_id: pedido.id,
+      tenant_id: tenantId,
     });
     if (financeError) throw financeError;
 
@@ -136,8 +158,20 @@ export const finalizeMesaOrderServer = createServerFn({ method: "POST" })
   .validator((input: FinalizeMesaInput) => input)
   .handler(async ({ context, data }) => {
     await assertStaffUserId(context.userId, "Acesso restrito ao painel de mesas.");
+    const tenantId = await resolveStaffTenantId(context.userId, data.tenantSlug);
+    await assertMesaBelongsToTenant(data.mesaId, tenantId);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: pedido, error: pedidoCheckError } = await supabaseAdmin
+      .from("pedidos")
+      .select("id, tenant_id")
+      .eq("id", data.pedidoId)
+      .maybeSingle();
+    if (pedidoCheckError) throw pedidoCheckError;
+    if (!pedido || (pedido as { tenant_id?: string | null }).tenant_id !== tenantId) {
+      throw new Error("Pedido não encontrado neste restaurante.");
+    }
 
     const { error: orderError } = await supabaseAdmin
       .from("pedidos")

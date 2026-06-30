@@ -26,6 +26,7 @@ import {
 } from "@/lib/venda-detalhe";
 import { labelNotaStatus, notaStatusTone } from "@/lib/fiscal/fiscal-nota-utils";
 import { StatusPill } from "@/components/gestao-ui";
+import { useTenantSlug } from "@/lib/tenant/tenant-context";
 import { cn } from "@/lib/utils";
 
 type VendaDetalheModalProps = {
@@ -36,11 +37,13 @@ type VendaDetalheModalProps = {
 };
 
 export function VendaDetalheModal({ open, onClose, pedidoId, venda }: VendaDetalheModalProps) {
+  const tenantSlug = useTenantSlug();
   const shouldFetch = open && !venda && Boolean(pedidoId);
 
   const { data: fetchedVenda, isLoading, error } = useQuery({
-    queryKey: ["venda-detalhe", pedidoId],
-    queryFn: () => fetchVendaDetalheServer({ data: { pedidoId: pedidoId! } }),
+    queryKey: ["venda-detalhe", tenantSlug, pedidoId],
+    queryFn: () =>
+      fetchVendaDetalheServer({ data: { pedidoId: pedidoId!, tenantSlug } }),
     enabled: shouldFetch,
   });
 

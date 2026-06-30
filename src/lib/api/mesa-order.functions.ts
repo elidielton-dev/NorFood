@@ -27,21 +27,28 @@ export const createMesaQrOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: CreateMesaQrOrderPayload) => input)
   .handler(async ({ data, context }) => {
-    const config = await getOperationalConfig();
-    if (!config.loja_aberta) {
-      throw new Error("A loja esta fechada no momento. Tente novamente mais tarde.");
-    }
-
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: mesa, error: mesaError } = await supabaseAdmin
       .from("mesas")
-      .select("id, numero, status")
+      .select("id, numero, status, tenant_id")
       .eq("qrcode_token", data.qrcodeToken)
       .maybeSingle();
     if (mesaError) throw mesaError;
     if (!mesa) throw new Error("QR Code da mesa invalido ou expirado.");
     if (mesa.status === "reservada") {
       throw new Error("Esta mesa esta reservada. Solicite ajuda da equipe.");
+    }
+
+    const tenantId = (mesa as { tenant_id?: string | null }).tenant_id ?? undefined;
+    const config = await getOperationalConfig(tenantId);
+
+    if (!config.loja_aberta) {
+      throw new Error("A loja esta fechada no momento. Tente novamente mais tarde.");
+    }
+
+    if (mesa.tenant_id) {
+      const { assertCanCreateTenantOrder } = await import("@/lib/tenant/tenant-plan.server");
+      await assertCanCreateTenantOrder(mesa.tenant_id);
     }
 
     const { data: existingOrder, error: existingOrderError } = await supabaseAdmin
@@ -67,7 +74,7 @@ export const createMesaQrOrder = createServerFn({ method: "POST" })
     let desconto = 0;
     let cupomId: string | null = null;
     if (data.cupom_codigo) {
-      const coupon = await validateCoupon(data.cupom_codigo, subtotal);
+      const coupon = await validateCoupon(data.cupom_codigo, subtotal, tenantId);
       if (coupon) {
         desconto = coupon.desconto;
         cupomId = coupon.cupom_id;

@@ -14,6 +14,8 @@ import {
   GestaoSectionTitle,
   GestaoSelect,
 } from "@/components/gestao-ui";
+import { useTenantSlug } from "@/lib/tenant/tenant-context";
+import { tenantQueryKey } from "@/lib/tenant/query-keys";
 
 export const Route = createFileRoute("/_authenticated/painel/pdv")({
   component: BalcaoPage,
@@ -26,7 +28,11 @@ type CarrinhoItem = {
 
 function BalcaoPage() {
   const qc = useQueryClient();
-  const { data: produtos = [] } = useQuery({ queryKey: ["produtos"], queryFn: listarProdutos });
+  const tenantSlug = useTenantSlug();
+  const { data: produtos = [] } = useQuery({
+    queryKey: tenantQueryKey("produtos", tenantSlug),
+    queryFn: listarProdutos,
+  });
   const [carrinho, setCarrinho] = useState<CarrinhoItem[]>([]);
   const [forma, setForma] = useState("pix");
   const [salvando, setSalvando] = useState(false);
@@ -70,6 +76,7 @@ function BalcaoPage() {
     try {
       await createBalcaoOrderServer({
         data: {
+          tenantSlug: tenantSlug!,
           forma_pagamento: forma,
           observacoes: "Pedido criado no balcão",
           itens: carrinho.map((item) => ({
@@ -80,8 +87,8 @@ function BalcaoPage() {
       });
       setCarrinho([]);
       toast.success("Pedido do balcão criado com sucesso.");
-      qc.invalidateQueries({ queryKey: ["pedidos"] });
-      qc.invalidateQueries({ queryKey: ["financeiro"] });
+      qc.invalidateQueries({ queryKey: tenantQueryKey("pedidos", tenantSlug) });
+      qc.invalidateQueries({ queryKey: tenantQueryKey("financeiro", tenantSlug) });
     } catch (error: any) {
       toast.error(error.message ?? "Não foi possível criar o pedido.");
     } finally {

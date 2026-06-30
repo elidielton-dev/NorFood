@@ -35,6 +35,12 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { tenantPath } from "@/lib/tenant/painel-routes";
 import { canAccessTenantRoute } from "@/lib/tenant/tenant-permissions";
+import {
+  canAccessRouteForPlan,
+  planFeatureForRoute,
+  type PlanFeatureKey,
+} from "@/lib/platform/plan-features";
+import type { BillingPlanId } from "@/lib/platform/billing-plans";
 import type { TenantRole } from "@/lib/tenant/types";
 
 export type SidebarItem = {
@@ -79,11 +85,29 @@ export function getTenantSidebarHomeItem(tenantSlug: string): SidebarItem {
   };
 }
 
+function filterSidebarItems(
+  items: SidebarItem[],
+  role: TenantRole,
+  planId?: BillingPlanId,
+) {
+  return items.filter((entry) => {
+    if (!canAccessTenantRoute(role, entry.segment)) return false;
+    if (!planId) return true;
+    const match = entry.to.match(/\/t\/[^/]+\/(.+)$/);
+    const routePath = match?.[1] ?? entry.segment;
+    return canAccessRouteForPlan(routePath, planId);
+  });
+}
+
 /**
  * Mesma estrutura e sequência do painel Abelha & Mel (painel-sidebar.ts),
  * com rotas em /t/:tenantSlug/*
  */
-export function getTenantSidebarSections(tenantSlug: string, role?: TenantRole): SidebarSection[] {
+export function getTenantSidebarSections(
+  tenantSlug: string,
+  role?: TenantRole,
+  planId?: BillingPlanId,
+): SidebarSection[] {
   const sections: SidebarSection[] = [
     {
       title: "Pedidos",
@@ -156,16 +180,25 @@ export function getTenantSidebarSections(tenantSlug: string, role?: TenantRole):
   return sections
     .map((section) => ({
       ...section,
-      items: section.items.filter((entry) => canAccessTenantRoute(role, entry.segment)),
+      items: filterSidebarItems(section.items, role, planId),
     }))
     .filter((section) => section.items.length > 0);
 }
 
-export function getAllTenantSidebarItems(tenantSlug: string, role?: TenantRole) {
+export function getAllTenantSidebarItems(
+  tenantSlug: string,
+  role?: TenantRole,
+  planId?: BillingPlanId,
+) {
   return [
     getTenantSidebarHomeItem(tenantSlug),
-    ...getTenantSidebarSections(tenantSlug, role).flatMap((s) => s.items),
+    ...getTenantSidebarSections(tenantSlug, role, planId).flatMap((s) => s.items),
   ];
+}
+
+/** Segmento exige feature de plano superior? (para badges/tooltips) */
+export function sidebarItemPlanFeature(segment: string): PlanFeatureKey | null {
+  return planFeatureForRoute(segment);
 }
 
 /** Evita marcar item pai quando uma rota filha mais especifica esta ativa. */

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { NorfoodLogo } from "@/components/brand/norfood-logo";
@@ -14,17 +14,30 @@ import type { DocumentType } from "@/lib/document-validation";
 import { formatDocument, validateDocument } from "@/lib/document-validation";
 import { fetchAddressByCep, formatCep, normalizeCep } from "@/lib/viacep";
 import { formatBrazilPhone, validateBrazilMobilePhone } from "@/lib/signup/signup-phone";
+import {
+  clearSignupDraft,
+  loadSignupDraft,
+  saveSignupDraft,
+  signupResumeUrl,
+  type SignupDraft,
+} from "@/lib/signup/signup-draft";
+import { fetchUserTenantsServer } from "@/lib/api/tenant.functions";
 import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/cadastro")({
   ssr: false,
+  validateSearch: (search: Record<string, unknown>): { resume?: boolean } => ({
+    resume: search.resume === "1" || search.resume === 1,
+  }),
   component: CadastroPage,
 });
 
 const STEPS = ["Plano", "Restaurante", "Endereço", "Conta"] as const;
 
 function CadastroPage() {
+  const { resume: resumeFromUrl } = Route.useSearch();
+  const [hydrated, setHydrated] = useState(false);
   const [step, setStep] = useState(0);
   const [billingModel, setBillingModel] = useState<BillingModel>("monthly");
   const [plan, setPlan] = useState<BillingPlanId>("pro");
@@ -47,6 +60,89 @@ function CadastroPage() {
   const [ownerPhone, setOwnerPhone] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [awaitingEmailConfirm, setAwaitingEmailConfirm] = useState(false);
+  const [autoCompleting, setAutoCompleting] = useState(false);
+  const completingRef = useRef(false);
+
+  function buildDraft(nextStep = step): SignupDraft {
+    return {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      step: nextStep,
+      billingModel,
+      plan,
+      restaurantName,
+      slug,
+      documentType,
+      documentNumber,
+      legalName,
+      cep,
+      street,
+      streetNumber,
+      neighborhood,
+      city,
+      state,
+      nome,
+      email,
+      senha,
+      ownerPhone,
+      acceptedTerms,
+    };
+  }
+
+  function applyDraft(draft: SignupDraft) {
+    setStep(draft.step);
+    setBillingModel(draft.billingModel);
+    setPlan(draft.plan);
+    setRestaurantName(draft.restaurantName);
+    setSlug(draft.slug);
+    setDocumentType(draft.documentType);
+    setDocumentNumber(draft.documentNumber);
+    setLegalName(draft.legalName);
+    setCep(draft.cep);
+    setStreet(draft.street);
+    setStreetNumber(draft.streetNumber);
+    setNeighborhood(draft.neighborhood);
+    setCity(draft.city);
+    setState(draft.state);
+    setNome(draft.nome);
+    setEmail(draft.email);
+    setSenha(draft.senha);
+    setOwnerPhone(draft.ownerPhone);
+    setAcceptedTerms(draft.acceptedTerms);
+  }
+
+  useEffect(() => {
+    const draft = loadSignupDraft();
+    if (draft) applyDraft(draft);
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated || step <= 0) return;
+    saveSignupDraft(buildDraft());
+  }, [
+    hydrated,
+    step,
+    billingModel,
+    plan,
+    restaurantName,
+    slug,
+    documentType,
+    documentNumber,
+    legalName,
+    cep,
+    street,
+    streetNumber,
+    neighborhood,
+    city,
+    state,
+    nome,
+    email,
+    senha,
+    ownerPhone,
+    acceptedTerms,
+  ]);
 
   useEffect(() => {
     if (!restaurantName.trim() || step < 1) return;
@@ -114,6 +210,136 @@ function CadastroPage() {
     return { Authorization: `Bearer ${token}` };
   }
 
+  async function redirectIfAlreadyRegistered() {
+    try {
+      const memberships = await fetchUserTenantsServer();
+      const owner = memberships.find((m) => m.role === "owner");
+      if (!owner) return false;
+
+      clearSignupDraft();
+      if (owner.tenant.status === "pending") {
+        window.location.href = `/cadastro/aguardando/${owner.tenant.slug}`;
+      } else {
+        window.location.href = `/t/${owner.tenant.slug}/dashboard`;
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  const completeRegistration = useCallback(async (draft: SignupDraft) => {
+    const doc = validateDocument(draft.documentType, draft.documentNumber);
+    if (!doc.ok) throw new Error(doc.error);
+
+    const phone = validateBrazilMobilePhone(draft.ownerPhone);
+    if (!phone.ok) throw new Error(phone.error);
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session?.user.email_confirmed_at) {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user?.email_confirmed_at) {
+        setAwaitingEmailConfirm(true);
+        throw new Error(
+          "Confirme seu e-mail antes de continuar. Verifique a caixa de entrada e clique no link de confirmação.",
+        );
+      }
+    }
+
+    const headers = await getAuthHeaders();
+    if (!headers) throw new Error("Não foi possível autenticar após cadastro.");
+
+    const metaRes = await fetch("/api/signup-client-meta");
+    const meta = metaRes.ok ? ((await metaRes.json()) as { ip?: string }) : { ip: "unknown" };
+
+    const result = await registerRestaurantServer({
+      data: {
+        restaurantName: draft.restaurantName.trim(),
+        slug: draft.slug.trim().toLowerCase(),
+        billingModel: draft.billingModel,
+        plan: draft.billingModel === "monthly" ? draft.plan : undefined,
+        acceptedTerms: true,
+        documentType: draft.documentType,
+        documentNumber: doc.normalized,
+        legalName: draft.legalName.trim(),
+        cep: draft.cep,
+        street: draft.street.trim(),
+        streetNumber: draft.streetNumber.trim(),
+        neighborhood: draft.neighborhood.trim(),
+        city: draft.city.trim(),
+        state: draft.state.trim(),
+        ownerPhone: phone.formatted,
+        clientIp: meta.ip ?? "unknown",
+      },
+      headers,
+    });
+
+    clearSignupDraft();
+    toast.success(`Cadastro de "${result.name}" enviado! Aguarde a aprovação.`);
+    window.location.href = `/cadastro/aguardando/${result.slug}`;
+  }, []);
+
+  const tryResumeSignup = useCallback(async () => {
+    const draft = loadSignupDraft();
+    if (!draft || draft.step < 3) return;
+
+    if (await redirectIfAlreadyRegistered()) return;
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData.session?.user;
+    if (!user) return;
+
+    if (!user.email_confirmed_at) {
+      setAwaitingEmailConfirm(true);
+      return;
+    }
+
+    if (completingRef.current) return;
+    completingRef.current = true;
+    setAutoCompleting(true);
+    setAwaitingEmailConfirm(false);
+    try {
+      await completeRegistration(draft);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro ao concluir cadastro";
+      if (
+        message.includes("já possui um restaurante") ||
+        message.includes("Já existe um restaurante")
+      ) {
+        if (await redirectIfAlreadyRegistered()) return;
+      }
+      toast.error(message);
+    } finally {
+      completingRef.current = false;
+      setAutoCompleting(false);
+    }
+  }, [completeRegistration]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+
+    void tryResumeSignup();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (
+        (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") &&
+        session?.user?.email_confirmed_at
+      ) {
+        if (resumeFromUrl) {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("resume");
+          const next = `${url.pathname}${url.search}${url.hash}`;
+          window.history.replaceState({}, "", next || "/cadastro");
+        }
+        void tryResumeSignup();
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [hydrated, resumeFromUrl, tryResumeSignup]);
+
   async function onSubmitAccount(e: React.FormEvent) {
     e.preventDefault();
     if (!isSupabaseConfigured()) {
@@ -137,14 +363,19 @@ function CadastroPage() {
       return;
     }
 
+    const draft = buildDraft(3);
+    saveSignupDraft(draft);
+
     setLoading(true);
     try {
+      if (await redirectIfAlreadyRegistered()) return;
+
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password: senha,
         options: {
           data: { nome },
-          emailRedirectTo: `${window.location.origin}/cadastro`,
+          emailRedirectTo: signupResumeUrl(),
         },
       });
 
@@ -156,55 +387,16 @@ function CadastroPage() {
           throw signUpError;
         }
       } else if (signUpData.user && !signUpData.session) {
+        setAwaitingEmailConfirm(true);
         toast.message("Confirme seu e-mail", {
           description:
-            "Enviamos um link de confirmação. Abra o e-mail, confirme e volte aqui para continuar.",
-          duration: 8000,
+            "Enviamos um link de confirmação. Ao clicar, seu cadastro será concluído automaticamente.",
+          duration: 10000,
         });
-        setLoading(false);
         return;
       }
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session?.user.email_confirmed_at) {
-        const { data: userData } = await supabase.auth.getUser();
-        if (!userData.user?.email_confirmed_at) {
-          throw new Error(
-            "Confirme seu e-mail antes de continuar. Verifique a caixa de entrada e clique no link de confirmação.",
-          );
-        }
-      }
-
-      const headers = await getAuthHeaders();
-      if (!headers) throw new Error("Não foi possível autenticar após cadastro.");
-
-      const metaRes = await fetch("/api/signup-client-meta");
-      const meta = metaRes.ok ? ((await metaRes.json()) as { ip?: string }) : { ip: "unknown" };
-
-      const result = await registerRestaurantServer({
-        data: {
-          restaurantName: restaurantName.trim(),
-          slug: slug.trim().toLowerCase(),
-          billingModel,
-          plan: billingModel === "monthly" ? plan : undefined,
-          acceptedTerms: true,
-          documentType,
-          documentNumber: doc.normalized,
-          legalName: legalName.trim(),
-          cep,
-          street: street.trim(),
-          streetNumber: streetNumber.trim(),
-          neighborhood: neighborhood.trim(),
-          city: city.trim(),
-          state: state.trim(),
-          ownerPhone: phone.formatted,
-          clientIp: meta.ip ?? "unknown",
-        },
-        headers,
-      });
-
-      toast.success(`Cadastro de "${result.name}" enviado! Aguarde a aprovação.`);
-      window.location.href = `/cadastro/aguardando/${result.slug}`;
+      await completeRegistration(draft);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Erro ao criar conta");
     } finally {
@@ -228,8 +420,14 @@ function CadastroPage() {
         return;
       }
     }
-    setStep((s) => Math.min(s + 1, STEPS.length - 1));
+    setStep((s) => {
+      const next = Math.min(s + 1, STEPS.length - 1);
+      saveSignupDraft(buildDraft(next));
+      return next;
+    });
   }
+
+  const showWizard = !autoCompleting && !awaitingEmailConfirm;
 
   return (
     <div className="min-h-screen bg-[#F6F7F9] px-4 py-8">
@@ -245,7 +443,7 @@ function CadastroPage() {
               <span
                 className={cn(
                   "grid size-8 place-items-center rounded-full text-xs font-semibold",
-                  i <= step ? "bg-[#FF9100] text-white" : "bg-[#E5E7EB] text-[#6B7280]",
+                  i <= step || !showWizard ? "bg-[#FF9100] text-white" : "bg-[#E5E7EB] text-[#6B7280]",
                 )}
               >
                 {i + 1}
@@ -253,7 +451,7 @@ function CadastroPage() {
               <span
                 className={cn(
                   "hidden text-sm sm:inline",
-                  i === step ? "font-semibold text-[#111111]" : "text-[#6B7280]",
+                  i === step && showWizard ? "font-semibold text-[#111111]" : "text-[#6B7280]",
                 )}
               >
                 {label}
@@ -263,6 +461,41 @@ function CadastroPage() {
         </div>
 
         <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-sm">
+          {autoCompleting ? (
+            <div className="py-10 text-center">
+              <div className="mx-auto mb-4 size-10 animate-spin rounded-full border-2 border-[#FF9100] border-t-transparent" />
+              <h1 className="text-xl font-semibold text-[#111111]">Concluindo seu cadastro...</h1>
+              <p className="mt-2 text-sm text-[#6B7280]">
+                E-mail confirmado. Estamos criando o restaurante e em seguida você verá a tela de
+                espera.
+              </p>
+            </div>
+          ) : awaitingEmailConfirm ? (
+            <div className="py-6 text-center">
+              <h1 className="text-2xl font-semibold text-[#111111]">Confirme seu e-mail</h1>
+              <p className="mt-3 text-sm leading-relaxed text-[#6B7280]">
+                Enviamos um link para <strong className="text-[#111111]">{email}</strong>. Ao
+                confirmar, você será redirecionado automaticamente para a tela de espera — não
+                precisa preencher tudo de novo.
+              </p>
+              <div className="mt-6 rounded-xl bg-[#F6F7F9] p-4 text-left text-sm text-[#5C4A3A]">
+                <p>
+                  <strong>Restaurante:</strong> {restaurantName || "—"}
+                </p>
+                <p className="mt-1">
+                  <strong>Loja:</strong> norfood.com.br/loja/{slug || "—"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void tryResumeSignup()}
+                className="mt-6 h-11 w-full rounded-lg bg-[#FF9100] text-sm font-medium text-white hover:bg-[#FF5C00]"
+              >
+                Já confirmei o e-mail
+              </button>
+            </div>
+          ) : (
+            <>
           <h1 className="text-center text-2xl font-semibold text-[#111111]">
             {step === 0
               ? "Escolha como pagar"
@@ -515,6 +748,8 @@ function CadastroPage() {
           <p className="mt-4 text-center text-sm text-[#6B7280]">
             <Link to="/login">Já tenho conta</Link>
           </p>
+            </>
+          )}
         </div>
       </div>
     </div>

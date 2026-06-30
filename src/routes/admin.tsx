@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
+import { isSupabaseConfigured } from "@/integrations/supabase/client";
+import { getAuthenticatedUser } from "@/lib/auth-session";
 import { isBrowserDemoEnabled } from "@/lib/runtime";
 import { checkCurrentUserPlatformAdmin } from "@/lib/platform-admin/client";
 
@@ -10,8 +11,8 @@ export const Route = createFileRoute("/admin")({
       return { demo: true };
     }
 
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) {
+    const user = await getAuthenticatedUser();
+    if (!user) {
       throw redirect({
         to: "/login",
         search: { redirect: "/admin" },
@@ -23,7 +24,7 @@ export const Route = createFileRoute("/admin")({
       throw redirect({ to: "/" });
     }
 
-    return { demo: false, user: data.user };
+    return { demo: false, user };
   },
   component: () => <Outlet />,
 });
