@@ -88,6 +88,7 @@ function BalcaoPage() {
       setCarrinho([]);
       toast.success("Pedido do balcão criado com sucesso.");
       qc.invalidateQueries({ queryKey: tenantQueryKey("pedidos", tenantSlug) });
+      qc.invalidateQueries({ queryKey: tenantQueryKey("dashboard", tenantSlug) });
       qc.invalidateQueries({ queryKey: tenantQueryKey("financeiro", tenantSlug) });
     } catch (error: any) {
       toast.error(error.message ?? "Não foi possível criar o pedido.");

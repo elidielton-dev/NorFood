@@ -2,11 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { TrendingUp, ShoppingBag, Users, Wallet, Clock, Truck } from "lucide-react";
-import { formatBRL, hasPendingMercadoPagoPayment, listarEntregas, listarPedidos } from "@/lib/db";
+import { formatBRL, listarEntregas } from "@/lib/db";
+import { fetchPainelDashboardServer } from "@/lib/api/painel-data.functions";
 import { MetricCard } from "@/components/design-system/metric-card";
 import { PageHeader } from "@/components/design-system/page-header";
 import { StatusBadge } from "@/components/design-system/status-badge";
-import { useTenantOptional } from "@/lib/tenant/tenant-context";
+import { useTenant } from "@/lib/tenant/tenant-context";
 import { tenantQueryKey } from "@/lib/tenant/query-keys";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -19,35 +20,26 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export function PainelDashboardPage() {
-  const tenantCtx = useTenantOptional();
-  const tenantId = tenantCtx?.tenant.id;
-  const tenantSlug = tenantCtx?.tenant.slug;
-  const tenantName = tenantCtx?.tenant.name ?? "Painel";
+  const { tenant } = useTenant();
+  const tenantSlug = tenant.slug;
+  const tenantName = tenant.name;
 
-  const { data: pedidos = [] } = useQuery({
-    queryKey: tenantSlug ? tenantQueryKey("pedidos", tenantSlug) : ["pedidos"],
-    queryFn: listarPedidos,
-    enabled: Boolean(tenantId),
+  const { data: dashboard } = useQuery({
+    queryKey: tenantQueryKey("dashboard", tenantSlug),
+    queryFn: () => fetchPainelDashboardServer({ data: tenantSlug }),
     refetchInterval: 60_000,
   });
+
   const { data: entregas = [] } = useQuery({
-    queryKey: tenantSlug ? tenantQueryKey("entregas", tenantSlug) : ["entregas"],
+    queryKey: tenantQueryKey("entregas", tenantSlug),
     queryFn: listarEntregas,
-    enabled: Boolean(tenantId),
   });
 
-  const hoje = new Date().toDateString();
-  const pedidosPagosOuOperacionais = pedidos.filter(
-    (p) => !hasPendingMercadoPagoPayment(p) && p.status !== "cancelado",
-  );
-  const deHoje = pedidosPagosOuOperacionais.filter(
-    (p) => new Date(p.created_at).toDateString() === hoje,
-  );
-  const faturamento = deHoje.reduce((s, p) => s + Number(p.total), 0);
-  const ticket = deHoje.length ? faturamento / deHoje.length : 0;
-  const emAndamento = pedidos.filter((p) =>
-    ["aberto", "em_preparo", "pronto", "em_entrega"].includes(p.status),
-  ).length;
+  const pedidos = dashboard?.pedidos ?? [];
+  const faturamento = dashboard?.faturamentoHoje ?? 0;
+  const pedidosHoje = dashboard?.pedidosHoje ?? 0;
+  const ticket = dashboard?.ticketMedio ?? 0;
+  const emAndamento = dashboard?.emAndamento ?? 0;
 
   const statusChart = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -97,13 +89,13 @@ export function PainelDashboardPage() {
         <MetricCard
           label="Vendas do dia"
           value={formatBRL(faturamento)}
-          hint="Faturamento consolidado"
+          hint={`${pedidosHoje} pedido(s) hoje · fuso ${tenant.timezone}`}
           icon={Wallet}
         />
         <MetricCard
           label="Pedidos em andamento"
           value={String(emAndamento)}
-          hint={`${deHoje.length} pedidos hoje`}
+          hint={`${pedidosHoje} pedidos hoje`}
           icon={ShoppingBag}
         />
         <MetricCard label="Ticket médio" value={formatBRL(ticket)} icon={TrendingUp} />
@@ -173,7 +165,9 @@ export function PainelDashboardPage() {
                     #{p.numero} · {p.canal}
                   </p>
                   <p className="text-xs text-[#6B7280]">
-                    {new Date(p.created_at).toLocaleString("pt-BR")}
+                    {new Date(p.created_at).toLocaleString("pt-BR", {
+                      timeZone: tenant.timezone,
+                    })}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
