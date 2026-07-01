@@ -5,12 +5,34 @@
 {$DOMAIN} {
   encode gzip zstd
 
-  reverse_proxy norfood:3000 {
-    health_uri /api/health
-    health_interval 30s
-    transport http {
-      read_timeout 120s
-      write_timeout 120s
+  @metro path /metro /metro/* /index.ts.bundle* /index.exp /status /manifest /_expo/* /assets/*
+  handle @metro {
+    @metro_prefixed path /metro /metro/*
+    handle @metro_prefixed {
+      uri strip_prefix /metro
+      reverse_proxy expo-metro:8081 {
+        transport http {
+          read_timeout 300s
+          write_timeout 300s
+        }
+      }
+    }
+    reverse_proxy expo-metro:8081 {
+      transport http {
+        read_timeout 300s
+        write_timeout 300s
+      }
+    }
+  }
+
+  handle {
+    reverse_proxy norfood:3000 {
+      health_uri /api/health
+      health_interval 30s
+      transport http {
+        read_timeout 120s
+        write_timeout 120s
+      }
     }
   }
 

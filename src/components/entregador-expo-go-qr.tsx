@@ -60,10 +60,11 @@ export function EntregadorExpoGoQrPanel({
   compact?: boolean;
   riderName?: string;
 }) {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["expo-go-url"],
     queryFn: fetchExpoGoUrl,
-    staleTime: 60_000,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
   });
 
   const fallbackUrl = resolveExpoGoUrl({
@@ -72,10 +73,14 @@ export function EntregadorExpoGoQrPanel({
     metroPort: import.meta.env.VITE_EXPO_METRO_PORT,
   });
 
-  const expoUrl = data?.url ?? fallbackUrl;
-  const qrDataUrl = useExpoGoQrDataUrl(expoUrl);
+  const expoUrl = data?.url || fallbackUrl;
+  const qrDataUrl = useExpoGoQrDataUrl(expoUrl || undefined);
 
   async function copyLink() {
+    if (!expoUrl) {
+      toast.error("URL do Expo Go indisponivel.");
+      return;
+    }
     try {
       await navigator.clipboard.writeText(expoUrl);
       toast.success("Link Expo Go copiado.");
@@ -124,12 +129,13 @@ export function EntregadorExpoGoQrPanel({
             senha do entregador.
           </p>
 
-          {isLoading ? (
+          {isLoading || isFetching ? (
             <p className="mt-3 text-sm text-muted-foreground">Carregando URL do Metro...</p>
           ) : null}
-          {isError ? (
+          {isError || !expoUrl ? (
             <p className="mt-3 text-sm text-amber-700">
-              Usando URL padrao. Confirme se o Metro esta rodando na VPS (porta 8081).
+              Nao foi possivel obter a URL do Expo Go. O Metro pode estar reiniciando — aguarde e
+              atualize.
             </p>
           ) : null}
 
@@ -143,7 +149,15 @@ export function EntregadorExpoGoQrPanel({
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            <GestaoButton variant="secondary" size="sm" onClick={() => void copyLink()}>
+            <GestaoButton variant="secondary" size="sm" onClick={() => void refetch()}>
+              Atualizar QR
+            </GestaoButton>
+            <GestaoButton
+              variant="secondary"
+              size="sm"
+              onClick={() => void copyLink()}
+              disabled={!expoUrl}
+            >
               <Copy className="size-3.5" />
               Copiar link
             </GestaoButton>

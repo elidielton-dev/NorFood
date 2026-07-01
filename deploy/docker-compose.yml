@@ -53,6 +53,7 @@ services:
     environment:
       EXPO_PUBLIC_SUPABASE_URL: ${VITE_SUPABASE_URL}
       EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
+      DOMAIN: ${DOMAIN}
       EXPO_METRO_HOST: ${EXPO_METRO_HOST:-15.228.214.190}
       EXPO_URL_FILE: /data/expo-go-url.txt
     volumes:
