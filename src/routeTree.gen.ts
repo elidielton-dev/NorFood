@@ -50,7 +50,6 @@ import { Route as AdminMetricasRouteImport } from './routes/admin.metricas'
 import { Route as AdminFaturamentoRouteImport } from './routes/admin.faturamento'
 import { Route as AdminEmpresasRouteImport } from './routes/admin.empresas'
 import { Route as AdminConfiguracoesRouteImport } from './routes/admin.configuracoes'
-import { Route as AdminAprovacoesRouteImport } from './routes/admin.aprovacoes'
 import { Route as AdminAlertasRouteImport } from './routes/admin.alertas'
 import { Route as AdminAcessosRouteImport } from './routes/admin.acessos'
 import { Route as AdminTenantIdRouteImport } from './routes/admin.$tenantId'
@@ -343,11 +342,6 @@ const AdminEmpresasRoute = AdminEmpresasRouteImport.update({
 const AdminConfiguracoesRoute = AdminConfiguracoesRouteImport.update({
   id: '/configuracoes',
   path: '/configuracoes',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminAprovacoesRoute = AdminAprovacoesRouteImport.update({
-  id: '/aprovacoes',
-  path: '/aprovacoes',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminAlertasRoute = AdminAlertasRouteImport.update({
@@ -881,7 +875,6 @@ export interface FileRoutesByFullPath {
   '/admin/$tenantId': typeof AdminTenantIdRoute
   '/admin/acessos': typeof AdminAcessosRoute
   '/admin/alertas': typeof AdminAlertasRoute
-  '/admin/aprovacoes': typeof AdminAprovacoesRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/empresas': typeof AdminEmpresasRoute
   '/admin/faturamento': typeof AdminFaturamentoRouteWithChildren
@@ -1010,7 +1003,6 @@ export interface FileRoutesByTo {
   '/admin/$tenantId': typeof AdminTenantIdRoute
   '/admin/acessos': typeof AdminAcessosRoute
   '/admin/alertas': typeof AdminAlertasRoute
-  '/admin/aprovacoes': typeof AdminAprovacoesRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/empresas': typeof AdminEmpresasRoute
   '/admin/faturamento': typeof AdminFaturamentoRouteWithChildren
@@ -1136,7 +1128,6 @@ export interface FileRoutesById {
   '/admin/$tenantId': typeof AdminTenantIdRoute
   '/admin/acessos': typeof AdminAcessosRoute
   '/admin/alertas': typeof AdminAlertasRoute
-  '/admin/aprovacoes': typeof AdminAprovacoesRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/empresas': typeof AdminEmpresasRoute
   '/admin/faturamento': typeof AdminFaturamentoRouteWithChildren
@@ -1270,7 +1261,6 @@ export interface FileRouteTypes {
     | '/admin/$tenantId'
     | '/admin/acessos'
     | '/admin/alertas'
-    | '/admin/aprovacoes'
     | '/admin/configuracoes'
     | '/admin/empresas'
     | '/admin/faturamento'
@@ -1399,7 +1389,6 @@ export interface FileRouteTypes {
     | '/admin/$tenantId'
     | '/admin/acessos'
     | '/admin/alertas'
-    | '/admin/aprovacoes'
     | '/admin/configuracoes'
     | '/admin/empresas'
     | '/admin/faturamento'
@@ -1524,7 +1513,6 @@ export interface FileRouteTypes {
     | '/admin/$tenantId'
     | '/admin/acessos'
     | '/admin/alertas'
-    | '/admin/aprovacoes'
     | '/admin/configuracoes'
     | '/admin/empresas'
     | '/admin/faturamento'
@@ -1953,13 +1941,6 @@ declare module '@tanstack/react-router' {
       path: '/configuracoes'
       fullPath: '/admin/configuracoes'
       preLoaderRoute: typeof AdminConfiguracoesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/aprovacoes': {
-      id: '/admin/aprovacoes'
-      path: '/aprovacoes'
-      fullPath: '/admin/aprovacoes'
-      preLoaderRoute: typeof AdminAprovacoesRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/alertas': {
@@ -2923,7 +2904,6 @@ interface AdminRouteChildren {
   AdminTenantIdRoute: typeof AdminTenantIdRoute
   AdminAcessosRoute: typeof AdminAcessosRoute
   AdminAlertasRoute: typeof AdminAlertasRoute
-  AdminAprovacoesRoute: typeof AdminAprovacoesRoute
   AdminConfiguracoesRoute: typeof AdminConfiguracoesRoute
   AdminEmpresasRoute: typeof AdminEmpresasRoute
   AdminFaturamentoRoute: typeof AdminFaturamentoRouteWithChildren
@@ -2939,7 +2919,6 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminTenantIdRoute: AdminTenantIdRoute,
   AdminAcessosRoute: AdminAcessosRoute,
   AdminAlertasRoute: AdminAlertasRoute,
-  AdminAprovacoesRoute: AdminAprovacoesRoute,
   AdminConfiguracoesRoute: AdminConfiguracoesRoute,
   AdminEmpresasRoute: AdminEmpresasRoute,
   AdminFaturamentoRoute: AdminFaturamentoRouteWithChildren,

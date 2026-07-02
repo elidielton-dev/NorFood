@@ -29,7 +29,6 @@ export function AdminLayoutShell({ children }: { children: ReactNode }) {
   });
 
   const alertCount = dashboard?.alerts.length ?? 0;
-  const pendingCount = dashboard?.tenants.pending ?? 0;
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
@@ -57,7 +56,6 @@ export function AdminLayoutShell({ children }: { children: ReactNode }) {
 
   const sidebarProps = {
     pathname: location.pathname,
-    pendingCount,
     alertCount,
     onNavigate: () => setMobileOpen(false),
   };
@@ -186,13 +184,11 @@ function AdminSidebarBrand({
 function AdminSidebarNav({
   expanded,
   pathname,
-  pendingCount,
   alertCount,
   onNavigate,
 }: {
   expanded: boolean;
   pathname: string;
-  pendingCount: number;
   alertCount: number;
   onNavigate?: () => void;
 }) {
@@ -210,7 +206,6 @@ function AdminSidebarNav({
               const active = isAdminSidebarItemActive(pathname, item.to);
               const Icon = item.icon;
               let badge: number | undefined;
-              if (item.id === "aprovacoes" && pendingCount > 0) badge = pendingCount;
               if (item.id === "alertas" && alertCount > 0) badge = alertCount;
 
               return (

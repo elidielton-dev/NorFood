@@ -3,7 +3,6 @@ import {
   AlertTriangle,
   BarChart3,
   Building2,
-  Clock3,
   CreditCard,
   LayoutDashboard,
   Plus,
@@ -45,7 +44,6 @@ export const ADMIN_SIDEBAR_SECTIONS: AdminSidebarSection[] = [
     items: [
       { id: "empresas", label: "Empresas", to: "/admin/empresas", icon: Building2 },
       { id: "nova", label: "Nova empresa", to: "/admin/nova", icon: Plus },
-      { id: "aprovacoes", label: "Aprovações", to: "/admin/aprovacoes", icon: Clock3 },
       { id: "revendedoras", label: "Revendedoras", to: "/admin/revendedoras", icon: Users },
     ],
   },

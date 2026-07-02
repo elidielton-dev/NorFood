@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, Clock3, ExternalLink, Plus, Power, PowerOff, Search } from "lucide-react";
+import { Building2, ExternalLink, Plus, Power, PowerOff, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AdminPage, AdminStatCard } from "@/routes/admin";
@@ -115,30 +115,19 @@ function AdminEmpresasPage() {
       title="Empresas"
       subtitle="Gerencie restaurantes cadastrados na plataforma Norfood."
       actions={
-        <div className="flex flex-wrap items-center gap-2">
-          {stats.pending > 0 ? (
-            <Link
-              to="/admin/aprovacoes"
-              className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-900"
-            >
-              <Clock3 className="size-4" />
-              {stats.pending} aguardando aprovação
-            </Link>
-          ) : null}
-          {capacity?.atLimit ? (
-            <span className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-800">
-              Limite atingido ({capacity.currentTenants}/{capacity.maxTenants})
-            </span>
-          ) : (
-            <Link
-              to="/admin/nova"
-              className="inline-flex items-center gap-2 rounded-xl bg-[#FF9100] px-4 py-2 text-sm font-semibold text-white"
-            >
-              <Plus className="size-4" />
-              Nova empresa
-            </Link>
-          )}
-        </div>
+        capacity?.atLimit ? (
+          <span className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-800">
+            Limite atingido ({capacity.currentTenants}/{capacity.maxTenants})
+          </span>
+        ) : (
+          <Link
+            to="/admin/nova"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#FF9100] px-4 py-2 text-sm font-semibold text-white"
+          >
+            <Plus className="size-4" />
+            Nova empresa
+          </Link>
+        )
       }
     >
       {demo && isBrowserDemoEnabled() ? (

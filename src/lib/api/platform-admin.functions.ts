@@ -785,9 +785,9 @@ export const getAdminDashboardServer = createServerFn({ method: "GET" })
       alerts.push({
         id: "pending-tenants",
         level: "warning",
-        title: `${stats.pending} empresa(s) aguardando aprovação`,
-        description: "Revise cadastros pendentes para liberar acesso.",
-        href: "/admin/aprovacoes",
+        title: `${stats.pending} empresa(s) com status pendente`,
+        description: "Revise em Empresas e ajuste o status manualmente.",
+        href: "/admin/empresas",
       });
     }
     if (currentTenants >= maxTenants) {
