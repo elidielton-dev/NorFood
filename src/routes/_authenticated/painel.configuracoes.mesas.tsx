@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Copy, Plus, Trash2, Wand2 } from "lucide-react";
+import { Copy, Plus, QrCode, Trash2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   ConfigSection,
@@ -24,6 +24,7 @@ import {
   GestaoTableHead,
   GestaoEmptyState,
 } from "@/components/gestao-ui";
+import { printMesaQrCode } from "@/lib/print";
 
 export const Route = createFileRoute("/_authenticated/painel/configuracoes/mesas")({
   component: ConfiguracoesMesasPage,
@@ -168,6 +169,27 @@ function ConfiguracoesMesasPage() {
                       <GestaoButton
                         variant="secondary"
                         size="sm"
+                        title="Imprimir QR Code"
+                        onClick={() => {
+                          void printMesaQrCode({
+                            url: cardapioUrl(mesa.qrcode_token),
+                            mesaNumero: mesa.numero,
+                            tenantName: tenant.name,
+                          }).catch((error: unknown) => {
+                            toast.error(
+                              error instanceof Error
+                                ? error.message
+                                : "Não foi possível imprimir o QR Code.",
+                            );
+                          });
+                        }}
+                      >
+                        <QrCode className="size-4" />
+                      </GestaoButton>
+                      <GestaoButton
+                        variant="secondary"
+                        size="sm"
+                        title="Copiar link do cardápio"
                         onClick={() => {
                           void navigator.clipboard.writeText(cardapioUrl(mesa.qrcode_token));
                           toast.success("Link copiado.");

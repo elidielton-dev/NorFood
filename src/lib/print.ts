@@ -1,3 +1,35 @@
+import QRCode from "qrcode";
+
+export async function printMesaQrCode(input: {
+  url: string;
+  mesaNumero: number;
+  tenantName: string;
+}) {
+  const qrDataUrl = await QRCode.toDataURL(input.url, {
+    width: 360,
+    margin: 2,
+    color: { dark: "#111111", light: "#ffffff" },
+  });
+
+  const bodyHtml = `
+    <div style="text-align:center;font-family:Inter,Segoe UI,sans-serif;color:#111111;">
+      <p style="font-size:16px;font-weight:600;margin:0 0 6px;letter-spacing:0.04em;text-transform:uppercase;">
+        ${escapeHtml(input.tenantName)}
+      </p>
+      <p style="font-size:32px;font-weight:800;margin:0 0 28px;">Mesa ${input.mesaNumero}</p>
+      <img
+        src="${qrDataUrl}"
+        alt="QR Code Mesa ${input.mesaNumero}"
+        style="width:280px;height:280px;display:block;margin:0 auto 24px;"
+      />
+      <p style="font-size:15px;font-weight:600;margin:0 0 8px;">Escaneie para ver o cardápio</p>
+      <p style="font-size:11px;margin:0;color:#6b7280;word-break:break-all;">${escapeHtml(input.url)}</p>
+    </div>
+  `;
+
+  await printHtmlReceipt(`Mesa ${input.mesaNumero} — QR Code`, bodyHtml);
+}
+
 export async function printHtmlReceipt(title: string, bodyHtml: string) {
   if (typeof window === "undefined" || typeof document === "undefined") return;
 
