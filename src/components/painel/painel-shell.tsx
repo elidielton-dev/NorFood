@@ -21,7 +21,9 @@ import {
 } from "@/lib/tenant/tenant-sidebar";
 import { isBrowserDemoEnabled } from "@/lib/runtime";
 import type { TenantRole } from "@/lib/tenant/types";
+import type { BillingPlanId } from "@/lib/platform/billing-plans";
 import { tenantPath } from "@/lib/tenant/painel-routes";
+import { ConfigSidebarNav } from "@/components/painel/config-sidebar-nav";
 
 type PainelShellProps = {
   tenantSlug: string;
@@ -104,6 +106,9 @@ export function PainelShell({ tenantSlug, userRole }: PainelShellProps) {
         onMouseEnter={() => setDesktopExpanded(true)}
         onMouseLeave={() => setDesktopExpanded(false)}
         tenant={tenant}
+        tenantSlug={tenantSlug}
+        userRole={userRole}
+        planId={planFeatures?.planId}
         lojaStatus={lojaStatus}
         homeItem={homeItem}
         allItems={allSidebarItems}
@@ -118,6 +123,9 @@ export function PainelShell({ tenantSlug, userRole }: PainelShellProps) {
         open={open}
         onClose={() => setOpen(false)}
         tenant={tenant}
+        tenantSlug={tenantSlug}
+        userRole={userRole}
+        planId={planFeatures?.planId}
         homeItem={homeItem}
         allItems={allSidebarItems}
         sections={sections}
@@ -266,6 +274,9 @@ function DesktopSidebar({
   onMouseEnter,
   onMouseLeave,
   tenant,
+  tenantSlug,
+  userRole,
+  planId,
   lojaStatus,
   homeItem,
   allItems,
@@ -279,6 +290,9 @@ function DesktopSidebar({
   onMouseEnter: () => void;
   onMouseLeave: () => void;
   tenant: { name: string; subtitle: string | null; primary_color: string; logo_url: string | null };
+  tenantSlug: string;
+  userRole?: TenantRole;
+  planId?: BillingPlanId;
   lojaStatus: { aberta: boolean; label: string; dotClass: string };
   homeItem: ReturnType<typeof getTenantSidebarHomeItem>;
   allItems: ReturnType<typeof getAllTenantSidebarItems>;
@@ -323,6 +337,9 @@ function DesktopSidebar({
 
       <SidebarNav
         expanded={expanded}
+        tenantSlug={tenantSlug}
+        userRole={userRole}
+        planId={planId}
         homeItem={homeItem}
         allItems={allItems}
         sections={sections}
@@ -343,6 +360,9 @@ function MobileSidebar({
   open,
   onClose,
   tenant,
+  tenantSlug,
+  userRole,
+  planId,
   homeItem,
   allItems,
   sections,
@@ -354,6 +374,9 @@ function MobileSidebar({
   open: boolean;
   onClose: () => void;
   tenant: { name: string; subtitle: string | null; primary_color: string; logo_url: string | null };
+  tenantSlug: string;
+  userRole?: TenantRole;
+  planId?: BillingPlanId;
   homeItem: ReturnType<typeof getTenantSidebarHomeItem>;
   allItems: ReturnType<typeof getAllTenantSidebarItems>;
   sections: ReturnType<typeof getTenantSidebarSections>;
@@ -391,6 +414,9 @@ function MobileSidebar({
       </div>
       <SidebarNav
         expanded
+        tenantSlug={tenantSlug}
+        userRole={userRole}
+        planId={planId}
         homeItem={homeItem}
         allItems={allItems}
         sections={sections}
@@ -410,6 +436,9 @@ function MobileSidebar({
 
 function SidebarNav({
   expanded,
+  tenantSlug,
+  userRole,
+  planId,
   homeItem,
   allItems,
   sections,
@@ -417,6 +446,9 @@ function SidebarNav({
   onNavigate,
 }: {
   expanded: boolean;
+  tenantSlug: string;
+  userRole?: TenantRole;
+  planId?: BillingPlanId;
   homeItem: ReturnType<typeof getTenantSidebarHomeItem>;
   allItems: ReturnType<typeof getAllTenantSidebarItems>;
   sections: ReturnType<typeof getTenantSidebarSections>;
@@ -434,22 +466,34 @@ function SidebarNav({
       />
 
       {sections.map((section) => (
-        <div key={section.title} className="mb-4 mt-4">
-          {expanded ? (
-            <p className="mb-1 px-4 text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">
-              {section.title}
-            </p>
-          ) : null}
-          {section.items.map((item) => (
-            <SidebarItemLink
-              key={item.to}
-              item={item}
+        <div key={section.title}>
+          <div className="mb-4 mt-4">
+            {expanded ? (
+              <p className="mb-1 px-4 text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">
+                {section.title}
+              </p>
+            ) : null}
+            {section.items.map((item) => (
+              <SidebarItemLink
+                key={item.to}
+                item={item}
+                pathname={pathname}
+                allItems={allItems}
+                expanded={expanded}
+                onNavigate={onNavigate}
+              />
+            ))}
+          </div>
+          {section.title === "Produtos" ? (
+            <ConfigSidebarNav
+              tenantSlug={tenantSlug}
               pathname={pathname}
-              allItems={allItems}
               expanded={expanded}
+              userRole={userRole}
+              planId={planId}
               onNavigate={onNavigate}
             />
-          ))}
+          ) : null}
         </div>
       ))}
     </nav>

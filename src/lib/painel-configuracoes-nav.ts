@@ -108,6 +108,13 @@ export function resolveConfigNavFromPathname(pathname: string) {
   return null;
 }
 
+/** Rota pertence à área de configurações (sidebar + shell de conteúdo). */
+export function isConfigAreaPathname(pathname: string) {
+  const resolved = resolveConfigNavFromPathname(pathname);
+  if (!resolved) return false;
+  return Boolean(resolved.item);
+}
+
 export function findConfigNavItem(path: string) {
   return ALL_ITEMS.find((entry) => entry.path === path) ?? null;
 }

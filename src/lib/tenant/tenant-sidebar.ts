@@ -14,7 +14,6 @@ import {
   PackageX,
   Receipt,
   MessageSquare,
-  Settings2,
   ShoppingCart,
   Ticket,
   Utensils,
@@ -119,10 +118,6 @@ export function getTenantSidebarSections(
         item(tenantSlug, "produtos/categorias", "Categorias e listas", LayoutList),
         item(tenantSlug, "cupons", "Cupons", Ticket),
       ],
-    },
-    {
-      title: "Configuracoes",
-      items: [item(tenantSlug, "configuracoes", "Configuracoes", Settings2)],
     },
     {
       title: "Atendimento",
