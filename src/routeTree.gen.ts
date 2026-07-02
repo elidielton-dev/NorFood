@@ -24,6 +24,7 @@ import { Route as ParceiroIndexRouteImport } from './routes/parceiro.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as TTenantSlugRouteImport } from './routes/t.$tenantSlug'
 import { Route as ParceiroTokensRouteImport } from './routes/parceiro.tokens'
+import { Route as ParceiroSemAcessoRouteImport } from './routes/parceiro.sem-acesso'
 import { Route as ParceiroRestaurantesRouteImport } from './routes/parceiro.restaurantes'
 import { Route as LojaTenantSlugRouteImport } from './routes/loja.$tenantSlug'
 import { Route as EntregadorLoginRouteImport } from './routes/entregador.login'
@@ -196,6 +197,11 @@ const TTenantSlugRoute = TTenantSlugRouteImport.update({
 const ParceiroTokensRoute = ParceiroTokensRouteImport.update({
   id: '/tokens',
   path: '/tokens',
+  getParentRoute: () => ParceiroRoute,
+} as any)
+const ParceiroSemAcessoRoute = ParceiroSemAcessoRouteImport.update({
+  id: '/sem-acesso',
+  path: '/sem-acesso',
   getParentRoute: () => ParceiroRoute,
 } as any)
 const ParceiroRestaurantesRoute = ParceiroRestaurantesRouteImport.update({
@@ -789,6 +795,7 @@ export interface FileRoutesByFullPath {
   '/entregador/login': typeof EntregadorLoginRoute
   '/loja/$tenantSlug': typeof LojaTenantSlugRoute
   '/parceiro/restaurantes': typeof ParceiroRestaurantesRouteWithChildren
+  '/parceiro/sem-acesso': typeof ParceiroSemAcessoRoute
   '/parceiro/tokens': typeof ParceiroTokensRoute
   '/t/$tenantSlug': typeof TTenantSlugRouteWithChildren
   '/admin/': typeof AdminIndexRoute
@@ -899,6 +906,7 @@ export interface FileRoutesByTo {
   '/entregador/expo-go': typeof EntregadorExpoGoRoute
   '/entregador/login': typeof EntregadorLoginRoute
   '/loja/$tenantSlug': typeof LojaTenantSlugRoute
+  '/parceiro/sem-acesso': typeof ParceiroSemAcessoRoute
   '/parceiro/tokens': typeof ParceiroTokensRoute
   '/admin': typeof AdminIndexRoute
   '/parceiro': typeof ParceiroIndexRoute
@@ -1010,6 +1018,7 @@ export interface FileRoutesById {
   '/entregador/login': typeof EntregadorLoginRoute
   '/loja/$tenantSlug': typeof LojaTenantSlugRoute
   '/parceiro/restaurantes': typeof ParceiroRestaurantesRouteWithChildren
+  '/parceiro/sem-acesso': typeof ParceiroSemAcessoRoute
   '/parceiro/tokens': typeof ParceiroTokensRoute
   '/t/$tenantSlug': typeof TTenantSlugRouteWithChildren
   '/admin/': typeof AdminIndexRoute
@@ -1127,6 +1136,7 @@ export interface FileRouteTypes {
     | '/entregador/login'
     | '/loja/$tenantSlug'
     | '/parceiro/restaurantes'
+    | '/parceiro/sem-acesso'
     | '/parceiro/tokens'
     | '/t/$tenantSlug'
     | '/admin/'
@@ -1237,6 +1247,7 @@ export interface FileRouteTypes {
     | '/entregador/expo-go'
     | '/entregador/login'
     | '/loja/$tenantSlug'
+    | '/parceiro/sem-acesso'
     | '/parceiro/tokens'
     | '/admin'
     | '/parceiro'
@@ -1347,6 +1358,7 @@ export interface FileRouteTypes {
     | '/entregador/login'
     | '/loja/$tenantSlug'
     | '/parceiro/restaurantes'
+    | '/parceiro/sem-acesso'
     | '/parceiro/tokens'
     | '/t/$tenantSlug'
     | '/admin/'
@@ -1566,6 +1578,13 @@ declare module '@tanstack/react-router' {
       path: '/tokens'
       fullPath: '/parceiro/tokens'
       preLoaderRoute: typeof ParceiroTokensRouteImport
+      parentRoute: typeof ParceiroRoute
+    }
+    '/parceiro/sem-acesso': {
+      id: '/parceiro/sem-acesso'
+      path: '/sem-acesso'
+      fullPath: '/parceiro/sem-acesso'
+      preLoaderRoute: typeof ParceiroSemAcessoRouteImport
       parentRoute: typeof ParceiroRoute
     }
     '/parceiro/restaurantes': {
@@ -2665,12 +2684,14 @@ const ParceiroRestaurantesRouteWithChildren =
 
 interface ParceiroRouteChildren {
   ParceiroRestaurantesRoute: typeof ParceiroRestaurantesRouteWithChildren
+  ParceiroSemAcessoRoute: typeof ParceiroSemAcessoRoute
   ParceiroTokensRoute: typeof ParceiroTokensRoute
   ParceiroIndexRoute: typeof ParceiroIndexRoute
 }
 
 const ParceiroRouteChildren: ParceiroRouteChildren = {
   ParceiroRestaurantesRoute: ParceiroRestaurantesRouteWithChildren,
+  ParceiroSemAcessoRoute: ParceiroSemAcessoRoute,
   ParceiroTokensRoute: ParceiroTokensRoute,
   ParceiroIndexRoute: ParceiroIndexRoute,
 }

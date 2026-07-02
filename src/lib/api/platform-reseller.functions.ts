@@ -299,12 +299,23 @@ export const createResellerAdminServer = createServerFn({ method: "POST" })
     });
 
     const email = data.owner_email.trim().toLowerCase();
-    let userId: string;
-    const { data: list } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
-    const found = list.users.find((u) => u.email?.toLowerCase() === email);
-    if (found) {
-      userId = found.id;
-    } else {
+    let userId: string | null = null;
+
+    for (let page = 1; page <= 10; page++) {
+      const { data: list, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+        page,
+        perPage: 200,
+      });
+      if (listError) throw listError;
+      const found = list.users.find((u) => u.email?.toLowerCase() === email);
+      if (found) {
+        userId = found.id;
+        break;
+      }
+      if (list.users.length < 200) break;
+    }
+
+    if (!userId) {
       const { data: created, error: userError } = await supabaseAdmin.auth.admin.createUser({
         email,
         password: data.owner_password,
@@ -313,6 +324,11 @@ export const createResellerAdminServer = createServerFn({ method: "POST" })
       });
       if (userError) throw userError;
       userId = created.user!.id;
+    } else if (data.owner_password.trim().length >= 6) {
+      await supabaseAdmin.auth.admin.updateUserById(userId, {
+        password: data.owner_password,
+        user_metadata: { nome: data.owner_name.trim() },
+      });
     }
 
     await supabaseAdmin.from("reseller_users").insert({
