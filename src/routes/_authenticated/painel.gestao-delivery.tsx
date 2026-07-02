@@ -15,10 +15,12 @@ import {
 import {
   fetchGestaoDeliveryOrdersServer,
   fetchPanelOrderItemsServer,
+  updateGestaoDeliveryKitchenStageServer,
   updateGestaoDeliveryOrderStatusServer,
 } from "@/lib/api/delivery-panel.functions";
 import { fetchOperationalStatusServer } from "@/lib/api/operational-config.functions";
 import { resolveProductImage } from "@/lib/cardapio";
+import { getKitchenStage } from "@/lib/kitchen-stage";
 import {
   ArrowRight,
   Banknote,
@@ -422,7 +424,7 @@ function KdsOrderCard({
   const tempoMin = Math.floor((Date.now() - new Date(pedido.created_at).getTime()) / 60000);
   const clienteNome = getClienteNome(pedido);
   const bairro = getOrderNeighborhood(pedido);
-  const acaoPrincipal = getPrimaryAction(pedido.status);
+  const acaoPrincipal = getPrimaryAction(pedido);
   const PaymentIcon = getPaymentIcon(pedido.forma_pagamento);
 
   async function avancar(status: "em_preparo" | "pronto" | "em_entrega" | "entregue") {
@@ -442,6 +444,26 @@ function KdsOrderCard({
     } finally {
       setUpdating(false);
     }
+  }
+
+  async function executarAcaoPrincipal() {
+    if (!acaoPrincipal) return;
+    if (acaoPrincipal.kind === "producao") {
+      try {
+        setUpdating(true);
+        await updateGestaoDeliveryKitchenStageServer({
+          data: { tenantSlug, orderId: pedido.id, stage: "producao" },
+        });
+        toast.success(`Pedido #${pedido.numero} em producao.`);
+        qc.invalidateQueries({ queryKey: ["gestao-delivery-pedidos", tenantSlug] });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Nao foi possivel atualizar o pedido.");
+      } finally {
+        setUpdating(false);
+      }
+      return;
+    }
+    void avancar(acaoPrincipal.nextStatus);
   }
 
   async function cancelar() {
@@ -559,13 +581,13 @@ function KdsOrderCard({
               <Trash2 className="size-4" />
             </button>
           ) : null}
-          {acaoPrincipal?.nextStatus ? (
+          {acaoPrincipal ? (
             <button
               type="button"
               disabled={updating}
               onClick={(event) => {
                 event.stopPropagation();
-                void avancar(acaoPrincipal.nextStatus);
+                void executarAcaoPrincipal();
               }}
               className="inline-flex items-center gap-1.5 rounded-xl bg-sage px-4 py-2.5 text-sm font-extrabold uppercase tracking-[0.06em] text-primary-foreground shadow-sm transition hover:opacity-95 disabled:opacity-50"
             >
@@ -820,9 +842,11 @@ function formatarPagamento(forma: string | null) {
   return forma;
 }
 
-function getPrimaryAction(status: Pedido["status"]) {
+function getPrimaryAction(pedido: Pedido) {
+  const status = pedido.status;
   if (status === "aberto") {
     return {
+      kind: "status" as const,
       nextStatus: "em_preparo" as const,
       label: "aceitar",
       icon: <Check className="size-4" />,
@@ -830,15 +854,24 @@ function getPrimaryAction(status: Pedido["status"]) {
   }
 
   if (status === "em_preparo") {
+    if (getKitchenStage(pedido.observacoes) === "aprovado") {
+      return {
+        kind: "producao" as const,
+        label: "producao",
+        icon: <ArrowRight className="size-4" />,
+      };
+    }
     return {
+      kind: "status" as const,
       nextStatus: "pronto" as const,
-      label: "preparar",
-      icon: <ArrowRight className="size-4" />,
+      label: "pronto",
+      icon: <Check className="size-4" />,
     };
   }
 
   if (status === "pronto") {
     return {
+      kind: "status" as const,
       nextStatus: "em_entrega" as const,
       label: "enviar",
       icon: <ArrowRight className="size-4" />,
@@ -847,6 +880,7 @@ function getPrimaryAction(status: Pedido["status"]) {
 
   if (status === "em_entrega") {
     return {
+      kind: "status" as const,
       nextStatus: "entregue" as const,
       label: "entregue",
       icon: <Check className="size-4" />,

@@ -338,6 +338,43 @@ export const updateGestaoDeliveryOrderStatusServer = createServerFn({ method: "P
 /** @deprecated Use updateGestaoDeliveryOrderStatusServer */
 export const updateKdsOrderStatusServer = updateGestaoDeliveryOrderStatusServer;
 
+export const updateGestaoDeliveryKitchenStageServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(
+    (input: TenantScopedInput & { orderId: string; stage: "aprovado" | "producao" }) => input,
+  )
+  .handler(async ({ context, data }) => {
+    await assertStaffUserId(context.userId, "Acesso restrito ao Gestao delivery.");
+    const tenantId = await resolveStaffTenantId(context.userId, data.tenantSlug);
+    await assertPedidoBelongsToTenant(tenantId, data.orderId);
+
+    const { withKitchenStage } = await import("@/lib/kitchen-stage");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: pedido, error: loadError } = await supabaseAdmin
+      .from("pedidos")
+      .select("id,status,observacoes")
+      .eq("id", data.orderId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (loadError) throw loadError;
+    if (!pedido) throw new Error("Pedido nao encontrado.");
+    if (pedido.status !== "em_preparo") {
+      throw new Error("Somente pedidos aprovados podem entrar em producao.");
+    }
+
+    const { error } = await supabaseAdmin
+      .from("pedidos")
+      .update({
+        observacoes: withKitchenStage(pedido.observacoes, data.stage),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.orderId)
+      .eq("tenant_id", tenantId);
+    if (error) throw error;
+    return { ok: true as const };
+  });
+
 export const updateKitchenProductionStageServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator(

@@ -19,6 +19,7 @@ import { useMesaQrKitchenAutoPrint } from "@/hooks/use-mesa-qr-kitchen-auto-prin
 import {
   Bell,
   Check,
+  ChefHat,
   ClipboardCheck,
   RefreshCw,
   X,
@@ -28,7 +29,7 @@ import {
   extractMesaQrCustomerName,
   extractMesaQrNumero,
 } from "@/lib/mesas-settings";
-import { isKitchenOrderChannel } from "@/lib/kitchen-stage";
+import { getKitchenStage, isKitchenOrderChannel } from "@/lib/kitchen-stage";
 import { isDemoSession } from "@/lib/runtime";
 import { cn } from "@/lib/utils";
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
@@ -90,12 +91,17 @@ function CozinhaKdsPage() {
     [pedidos],
   );
 
-  const emPreparo = pedidosCozinha.filter((pedido) => pedido.status === "em_preparo");
+  const aprovados = pedidosCozinha.filter(
+    (pedido) => pedido.status === "em_preparo" && getKitchenStage(pedido.observacoes) === "aprovado",
+  );
+  const emProducao = pedidosCozinha.filter(
+    (pedido) => pedido.status === "em_preparo" && getKitchenStage(pedido.observacoes) === "producao",
+  );
   const prontos = pedidosCozinha.filter((pedido) => pedido.status === "pronto");
 
   useEffect(() => {
     if (!isFetched || isLoading) return;
-    const ids = emPreparo.map((pedido) => pedido.id);
+    const ids = aprovados.map((pedido) => pedido.id);
     const idsAtuais = new Set(ids);
     if (pedidosConhecidos.current === null) {
       pedidosConhecidos.current = idsAtuais;
@@ -104,26 +110,34 @@ function CozinhaKdsPage() {
     const temNovo = ids.some((id) => !pedidosConhecidos.current!.has(id));
     if (temNovo) {
       tocarAlerta();
-      toast.success("Nova comanda na cozinha");
+      toast.success("Nova comanda aprovada na cozinha");
     }
     pedidosConhecidos.current = idsAtuais;
-  }, [emPreparo, isFetched, isLoading]);
+  }, [aprovados, isFetched, isLoading]);
 
   const lojaAberta = operacao?.loja_aberta ?? true;
-  const emFila = emPreparo.length;
+  const emFila = aprovados.length + emProducao.length;
 
   const columns = [
     {
-      key: "preparo",
-      title: "em preparo",
+      key: "aprovados",
+      title: "aprovados",
       icon: <ClipboardCheck className="size-4" />,
       iconClass: "text-sage",
       iconBg: "bg-emerald-100",
-      pedidos: emPreparo,
+      pedidos: aprovados,
+    },
+    {
+      key: "producao",
+      title: "em producao",
+      icon: <ChefHat className="size-4" />,
+      iconClass: "text-amber-700",
+      iconBg: "bg-amber-100",
+      pedidos: emProducao,
     },
     {
       key: "pronto",
-      title: "prontos",
+      title: "pronto",
       icon: <Check className="size-4" />,
       iconClass: "text-[color:var(--gestao-green)]",
       iconBg: "bg-emerald-50",
@@ -182,7 +196,7 @@ function CozinhaKdsPage() {
         </div>
       ) : null}
 
-      <div className="flex gap-3 overflow-x-auto px-4 py-4 sm:px-6 lg:grid lg:grid-cols-2 lg:overflow-visible lg:pb-6">
+      <div className="flex gap-3 overflow-x-auto px-4 py-4 sm:px-6 lg:grid lg:grid-cols-3 lg:overflow-visible lg:pb-6">
         {columns.map((column) => (
           <KitchenColumn
             key={column.key}
