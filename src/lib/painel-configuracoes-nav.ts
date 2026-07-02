@@ -122,3 +122,9 @@ export function findConfigNavItem(path: string) {
 export function getDefaultConfigNavPath() {
   return CONFIG_NAV_GROUPS[0]!.items[0]!.path;
 }
+
+/** Hub vazio `/t/:slug/configuracoes` (sem subpágina). */
+export function isConfigHubIndexPathname(pathname: string, tenantSlug: string) {
+  const hub = configNavHref(tenantSlug, "configuracoes");
+  return pathname === hub || pathname === `${hub}/`;
+}

@@ -87,7 +87,9 @@ export function PainelShell({ tenantSlug, userRole }: PainelShellProps) {
   }, [operacao?.loja_aberta]);
 
   const firstLetter = email.charAt(0).toUpperCase() || getTenantInitials(tenant.name).charAt(0);
-  const isAtendimentoInbox = location.pathname.includes("/atendimento");
+  const isAtendimentoInbox =
+    location.pathname.includes("/atendimento") &&
+    !location.pathname.includes("/atendimento/configuracoes");
   const isPlanoPage = location.pathname.includes("/estabelecimento/plano");
 
   async function sair() {

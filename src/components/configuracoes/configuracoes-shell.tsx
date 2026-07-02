@@ -6,6 +6,7 @@ import {
   CONFIG_NAV_GROUPS,
   configNavHref,
   getDefaultConfigNavPath,
+  isConfigHubIndexPathname,
   resolveConfigNavFromPathname,
 } from "@/lib/painel-configuracoes-nav";
 import { useTenantOptional } from "@/lib/tenant/tenant-context";
@@ -79,7 +80,7 @@ export function ConfiguracoesShell({ children }: { children: ReactNode }) {
   const dashboardHref = tenantPath(tenantSlug, "dashboard");
   const configRootHref = configNavHref(tenantSlug, getDefaultConfigNavPath());
 
-  if (location.pathname.endsWith("/configuracoes") || location.pathname.endsWith("/configuracoes/")) {
+  if (isConfigHubIndexPathname(location.pathname, tenantSlug)) {
     const target = configNavHref(tenantSlug, getDefaultConfigNavPath());
     void navigate({ to: target, replace: true });
     return (
