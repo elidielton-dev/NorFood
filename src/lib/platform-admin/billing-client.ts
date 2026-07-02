@@ -153,4 +153,10 @@ export async function createAdminBillingPix(invoiceId: string) {
   return adminPayBillingInvoicePixServer({ data: { invoiceId } });
 }
 
+export async function generateResellerInvoices(year: number, month: number) {
+  if (isBillingDemoBlocked()) throw new Error("Indisponível no modo demo.");
+  const { generateResellerInvoicesServer } = await import("@/lib/api/platform-reseller.functions");
+  return generateResellerInvoicesServer({ data: { year, month } });
+}
+
 export type { AdminBillingTenantRow, BillingInvoiceRow };

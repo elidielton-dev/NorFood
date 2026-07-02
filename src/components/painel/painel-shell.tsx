@@ -24,6 +24,10 @@ import type { TenantRole } from "@/lib/tenant/types";
 import type { BillingPlanId } from "@/lib/platform/billing-plans";
 import { tenantPath } from "@/lib/tenant/painel-routes";
 import { ConfigSidebarNav } from "@/components/painel/config-sidebar-nav";
+import {
+  clearImpersonateSession,
+  readImpersonateSession,
+} from "@/lib/reseller/impersonate-session";
 
 type PainelShellProps = {
   tenantSlug: string;
@@ -92,6 +96,18 @@ export function PainelShell({ tenantSlug, userRole }: PainelShellProps) {
     !location.pathname.includes("/atendimento/configuracoes");
   const isPlanoPage = location.pathname.includes("/estabelecimento/plano");
 
+  const impersonateSession = useMemo(() => {
+    const session = readImpersonateSession();
+    if (!session || session.tenantSlug !== tenantSlug) return null;
+    return session;
+  }, [tenantSlug, location.pathname]);
+
+  function sairImpersonate() {
+    const returnTo = impersonateSession?.returnTo ?? "/";
+    clearImpersonateSession();
+    window.location.href = returnTo;
+  }
+
   async function sair() {
     if (isSupabaseConfigured()) {
       await supabase.auth.signOut();
@@ -142,6 +158,21 @@ export function PainelShell({ tenantSlug, userRole }: PainelShellProps) {
       ) : null}
 
       <div className="flex min-w-0 flex-1 flex-col lg:pl-[4.5rem]">
+        {impersonateSession ? (
+          <div className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-2 border-b border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-950">
+            <p>
+              Você está visualizando o painel de <strong>{tenant.name}</strong> como{" "}
+              {impersonateSession.mode === "reseller" ? "revendedora" : "admin Norfood"}.
+            </p>
+            <button
+              type="button"
+              onClick={sairImpersonate}
+              className="rounded-lg border border-amber-400 bg-white px-3 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+            >
+              Sair do painel do cliente
+            </button>
+          </div>
+        ) : null}
         <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-[#E5E7EB] bg-white px-4">
           <button
             type="button"

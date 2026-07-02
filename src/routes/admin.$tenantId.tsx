@@ -11,6 +11,7 @@ import {
   reactivateAdminTenant,
   useAdminTenantsSource,
 } from "@/lib/platform-admin/client";
+import { impersonatePlatformTenant } from "@/lib/reseller/client";
 import { NORFOOD_DEMO_TENANT_ID } from "@/lib/tenant/constants";
 import { lojaPath, tenantPath } from "@/lib/tenant/painel-routes";
 import type { TenantStatus } from "@/lib/tenant/types";
@@ -103,6 +104,14 @@ function AdminEditarEmpresaPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const impersonateMutation = useMutation({
+    mutationFn: () => impersonatePlatformTenant(tenantId),
+    onSuccess: (result) => {
+      window.location.href = result.path;
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   const isNorfoodDemo = tenantId === NORFOOD_DEMO_TENANT_ID;
 
   if (isLoading) {
@@ -131,6 +140,14 @@ function AdminEditarEmpresaPage() {
       subtitle={`ID: ${tenant.id}`}
       actions={
         <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={impersonateMutation.isPending}
+            onClick={() => impersonateMutation.mutate()}
+            className="rounded-xl border border-[#FF9100] bg-[#FF9100]/10 px-3 py-2 text-xs font-semibold text-[#C45A00] hover:bg-[#FF9100]/20 disabled:opacity-60"
+          >
+            {impersonateMutation.isPending ? "Abrindo..." : "Entrar como admin"}
+          </button>
           <a
             href={tenantPath(tenant.slug, "dashboard")}
             className="rounded-xl border border-[#E5E7EB] bg-white px-3 py-2 text-xs font-semibold hover:bg-[#F6F7F9]"

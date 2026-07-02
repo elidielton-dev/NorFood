@@ -25,6 +25,7 @@ export type TenantBillingRow = {
   trial_ends_at: string | null;
   billing_cycle_day: number;
   payment_status: string;
+  payment_source?: "platform" | "reseller";
   accepted_terms_at: string | null;
 };
 
@@ -82,6 +83,7 @@ export type RegisterRestaurantPayload = {
   state: string;
   ownerPhone?: string;
   clientIp?: string;
+  activationToken?: string;
 };
 
 export type UpsertTenantBillingPayload = {
@@ -185,6 +187,9 @@ export async function loadAdminBillingRows(
 
     const sales = await sumTenantSales(tenantId, periodStart, periodEnd);
     const billingRow = billing as TenantBillingRow | null;
+    if (billingRow?.payment_source === "reseller") {
+      continue;
+    }
     const trial = isInTrial(billingRow?.trial_ends_at);
 
     let amountDue = 0;
@@ -384,6 +389,7 @@ export async function upsertTenantBillingRecord(
     plan?: BillingPlanId | null;
     trialEndsAt?: string | null;
     acceptedTermsAt?: string | null;
+    paymentSource?: "platform" | "reseller";
   },
 ) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -394,6 +400,7 @@ export async function upsertTenantBillingRecord(
     accepted_terms_at: input.acceptedTermsAt ?? new Date().toISOString(),
     signup_payment_verified_at: new Date().toISOString(),
     payment_status: "active",
+    payment_source: input.paymentSource ?? "platform",
     updated_at: new Date().toISOString(),
   };
 
@@ -473,16 +480,16 @@ export const registerRestaurantServer = createServerFn({ method: "POST" })
     if (!isValidTenantSlug(slug)) {
       throw new Error("Slug inválido. Use letras minúsculas, números e hífens.");
     }
-    if (data.billingModel === "monthly" && !data.plan) {
+    if (data.billingModel === "monthly" && !data.plan && !data.activationToken?.trim()) {
       throw new Error("Selecione um plano mensal.");
     }
 
     const { validateDocument } = await import("@/lib/document-validation");
     const { isDisposableEmail } = await import("@/lib/signup/disposable-email-domains");
-    const { assertSignupRateLimit, extractClientIp } = await import("@/lib/signup/rate-limit.server");
+    const { assertSignupRateLimit } = await import("@/lib/signup/rate-limit.server");
     const { normalizeCep, formatCep } = await import("@/lib/viacep");
     const { validateBrazilMobilePhone } = await import("@/lib/signup/signup-phone");
-    const { notifyTenantSignupReceived } = await import("@/lib/signup/tenant-approval-notify.server");
+    const { notifyTenantApproved } = await import("@/lib/signup/tenant-approval-notify.server");
 
     const doc = validateDocument(data.documentType, data.documentNumber);
     if (!doc.ok) throw new Error(doc.error);
@@ -553,10 +560,34 @@ export const registerRestaurantServer = createServerFn({ method: "POST" })
     if (countError) throw countError;
     assertCanCreateTenant(tenantCount ?? 0);
 
+    let resellerId: string | null = null;
+    let activationTokenId: string | null = null;
+    let tokenTrialDays: number | undefined;
+    let plan = data.plan;
+
+    if (data.activationToken?.trim()) {
+      const { resolveActivationTokenServer } = await import("@/lib/api/platform-reseller.functions");
+      const tokenMeta = await resolveActivationTokenServer({ data: data.activationToken.trim() });
+      if (!tokenMeta) throw new Error("Token de ativacao invalido ou expirado.");
+      resellerId = tokenMeta.resellerId;
+      activationTokenId = tokenMeta.tokenId;
+      tokenTrialDays = tokenMeta.trialDays;
+      plan = tokenMeta.plan;
+      if (data.billingModel === "monthly") {
+        data.plan = tokenMeta.plan;
+      }
+      const { assertResellerQuota } = await import("@/lib/reseller/reseller-auth.server");
+      await assertResellerQuota(resellerId);
+    }
+
     const tenantId = crypto.randomUUID();
     const name = data.restaurantName.trim();
     const formattedCep = formatCep(cepDigits);
     const fullAddress = [data.street.trim(), data.streetNumber.trim()].filter(Boolean).join(", ");
+    const approvedAt = new Date().toISOString();
+    const trialEndsAt = tokenTrialDays
+      ? new Date(Date.now() + tokenTrialDays * 86400000).toISOString()
+      : undefined;
 
     const { error: tenantError } = await supabaseAdmin.from("tenants").insert({
       id: tenantId,
@@ -566,7 +597,8 @@ export const registerRestaurantServer = createServerFn({ method: "POST" })
       primary_color: "#FF9100",
       secondary_color: "#111111",
       accent_color: "#FF5A00",
-      status: "pending",
+      status: "trial",
+      approved_at: approvedAt,
       timezone: "America/Sao_Paulo",
       currency: "BRL",
       document_type: data.documentType,
@@ -578,8 +610,18 @@ export const registerRestaurantServer = createServerFn({ method: "POST" })
       neighborhood: data.neighborhood.trim(),
       street: data.street.trim(),
       street_number: data.streetNumber.trim(),
+      reseller_id: resellerId,
+      activation_token_id: activationTokenId,
+      onboarded_by: context.userId,
     });
     if (tenantError) throw tenantError;
+
+    if (data.activationToken?.trim()) {
+      const { consumeActivationTokenForSignup } = await import(
+        "@/lib/api/platform-reseller.functions"
+      );
+      await consumeActivationTokenForSignup(data.activationToken.trim(), tenantId);
+    }
 
     const { error: settingsError } = await supabaseAdmin.from("tenant_settings").insert({
       tenant_id: tenantId,
@@ -623,17 +665,19 @@ export const registerRestaurantServer = createServerFn({ method: "POST" })
 
     await upsertTenantBillingRecord(tenantId, {
       billingModel: data.billingModel,
-      plan: data.plan ?? null,
+      plan: plan ?? null,
+      trialEndsAt,
+      paymentSource: resellerId ? "reseller" : "platform",
     });
 
-    void notifyTenantSignupReceived({
+    void notifyTenantApproved({
       email,
       ownerName,
       restaurantName: name,
-      phone: phone.formatted,
-    }).catch((err) => console.error("[signup] notify received failed:", err));
+      slug,
+    }).catch((err) => console.error("[signup] notify approved failed:", err));
 
-    return { tenantId, slug, name, status: "pending" as const };
+    return { tenantId, slug, name, status: "trial" as const };
   });
 
 export const suggestRestaurantSlugServer = createServerFn({ method: "GET" })
@@ -782,6 +826,7 @@ export type TenantBillingOverview = {
   current_invoice: BillingInvoiceRow | null;
   recent_invoices: BillingInvoiceRow[];
   mercado_pago_enabled: boolean;
+  reseller_name?: string | null;
 };
 
 export const getTenantBillingOverviewServer = createServerFn({ method: "GET" })
@@ -820,7 +865,7 @@ export const getTenantBillingOverviewServer = createServerFn({ method: "GET" })
 
     const { data: tenant } = await supabaseAdmin
       .from("tenants")
-      .select("name, slug")
+      .select("name, slug, reseller_id, resellers(name)")
       .eq("id", tenantId)
       .single();
 
@@ -860,6 +905,10 @@ export const getTenantBillingOverviewServer = createServerFn({ method: "GET" })
       current_invoice: current,
       recent_invoices: mapped,
       mercado_pago_enabled: Boolean(process.env.MP_ACCESS_TOKEN),
+      reseller_name:
+        billing?.payment_source === "reseller"
+          ? ((tenant?.resellers as { name?: string } | null)?.name ?? null)
+          : null,
     };
   });
 

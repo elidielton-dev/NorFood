@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SelecionarEmpresaRouteImport } from './routes/selecionar-empresa'
 import { Route as RecuperarSenhaRouteImport } from './routes/recuperar-senha'
+import { Route as ParceiroRouteImport } from './routes/parceiro'
 import { Route as LojaRouteImport } from './routes/loja'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as EntregadorRouteImport } from './routes/entregador'
@@ -19,8 +20,11 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ParceiroIndexRouteImport } from './routes/parceiro.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as TTenantSlugRouteImport } from './routes/t.$tenantSlug'
+import { Route as ParceiroTokensRouteImport } from './routes/parceiro.tokens'
+import { Route as ParceiroRestaurantesRouteImport } from './routes/parceiro.restaurantes'
 import { Route as LojaTenantSlugRouteImport } from './routes/loja.$tenantSlug'
 import { Route as EntregadorLoginRouteImport } from './routes/entregador.login'
 import { Route as EntregadorExpoGoRouteImport } from './routes/entregador.expo-go'
@@ -29,6 +33,7 @@ import { Route as CardapioTokenRouteImport } from './routes/cardapio.$token'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ApiSignupClientMetaRouteImport } from './routes/api/signup-client-meta'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as AdminRevendedorasRouteImport } from './routes/admin.revendedoras'
 import { Route as AdminNovaRouteImport } from './routes/admin.nova'
 import { Route as AdminFaturamentoRouteImport } from './routes/admin.faturamento'
 import { Route as AdminAprovacoesRouteImport } from './routes/admin.aprovacoes'
@@ -40,6 +45,7 @@ import { Route as TTenantSlugIndexRouteImport } from './routes/t.$tenantSlug.ind
 import { Route as AuthenticatedPainelIndexRouteImport } from './routes/_authenticated/painel.index'
 import { Route as TTenantSlugEntregadoresRouteImport } from './routes/t.$tenantSlug.entregadores'
 import { Route as TTenantSlugSplatRouteImport } from './routes/t.$tenantSlug.$'
+import { Route as ParceiroRestaurantesNovaRouteImport } from './routes/parceiro.restaurantes.nova'
 import { Route as CadastroAguardandoSlugRouteImport } from './routes/cadastro.aguardando.$slug'
 import { Route as ApiWhatsappWebhookRouteImport } from './routes/api/whatsapp/webhook'
 import { Route as ApiWabaWebhookRouteImport } from './routes/api/waba/webhook'
@@ -48,6 +54,8 @@ import { Route as ApiPlatformAdminBillingRouteImport } from './routes/api/platfo
 import { Route as ApiMercadoPagoWebhookRouteImport } from './routes/api/mercado-pago/webhook'
 import { Route as ApiEntregadorExpoGoUrlRouteImport } from './routes/api/entregador/expo-go-url'
 import { Route as ApiCronAtendimentoHoursRouteImport } from './routes/api/cron/atendimento-hours'
+import { Route as AdminRevendedorasNovaRouteImport } from './routes/admin.revendedoras.nova'
+import { Route as AdminRevendedorasResellerIdRouteImport } from './routes/admin.revendedoras.$resellerId'
 import { Route as AuthenticatedPainelWhatsappRouteImport } from './routes/_authenticated/painel.whatsapp'
 import { Route as AuthenticatedPainelRelatoriosRouteImport } from './routes/_authenticated/painel.relatorios'
 import { Route as AuthenticatedPainelProdutosRouteImport } from './routes/_authenticated/painel.produtos'
@@ -124,6 +132,11 @@ const RecuperarSenhaRoute = RecuperarSenhaRouteImport.update({
   path: '/recuperar-senha',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ParceiroRoute = ParceiroRouteImport.update({
+  id: '/parceiro',
+  path: '/parceiro',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LojaRoute = LojaRouteImport.update({
   id: '/loja',
   path: '/loja',
@@ -163,6 +176,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ParceiroIndexRoute = ParceiroIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ParceiroRoute,
+} as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -172,6 +190,16 @@ const TTenantSlugRoute = TTenantSlugRouteImport.update({
   id: '/t/$tenantSlug',
   path: '/t/$tenantSlug',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ParceiroTokensRoute = ParceiroTokensRouteImport.update({
+  id: '/tokens',
+  path: '/tokens',
+  getParentRoute: () => ParceiroRoute,
+} as any)
+const ParceiroRestaurantesRoute = ParceiroRestaurantesRouteImport.update({
+  id: '/restaurantes',
+  path: '/restaurantes',
+  getParentRoute: () => ParceiroRoute,
 } as any)
 const LojaTenantSlugRoute = LojaTenantSlugRouteImport.update({
   id: '/$tenantSlug',
@@ -212,6 +240,11 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRevendedorasRoute = AdminRevendedorasRouteImport.update({
+  id: '/revendedoras',
+  path: '/revendedoras',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminNovaRoute = AdminNovaRouteImport.update({
   id: '/nova',
@@ -269,6 +302,12 @@ const TTenantSlugSplatRoute = TTenantSlugSplatRouteImport.update({
   path: '/$',
   getParentRoute: () => TTenantSlugRoute,
 } as any)
+const ParceiroRestaurantesNovaRoute =
+  ParceiroRestaurantesNovaRouteImport.update({
+    id: '/nova',
+    path: '/nova',
+    getParentRoute: () => ParceiroRestaurantesRoute,
+  } as any)
 const CadastroAguardandoSlugRoute = CadastroAguardandoSlugRouteImport.update({
   id: '/aguardando/$slug',
   path: '/aguardando/$slug',
@@ -309,6 +348,17 @@ const ApiCronAtendimentoHoursRoute = ApiCronAtendimentoHoursRouteImport.update({
   path: '/api/cron/atendimento-hours',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRevendedorasNovaRoute = AdminRevendedorasNovaRouteImport.update({
+  id: '/nova',
+  path: '/nova',
+  getParentRoute: () => AdminRevendedorasRoute,
+} as any)
+const AdminRevendedorasResellerIdRoute =
+  AdminRevendedorasResellerIdRouteImport.update({
+    id: '/$resellerId',
+    path: '/$resellerId',
+    getParentRoute: () => AdminRevendedorasRoute,
+  } as any)
 const AuthenticatedPainelWhatsappRoute =
   AuthenticatedPainelWhatsappRouteImport.update({
     id: '/whatsapp',
@@ -706,6 +756,7 @@ export interface FileRoutesByFullPath {
   '/entregador': typeof EntregadorRouteWithChildren
   '/login': typeof LoginRoute
   '/loja': typeof LojaRouteWithChildren
+  '/parceiro': typeof ParceiroRouteWithChildren
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/selecionar-empresa': typeof SelecionarEmpresaRoute
   '/mesa': typeof AuthenticatedMesaRoute
@@ -715,6 +766,7 @@ export interface FileRoutesByFullPath {
   '/admin/aprovacoes': typeof AdminAprovacoesRoute
   '/admin/faturamento': typeof AdminFaturamentoRoute
   '/admin/nova': typeof AdminNovaRoute
+  '/admin/revendedoras': typeof AdminRevendedorasRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/api/signup-client-meta': typeof ApiSignupClientMetaRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -723,8 +775,11 @@ export interface FileRoutesByFullPath {
   '/entregador/expo-go': typeof EntregadorExpoGoRoute
   '/entregador/login': typeof EntregadorLoginRoute
   '/loja/$tenantSlug': typeof LojaTenantSlugRoute
+  '/parceiro/restaurantes': typeof ParceiroRestaurantesRouteWithChildren
+  '/parceiro/tokens': typeof ParceiroTokensRoute
   '/t/$tenantSlug': typeof TTenantSlugRouteWithChildren
   '/admin/': typeof AdminIndexRoute
+  '/parceiro/': typeof ParceiroIndexRoute
   '/painel/atendimento': typeof AuthenticatedPainelAtendimentoRouteWithChildren
   '/painel/clientes': typeof AuthenticatedPainelClientesRoute
   '/painel/colaboradores': typeof AuthenticatedPainelColaboradoresRoute
@@ -742,6 +797,8 @@ export interface FileRoutesByFullPath {
   '/painel/produtos': typeof AuthenticatedPainelProdutosRouteWithChildren
   '/painel/relatorios': typeof AuthenticatedPainelRelatoriosRouteWithChildren
   '/painel/whatsapp': typeof AuthenticatedPainelWhatsappRoute
+  '/admin/revendedoras/$resellerId': typeof AdminRevendedorasResellerIdRoute
+  '/admin/revendedoras/nova': typeof AdminRevendedorasNovaRoute
   '/api/cron/atendimento-hours': typeof ApiCronAtendimentoHoursRoute
   '/api/entregador/expo-go-url': typeof ApiEntregadorExpoGoUrlRoute
   '/api/mercado-pago/webhook': typeof ApiMercadoPagoWebhookRoute
@@ -750,6 +807,7 @@ export interface FileRoutesByFullPath {
   '/api/waba/webhook': typeof ApiWabaWebhookRoute
   '/api/whatsapp/webhook': typeof ApiWhatsappWebhookRoute
   '/cadastro/aguardando/$slug': typeof CadastroAguardandoSlugRoute
+  '/parceiro/restaurantes/nova': typeof ParceiroRestaurantesNovaRoute
   '/t/$tenantSlug/$': typeof TTenantSlugSplatRoute
   '/t/$tenantSlug/entregadores': typeof TTenantSlugEntregadoresRoute
   '/painel/': typeof AuthenticatedPainelIndexRoute
@@ -818,6 +876,7 @@ export interface FileRoutesByTo {
   '/admin/aprovacoes': typeof AdminAprovacoesRoute
   '/admin/faturamento': typeof AdminFaturamentoRoute
   '/admin/nova': typeof AdminNovaRoute
+  '/admin/revendedoras': typeof AdminRevendedorasRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/api/signup-client-meta': typeof ApiSignupClientMetaRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -826,7 +885,10 @@ export interface FileRoutesByTo {
   '/entregador/expo-go': typeof EntregadorExpoGoRoute
   '/entregador/login': typeof EntregadorLoginRoute
   '/loja/$tenantSlug': typeof LojaTenantSlugRoute
+  '/parceiro/restaurantes': typeof ParceiroRestaurantesRouteWithChildren
+  '/parceiro/tokens': typeof ParceiroTokensRoute
   '/admin': typeof AdminIndexRoute
+  '/parceiro': typeof ParceiroIndexRoute
   '/painel/clientes': typeof AuthenticatedPainelClientesRoute
   '/painel/colaboradores': typeof AuthenticatedPainelColaboradoresRoute
   '/painel/cozinha': typeof AuthenticatedPainelCozinhaRoute
@@ -839,6 +901,8 @@ export interface FileRoutesByTo {
   '/painel/pdv': typeof AuthenticatedPainelPdvRoute
   '/painel/produtos': typeof AuthenticatedPainelProdutosRouteWithChildren
   '/painel/whatsapp': typeof AuthenticatedPainelWhatsappRoute
+  '/admin/revendedoras/$resellerId': typeof AdminRevendedorasResellerIdRoute
+  '/admin/revendedoras/nova': typeof AdminRevendedorasNovaRoute
   '/api/cron/atendimento-hours': typeof ApiCronAtendimentoHoursRoute
   '/api/entregador/expo-go-url': typeof ApiEntregadorExpoGoUrlRoute
   '/api/mercado-pago/webhook': typeof ApiMercadoPagoWebhookRoute
@@ -847,6 +911,7 @@ export interface FileRoutesByTo {
   '/api/waba/webhook': typeof ApiWabaWebhookRoute
   '/api/whatsapp/webhook': typeof ApiWhatsappWebhookRoute
   '/cadastro/aguardando/$slug': typeof CadastroAguardandoSlugRoute
+  '/parceiro/restaurantes/nova': typeof ParceiroRestaurantesNovaRoute
   '/t/$tenantSlug/$': typeof TTenantSlugSplatRoute
   '/t/$tenantSlug/entregadores': typeof TTenantSlugEntregadoresRoute
   '/painel': typeof AuthenticatedPainelIndexRoute
@@ -910,6 +975,7 @@ export interface FileRoutesById {
   '/entregador': typeof EntregadorRouteWithChildren
   '/login': typeof LoginRoute
   '/loja': typeof LojaRouteWithChildren
+  '/parceiro': typeof ParceiroRouteWithChildren
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/selecionar-empresa': typeof SelecionarEmpresaRoute
   '/_authenticated/mesa': typeof AuthenticatedMesaRoute
@@ -919,6 +985,7 @@ export interface FileRoutesById {
   '/admin/aprovacoes': typeof AdminAprovacoesRoute
   '/admin/faturamento': typeof AdminFaturamentoRoute
   '/admin/nova': typeof AdminNovaRoute
+  '/admin/revendedoras': typeof AdminRevendedorasRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/api/signup-client-meta': typeof ApiSignupClientMetaRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -927,8 +994,11 @@ export interface FileRoutesById {
   '/entregador/expo-go': typeof EntregadorExpoGoRoute
   '/entregador/login': typeof EntregadorLoginRoute
   '/loja/$tenantSlug': typeof LojaTenantSlugRoute
+  '/parceiro/restaurantes': typeof ParceiroRestaurantesRouteWithChildren
+  '/parceiro/tokens': typeof ParceiroTokensRoute
   '/t/$tenantSlug': typeof TTenantSlugRouteWithChildren
   '/admin/': typeof AdminIndexRoute
+  '/parceiro/': typeof ParceiroIndexRoute
   '/_authenticated/painel/atendimento': typeof AuthenticatedPainelAtendimentoRouteWithChildren
   '/_authenticated/painel/clientes': typeof AuthenticatedPainelClientesRoute
   '/_authenticated/painel/colaboradores': typeof AuthenticatedPainelColaboradoresRoute
@@ -946,6 +1016,8 @@ export interface FileRoutesById {
   '/_authenticated/painel/produtos': typeof AuthenticatedPainelProdutosRouteWithChildren
   '/_authenticated/painel/relatorios': typeof AuthenticatedPainelRelatoriosRouteWithChildren
   '/_authenticated/painel/whatsapp': typeof AuthenticatedPainelWhatsappRoute
+  '/admin/revendedoras/$resellerId': typeof AdminRevendedorasResellerIdRoute
+  '/admin/revendedoras/nova': typeof AdminRevendedorasNovaRoute
   '/api/cron/atendimento-hours': typeof ApiCronAtendimentoHoursRoute
   '/api/entregador/expo-go-url': typeof ApiEntregadorExpoGoUrlRoute
   '/api/mercado-pago/webhook': typeof ApiMercadoPagoWebhookRoute
@@ -954,6 +1026,7 @@ export interface FileRoutesById {
   '/api/waba/webhook': typeof ApiWabaWebhookRoute
   '/api/whatsapp/webhook': typeof ApiWhatsappWebhookRoute
   '/cadastro/aguardando/$slug': typeof CadastroAguardandoSlugRoute
+  '/parceiro/restaurantes/nova': typeof ParceiroRestaurantesNovaRoute
   '/t/$tenantSlug/$': typeof TTenantSlugSplatRoute
   '/t/$tenantSlug/entregadores': typeof TTenantSlugEntregadoresRoute
   '/_authenticated/painel/': typeof AuthenticatedPainelIndexRoute
@@ -1017,6 +1090,7 @@ export interface FileRouteTypes {
     | '/entregador'
     | '/login'
     | '/loja'
+    | '/parceiro'
     | '/recuperar-senha'
     | '/selecionar-empresa'
     | '/mesa'
@@ -1026,6 +1100,7 @@ export interface FileRouteTypes {
     | '/admin/aprovacoes'
     | '/admin/faturamento'
     | '/admin/nova'
+    | '/admin/revendedoras'
     | '/api/health'
     | '/api/signup-client-meta'
     | '/auth/callback'
@@ -1034,8 +1109,11 @@ export interface FileRouteTypes {
     | '/entregador/expo-go'
     | '/entregador/login'
     | '/loja/$tenantSlug'
+    | '/parceiro/restaurantes'
+    | '/parceiro/tokens'
     | '/t/$tenantSlug'
     | '/admin/'
+    | '/parceiro/'
     | '/painel/atendimento'
     | '/painel/clientes'
     | '/painel/colaboradores'
@@ -1053,6 +1131,8 @@ export interface FileRouteTypes {
     | '/painel/produtos'
     | '/painel/relatorios'
     | '/painel/whatsapp'
+    | '/admin/revendedoras/$resellerId'
+    | '/admin/revendedoras/nova'
     | '/api/cron/atendimento-hours'
     | '/api/entregador/expo-go-url'
     | '/api/mercado-pago/webhook'
@@ -1061,6 +1141,7 @@ export interface FileRouteTypes {
     | '/api/waba/webhook'
     | '/api/whatsapp/webhook'
     | '/cadastro/aguardando/$slug'
+    | '/parceiro/restaurantes/nova'
     | '/t/$tenantSlug/$'
     | '/t/$tenantSlug/entregadores'
     | '/painel/'
@@ -1129,6 +1210,7 @@ export interface FileRouteTypes {
     | '/admin/aprovacoes'
     | '/admin/faturamento'
     | '/admin/nova'
+    | '/admin/revendedoras'
     | '/api/health'
     | '/api/signup-client-meta'
     | '/auth/callback'
@@ -1137,7 +1219,10 @@ export interface FileRouteTypes {
     | '/entregador/expo-go'
     | '/entregador/login'
     | '/loja/$tenantSlug'
+    | '/parceiro/restaurantes'
+    | '/parceiro/tokens'
     | '/admin'
+    | '/parceiro'
     | '/painel/clientes'
     | '/painel/colaboradores'
     | '/painel/cozinha'
@@ -1150,6 +1235,8 @@ export interface FileRouteTypes {
     | '/painel/pdv'
     | '/painel/produtos'
     | '/painel/whatsapp'
+    | '/admin/revendedoras/$resellerId'
+    | '/admin/revendedoras/nova'
     | '/api/cron/atendimento-hours'
     | '/api/entregador/expo-go-url'
     | '/api/mercado-pago/webhook'
@@ -1158,6 +1245,7 @@ export interface FileRouteTypes {
     | '/api/waba/webhook'
     | '/api/whatsapp/webhook'
     | '/cadastro/aguardando/$slug'
+    | '/parceiro/restaurantes/nova'
     | '/t/$tenantSlug/$'
     | '/t/$tenantSlug/entregadores'
     | '/painel'
@@ -1220,6 +1308,7 @@ export interface FileRouteTypes {
     | '/entregador'
     | '/login'
     | '/loja'
+    | '/parceiro'
     | '/recuperar-senha'
     | '/selecionar-empresa'
     | '/_authenticated/mesa'
@@ -1229,6 +1318,7 @@ export interface FileRouteTypes {
     | '/admin/aprovacoes'
     | '/admin/faturamento'
     | '/admin/nova'
+    | '/admin/revendedoras'
     | '/api/health'
     | '/api/signup-client-meta'
     | '/auth/callback'
@@ -1237,8 +1327,11 @@ export interface FileRouteTypes {
     | '/entregador/expo-go'
     | '/entregador/login'
     | '/loja/$tenantSlug'
+    | '/parceiro/restaurantes'
+    | '/parceiro/tokens'
     | '/t/$tenantSlug'
     | '/admin/'
+    | '/parceiro/'
     | '/_authenticated/painel/atendimento'
     | '/_authenticated/painel/clientes'
     | '/_authenticated/painel/colaboradores'
@@ -1256,6 +1349,8 @@ export interface FileRouteTypes {
     | '/_authenticated/painel/produtos'
     | '/_authenticated/painel/relatorios'
     | '/_authenticated/painel/whatsapp'
+    | '/admin/revendedoras/$resellerId'
+    | '/admin/revendedoras/nova'
     | '/api/cron/atendimento-hours'
     | '/api/entregador/expo-go-url'
     | '/api/mercado-pago/webhook'
@@ -1264,6 +1359,7 @@ export interface FileRouteTypes {
     | '/api/waba/webhook'
     | '/api/whatsapp/webhook'
     | '/cadastro/aguardando/$slug'
+    | '/parceiro/restaurantes/nova'
     | '/t/$tenantSlug/$'
     | '/t/$tenantSlug/entregadores'
     | '/_authenticated/painel/'
@@ -1327,6 +1423,7 @@ export interface RootRouteChildren {
   EntregadorRoute: typeof EntregadorRouteWithChildren
   LoginRoute: typeof LoginRoute
   LojaRoute: typeof LojaRouteWithChildren
+  ParceiroRoute: typeof ParceiroRouteWithChildren
   RecuperarSenhaRoute: typeof RecuperarSenhaRoute
   SelecionarEmpresaRoute: typeof SelecionarEmpresaRoute
   ApiHealthRoute: typeof ApiHealthRoute
@@ -1357,6 +1454,13 @@ declare module '@tanstack/react-router' {
       path: '/recuperar-senha'
       fullPath: '/recuperar-senha'
       preLoaderRoute: typeof RecuperarSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parceiro': {
+      id: '/parceiro'
+      path: '/parceiro'
+      fullPath: '/parceiro'
+      preLoaderRoute: typeof ParceiroRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/loja': {
@@ -1415,6 +1519,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/parceiro/': {
+      id: '/parceiro/'
+      path: '/'
+      fullPath: '/parceiro/'
+      preLoaderRoute: typeof ParceiroIndexRouteImport
+      parentRoute: typeof ParceiroRoute
+    }
     '/admin/': {
       id: '/admin/'
       path: '/'
@@ -1428,6 +1539,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/t/$tenantSlug'
       preLoaderRoute: typeof TTenantSlugRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/parceiro/tokens': {
+      id: '/parceiro/tokens'
+      path: '/tokens'
+      fullPath: '/parceiro/tokens'
+      preLoaderRoute: typeof ParceiroTokensRouteImport
+      parentRoute: typeof ParceiroRoute
+    }
+    '/parceiro/restaurantes': {
+      id: '/parceiro/restaurantes'
+      path: '/restaurantes'
+      fullPath: '/parceiro/restaurantes'
+      preLoaderRoute: typeof ParceiroRestaurantesRouteImport
+      parentRoute: typeof ParceiroRoute
     }
     '/loja/$tenantSlug': {
       id: '/loja/$tenantSlug'
@@ -1484,6 +1609,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/health'
       preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/revendedoras': {
+      id: '/admin/revendedoras'
+      path: '/revendedoras'
+      fullPath: '/admin/revendedoras'
+      preLoaderRoute: typeof AdminRevendedorasRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/nova': {
       id: '/admin/nova'
@@ -1562,6 +1694,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TTenantSlugSplatRouteImport
       parentRoute: typeof TTenantSlugRoute
     }
+    '/parceiro/restaurantes/nova': {
+      id: '/parceiro/restaurantes/nova'
+      path: '/nova'
+      fullPath: '/parceiro/restaurantes/nova'
+      preLoaderRoute: typeof ParceiroRestaurantesNovaRouteImport
+      parentRoute: typeof ParceiroRestaurantesRoute
+    }
     '/cadastro/aguardando/$slug': {
       id: '/cadastro/aguardando/$slug'
       path: '/aguardando/$slug'
@@ -1617,6 +1756,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/cron/atendimento-hours'
       preLoaderRoute: typeof ApiCronAtendimentoHoursRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/revendedoras/nova': {
+      id: '/admin/revendedoras/nova'
+      path: '/nova'
+      fullPath: '/admin/revendedoras/nova'
+      preLoaderRoute: typeof AdminRevendedorasNovaRouteImport
+      parentRoute: typeof AdminRevendedorasRoute
+    }
+    '/admin/revendedoras/$resellerId': {
+      id: '/admin/revendedoras/$resellerId'
+      path: '/$resellerId'
+      fullPath: '/admin/revendedoras/$resellerId'
+      preLoaderRoute: typeof AdminRevendedorasResellerIdRouteImport
+      parentRoute: typeof AdminRevendedorasRoute
     }
     '/_authenticated/painel/whatsapp': {
       id: '/_authenticated/painel/whatsapp'
@@ -2381,11 +2534,25 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface AdminRevendedorasRouteChildren {
+  AdminRevendedorasResellerIdRoute: typeof AdminRevendedorasResellerIdRoute
+  AdminRevendedorasNovaRoute: typeof AdminRevendedorasNovaRoute
+}
+
+const AdminRevendedorasRouteChildren: AdminRevendedorasRouteChildren = {
+  AdminRevendedorasResellerIdRoute: AdminRevendedorasResellerIdRoute,
+  AdminRevendedorasNovaRoute: AdminRevendedorasNovaRoute,
+}
+
+const AdminRevendedorasRouteWithChildren =
+  AdminRevendedorasRoute._addFileChildren(AdminRevendedorasRouteChildren)
+
 interface AdminRouteChildren {
   AdminTenantIdRoute: typeof AdminTenantIdRoute
   AdminAprovacoesRoute: typeof AdminAprovacoesRoute
   AdminFaturamentoRoute: typeof AdminFaturamentoRoute
   AdminNovaRoute: typeof AdminNovaRoute
+  AdminRevendedorasRoute: typeof AdminRevendedorasRouteWithChildren
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
@@ -2394,6 +2561,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminAprovacoesRoute: AdminAprovacoesRoute,
   AdminFaturamentoRoute: AdminFaturamentoRoute,
   AdminNovaRoute: AdminNovaRoute,
+  AdminRevendedorasRoute: AdminRevendedorasRouteWithChildren,
   AdminIndexRoute: AdminIndexRoute,
 }
 
@@ -2445,6 +2613,33 @@ const LojaRouteChildren: LojaRouteChildren = {
 
 const LojaRouteWithChildren = LojaRoute._addFileChildren(LojaRouteChildren)
 
+interface ParceiroRestaurantesRouteChildren {
+  ParceiroRestaurantesNovaRoute: typeof ParceiroRestaurantesNovaRoute
+}
+
+const ParceiroRestaurantesRouteChildren: ParceiroRestaurantesRouteChildren = {
+  ParceiroRestaurantesNovaRoute: ParceiroRestaurantesNovaRoute,
+}
+
+const ParceiroRestaurantesRouteWithChildren =
+  ParceiroRestaurantesRoute._addFileChildren(ParceiroRestaurantesRouteChildren)
+
+interface ParceiroRouteChildren {
+  ParceiroRestaurantesRoute: typeof ParceiroRestaurantesRouteWithChildren
+  ParceiroTokensRoute: typeof ParceiroTokensRoute
+  ParceiroIndexRoute: typeof ParceiroIndexRoute
+}
+
+const ParceiroRouteChildren: ParceiroRouteChildren = {
+  ParceiroRestaurantesRoute: ParceiroRestaurantesRouteWithChildren,
+  ParceiroTokensRoute: ParceiroTokensRoute,
+  ParceiroIndexRoute: ParceiroIndexRoute,
+}
+
+const ParceiroRouteWithChildren = ParceiroRoute._addFileChildren(
+  ParceiroRouteChildren,
+)
+
 interface TTenantSlugRouteChildren {
   TTenantSlugSplatRoute: typeof TTenantSlugSplatRoute
   TTenantSlugEntregadoresRoute: typeof TTenantSlugEntregadoresRoute
@@ -2470,6 +2665,7 @@ const rootRouteChildren: RootRouteChildren = {
   EntregadorRoute: EntregadorRouteWithChildren,
   LoginRoute: LoginRoute,
   LojaRoute: LojaRouteWithChildren,
+  ParceiroRoute: ParceiroRouteWithChildren,
   RecuperarSenhaRoute: RecuperarSenhaRoute,
   SelecionarEmpresaRoute: SelecionarEmpresaRoute,
   ApiHealthRoute: ApiHealthRoute,

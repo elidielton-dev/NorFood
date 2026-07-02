@@ -140,6 +140,7 @@ export function PlanoNorfoodPage({ backTo }: { backTo?: string } = {}) {
   const billing = data?.billing;
   const inTrial = data?.in_trial ?? false;
   const mpEnabled = data?.mercado_pago_enabled ?? false;
+  const isResellerBilling = billing?.payment_source === "reseller";
   const isDemoTenant = tenant.slug === NORFOOD_DEMO_TENANT_SLUG;
 
   const planDescription = billing
@@ -149,6 +150,7 @@ export function PlanoNorfoodPage({ backTo }: { backTo?: string } = {}) {
     : "Plano nao configurado";
 
   const canPay =
+    !isResellerBilling &&
     mpEnabled &&
     activeInvoice &&
     activeInvoice.status !== "paid" &&
@@ -157,7 +159,13 @@ export function PlanoNorfoodPage({ backTo }: { backTo?: string } = {}) {
 
   const planBody = (
     <>
-      {!mpEnabled ? (
+      {isResellerBilling ? (
+        <GestaoAlert tone="info">
+          A cobrança deste restaurante é feita pela sua revendedora
+          {data?.reseller_name ? ` (${data.reseller_name})` : ""}. Entre em contato com ela para
+          pagamentos, upgrades ou cancelamento.
+        </GestaoAlert>
+      ) : !mpEnabled ? (
         <GestaoAlert tone="warning">
           Mercado Pago ainda não está configurado no servidor (MP_ACCESS_TOKEN). Entre em contato
           com o suporte Norfood para ativar cobrança online.
@@ -209,7 +217,7 @@ export function PlanoNorfoodPage({ backTo }: { backTo?: string } = {}) {
         )}
       </ConfigSection>
 
-      {activeInvoice ? (
+      {activeInvoice && !isResellerBilling ? (
         <ConfigSection
           title="Fatura do período"
           description={`${activeInvoice.period_start} a ${activeInvoice.period_end}`}
@@ -270,7 +278,7 @@ export function PlanoNorfoodPage({ backTo }: { backTo?: string } = {}) {
         </ConfigSection>
       ) : null}
 
-      {data?.recent_invoices?.length ? (
+      {data?.recent_invoices?.length && !isResellerBilling ? (
         <ConfigSection title="Histórico de faturas" description="Últimas cobranças da plataforma.">
           <ul className="divide-y divide-[#E5E7EB]">
             {data.recent_invoices.map((inv) => (

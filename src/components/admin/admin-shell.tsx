@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Building2, Clock3, LayoutDashboard, Plus } from "lucide-react";
+import { Building2, LayoutDashboard, Plus, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import { NorfoodLogo } from "@/components/brand/norfood-logo";
 
@@ -36,11 +36,11 @@ export function AdminShell({
               Empresas
             </Link>
             <Link
-              to="/admin/aprovacoes"
+              to="/admin/revendedoras"
               className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[#6B7280] hover:bg-[#F6F7F9] hover:text-[#111111]"
             >
-              <Clock3 className="size-3.5" />
-              Aprovações
+              <Users className="size-3.5" />
+              Revendedoras
             </Link>
             <Link
               to="/admin/faturamento"

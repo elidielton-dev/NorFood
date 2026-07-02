@@ -23,12 +23,14 @@ import {
 } from "@/lib/signup/signup-draft";
 import { fetchUserTenantsServer } from "@/lib/api/tenant.functions";
 import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
+import { resolveActivationTokenServer } from "@/lib/api/platform-reseller.functions";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/cadastro")({
   ssr: false,
-  validateSearch: (search: Record<string, unknown>): { resume?: boolean } => ({
+  validateSearch: (search: Record<string, unknown>): { resume?: boolean; token?: string } => ({
     resume: search.resume === "1" || search.resume === 1,
+    token: typeof search.token === "string" ? search.token : undefined,
   }),
   component: CadastroPage,
 });
@@ -36,7 +38,7 @@ export const Route = createFileRoute("/cadastro")({
 const STEPS = ["Plano", "Restaurante", "Endereço", "Conta"] as const;
 
 function CadastroPage() {
-  const { resume: resumeFromUrl } = Route.useSearch();
+  const { resume: resumeFromUrl, token: activationTokenFromUrl } = Route.useSearch();
   const [hydrated, setHydrated] = useState(false);
   const [step, setStep] = useState(0);
   const [billingModel, setBillingModel] = useState<BillingModel>("monthly");
@@ -62,7 +64,7 @@ function CadastroPage() {
   const [loading, setLoading] = useState(false);
   const [awaitingEmailConfirm, setAwaitingEmailConfirm] = useState(false);
   const [autoCompleting, setAutoCompleting] = useState(false);
-  const completingRef = useRef(false);
+  const [partnerName, setPartnerName] = useState<string | null>(null);
 
   function buildDraft(nextStep = step): SignupDraft {
     return {
@@ -117,6 +119,19 @@ function CadastroPage() {
     if (draft) applyDraft(draft);
     setHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (!activationTokenFromUrl) return;
+    void resolveActivationTokenServer({ data: activationTokenFromUrl }).then((meta) => {
+      if (!meta) {
+        toast.error("Token de ativacao invalido ou expirado.");
+        return;
+      }
+      setPartnerName(meta.resellerName);
+      setPlan(meta.plan);
+      setBillingModel("monthly");
+    });
+  }, [activationTokenFromUrl]);
 
   useEffect(() => {
     if (!hydrated || step <= 0) return;
@@ -218,7 +233,7 @@ function CadastroPage() {
 
       clearSignupDraft();
       if (owner.tenant.status === "pending") {
-        window.location.href = `/cadastro/aguardando/${owner.tenant.slug}`;
+        window.location.href = `/t/${owner.tenant.slug}/dashboard`;
       } else {
         window.location.href = `/t/${owner.tenant.slug}/dashboard`;
       }
@@ -270,14 +285,15 @@ function CadastroPage() {
         state: draft.state.trim(),
         ownerPhone: phone.formatted,
         clientIp: meta.ip ?? "unknown",
+        activationToken: activationTokenFromUrl,
       },
       headers,
     });
 
     clearSignupDraft();
-    toast.success(`Cadastro de "${result.name}" enviado! Aguarde a aprovação.`);
-    window.location.href = `/cadastro/aguardando/${result.slug}`;
-  }, []);
+    toast.success(`Cadastro concluido! Bem-vindo ao NorFood.`);
+    window.location.href = `/t/${result.slug}/dashboard`;
+  }, [activationTokenFromUrl]);
 
   const tryResumeSignup = useCallback(async () => {
     const draft = loadSignupDraft();
@@ -436,6 +452,12 @@ function CadastroPage() {
         <div className="mb-6 flex justify-center">
           <NorfoodLogo size="lg" />
         </div>
+
+        {partnerName ? (
+          <div className="mb-4 rounded-xl border border-[#FF9100]/30 bg-[#FF9100]/10 px-4 py-3 text-center text-sm text-[#111111]">
+            Ativacao via parceiro <strong>{partnerName}</strong>
+          </div>
+        ) : null}
 
         <div className="mb-6 flex flex-wrap justify-center gap-2">
           {STEPS.map((label, i) => (

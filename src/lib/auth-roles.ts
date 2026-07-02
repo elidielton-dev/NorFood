@@ -50,6 +50,16 @@ export async function resolvePostLoginRoute(): Promise<string> {
     return "/admin";
   }
 
+  try {
+    const { checkResellerAccessServer } = await import("@/lib/api/platform-reseller.functions");
+    const resellerAccess = await checkResellerAccessServer();
+    if (resellerAccess.allowed) {
+      return "/parceiro";
+    }
+  } catch {
+    // ignore
+  }
+
   const roles = await fetchCurrentUserRoles();
 
   if (isMotoboyRole(roles) && !isManagementRole(roles)) {
@@ -62,9 +72,6 @@ export async function resolvePostLoginRoute(): Promise<string> {
     if (staffTenants.length > 1) return "/selecionar-empresa";
     if (staffTenants.length === 1) {
       const tenant = staffTenants[0].tenant;
-      if (tenant.status === "pending") {
-        return `/cadastro/aguardando/${tenant.slug}`;
-      }
       if (tenant.status === "suspended") {
         return `/conta-suspensa/${tenant.slug}`;
       }

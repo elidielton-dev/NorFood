@@ -12,6 +12,7 @@ import {
   fetchBillingSummary,
   formatBRL,
   generateBillingInvoices,
+  generateResellerInvoices,
   markInvoicePaid,
 } from "@/lib/platform-admin/billing-client";
 import { useAdminTenantsSource } from "@/lib/platform-admin/client";
@@ -85,6 +86,19 @@ function AdminFaturamentoPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const generateResellerMutation = useMutation({
+    mutationFn: () => generateResellerInvoices(year, month),
+    onSuccess: (result) => {
+      toast.success(
+        result.created
+          ? `${result.created} fatura(s) de revendedora gerada(s).`
+          : "Nenhuma fatura de revendedora alterada.",
+      );
+      queryClient.invalidateQueries({ queryKey: periodKey });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   const paidMutation = useMutation({
     mutationFn: markInvoicePaid,
     onSuccess: () => {
@@ -122,14 +136,24 @@ function AdminFaturamentoPage() {
       title="Faturamento"
       subtitle="MRR, cobrança por % sobre vendas e faturas mensais por restaurante."
       actions={
-        <button
-          type="button"
-          disabled={generateMutation.isPending || demo}
-          onClick={() => generateMutation.mutate()}
-          className="inline-flex h-10 items-center rounded-xl bg-[#111111] px-4 text-sm font-semibold text-white hover:bg-[#333] disabled:opacity-60"
-        >
-          {generateMutation.isPending ? "Gerando..." : "Gerar faturas do mês"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={generateMutation.isPending || demo}
+            onClick={() => generateMutation.mutate()}
+            className="inline-flex h-10 items-center rounded-xl bg-[#111111] px-4 text-sm font-semibold text-white hover:bg-[#333] disabled:opacity-60"
+          >
+            {generateMutation.isPending ? "Gerando..." : "Gerar faturas do mês"}
+          </button>
+          <button
+            type="button"
+            disabled={generateResellerMutation.isPending || demo}
+            onClick={() => generateResellerMutation.mutate()}
+            className="inline-flex h-10 items-center rounded-xl border border-[#E5E7EB] bg-white px-4 text-sm font-semibold text-[#111111] hover:bg-[#F6F7F9] disabled:opacity-60"
+          >
+            {generateResellerMutation.isPending ? "Gerando..." : "Faturas revendedoras"}
+          </button>
+        </div>
       }
     >
       {demo ? (
