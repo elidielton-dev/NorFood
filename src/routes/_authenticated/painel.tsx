@@ -79,6 +79,8 @@ function PainelLayout() {
   const allSidebarItems = useMemo(() => getAllSidebarItems(), []);
   const isAtendimentoInbox = location.pathname.startsWith("/painel/atendimento/conversas");
   const isAtendimento = location.pathname.startsWith("/painel/atendimento");
+  const isPdv = location.pathname.startsWith("/painel/pdv");
+  const isFullscreenPainel = isAtendimentoInbox || isPdv;
 
   const lojaStatus = useMemo(() => {
     const aberta = operacao?.loja_aberta ?? true;
@@ -109,7 +111,7 @@ function PainelLayout() {
     <div
       className={cn(
         "flex bg-background text-foreground",
-        isAtendimentoInbox ? "h-[100dvh] max-h-[100dvh] overflow-hidden" : "min-h-screen",
+        isAtendimentoInbox ? "h-[100dvh] max-h-[100dvh] overflow-hidden" : isPdv ? "h-[100dvh] max-h-[100dvh] overflow-hidden" : "min-h-screen",
       )}
     >
       <Toaster richColors position="top-right" />
@@ -174,6 +176,8 @@ function PainelLayout() {
           "min-w-0 flex-1 bg-panel-muted lg:pl-16",
           isAtendimentoInbox &&
             "flex h-[calc(100dvh-3.5rem)] max-h-[calc(100dvh-3.5rem)] flex-col overflow-hidden lg:h-[100dvh] lg:max-h-[100dvh]",
+          isPdv &&
+            "flex h-[calc(100dvh-3.5rem)] max-h-[calc(100dvh-3.5rem)] flex-col overflow-hidden lg:h-[100dvh] lg:max-h-[100dvh]",
         )}
       >
         <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-[color:var(--honey-line)] bg-card/90 px-4 py-3 backdrop-blur-md lg:hidden">
@@ -190,7 +194,7 @@ function PainelLayout() {
         </header>
         <div
           className={cn(
-            isAtendimentoInbox
+            isFullscreenPainel
               ? "flex min-h-0 flex-1 flex-col overflow-hidden"
               : isAtendimento
                 ? "mx-auto w-full max-w-5xl px-4 py-5 sm:px-6 lg:px-8 lg:py-8"
