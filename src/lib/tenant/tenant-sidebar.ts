@@ -16,6 +16,7 @@ import {
   PackageCheck,
   PackageX,
   Palette,
+  Receipt,
   Headphones,
   MessageSquare,
   Settings2,
