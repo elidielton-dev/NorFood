@@ -5,6 +5,7 @@ import { Copy, Plus, QrCode, Trash2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   ConfigSection,
+  ConfigSwitchRow,
   ConfiguracoesPageFrame,
 } from "@/components/configuracoes/configuracoes-page-frame";
 import {
@@ -13,6 +14,11 @@ import {
   saveMesaAdminServer,
   seedMesasAdminServer,
 } from "@/lib/api/mesas-admin.functions";
+import {
+  fetchTenantAdminSettingsServer,
+  saveMesasSettingsServer,
+} from "@/lib/api/tenant-settings-admin.functions";
+import { DEFAULT_MESAS_SETTINGS } from "@/lib/mesas-settings";
 import { lojaPath } from "@/lib/tenant/painel-routes";
 import { useTenant, useTenantSlug } from "@/lib/tenant/tenant-context";
 import { tenantQueryKey } from "@/lib/tenant/query-keys";
@@ -39,6 +45,31 @@ function ConfiguracoesMesasPage() {
   const { data: mesas = [], isLoading } = useQuery({
     queryKey: tenantQueryKey("mesas-admin", tenantSlug),
     queryFn: () => fetchMesasAdminServer({ data: tenantSlug! }),
+  });
+
+  const { data: adminSettings } = useQuery({
+    queryKey: ["tenant-admin-settings", tenantSlug],
+    queryFn: () => fetchTenantAdminSettingsServer({ data: tenantSlug! }),
+  });
+
+  const mesasSettings = adminSettings?.settings.mesas ?? DEFAULT_MESAS_SETTINGS;
+
+  const mesasSettingsMutation = useMutation({
+    mutationFn: (qrAutoPrintKitchen: boolean) =>
+      saveMesasSettingsServer({
+        data: {
+          tenantSlug: tenantSlug!,
+          mesas: {
+            ...(adminSettings?.settings.mesas ?? DEFAULT_MESAS_SETTINGS),
+            qrAutoPrintKitchen,
+          },
+        },
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["tenant-admin-settings", tenantSlug] });
+      toast.success("Configuração de mesas salva.");
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const invalidate = () => {
@@ -85,6 +116,19 @@ function ConfiguracoesMesasPage() {
       title="Mesas do salão"
       description="Cadastre mesas para o painel de salão e cardápio por QR Code."
     >
+      <ConfigSection
+        title="Pedidos pelo QR Code"
+        description="Comportamento quando o cliente faz pedido escaneando o QR da mesa."
+      >
+        <ConfigSwitchRow
+          label="Impressão automática na cozinha"
+          description="Com o KDS aberto, envia o pedido para a impressora da cozinha assim que chegar pelo QR Code."
+          checked={mesasSettings.qrAutoPrintKitchen}
+          disabled={mesasSettingsMutation.isPending}
+          onCheckedChange={(checked) => mesasSettingsMutation.mutate(checked)}
+        />
+      </ConfigSection>
+
       <ConfigSection title="Criação rápida" description="Gera mesas 1 a 12 ou complementa até 20.">
         <div className="flex flex-wrap gap-2">
           <GestaoButton variant="secondary" onClick={() => seedMutation.mutate(12)} disabled={seedMutation.isPending}>

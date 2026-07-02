@@ -43,6 +43,8 @@ import { toast } from "sonner";
 import { GestaoButton } from "@/components/gestao-ui";
 import { KdsOrderDetailModal } from "@/components/kds-order-detail-modal";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { useMesaQrKitchenAutoPrint } from "@/hooks/use-mesa-qr-kitchen-auto-print";
+import { extractMesaQrCustomerName } from "@/lib/mesas-settings";
 import { printHtmlReceipt } from "@/lib/print";
 import { isDemoSession } from "@/lib/runtime";
 import { cn } from "@/lib/utils";
@@ -83,6 +85,12 @@ function DeliveryFlowPage() {
   const [reciboPedido, setReciboPedido] = useState<Pedido | null>(null);
   const [detalhePedido, setDetalhePedido] = useState<Pedido | null>(null);
   const pedidosConhecidos = useRef<Set<string> | null>(null);
+
+  useMesaQrKitchenAutoPrint({
+    tenantSlug,
+    pedidos,
+    isReady: isFetched && !isLoading,
+  });
 
   useEffect(() => {
     if (isDemoSession()) return;
@@ -726,12 +734,14 @@ function getPedidoResumo(pedido: Pedido) {
 
   let canalLabel = "Delivery proprio";
   if (pedido.canal === "mesa") canalLabel = "Mesa";
+  if (pedido.canal === "qrcode") canalLabel = "QR Code Mesa";
   if (pedido.canal === "balcao") canalLabel = "Balcao";
   if (pedido.canal === "ifood") canalLabel = "iFood";
   if (origemQuero) canalLabel = "Quero Delivery";
 
   let atendimentoLabel = "Entrega";
   if (pedido.canal === "mesa") atendimentoLabel = "Consumo na mesa";
+  if (pedido.canal === "qrcode") atendimentoLabel = "Consumo na mesa";
   if (pedido.canal === "balcao") atendimentoLabel = "Retira no balcao";
   if (retira) atendimentoLabel = "Retira";
 
@@ -768,6 +778,9 @@ function tocarAlerta() {
 function getClienteNome(pedido: Pedido) {
   const cliente = getOrderMetadataValue(pedido.observacoes, "cliente");
   if (cliente) return cliente;
+  if (pedido.canal === "qrcode") {
+    return extractMesaQrCustomerName(pedido.observacoes) ?? "Cliente mesa QR";
+  }
   if (pedido.canal === "mesa") return "Cliente mesa";
   if (pedido.canal === "balcao") return "Cliente balcao";
   return "Cliente delivery";
