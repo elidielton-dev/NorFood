@@ -17,7 +17,7 @@ import type { TenantRole } from "@/lib/tenant/types";
 function NavBadge({ badge }: { badge?: ConfigNavBadge }) {
   if (badge !== "novo") return null;
   return (
-    <span className="rounded bg-lime-300 px-1 py-0.5 text-[8px] font-bold uppercase text-lime-950">
+    <span className="rounded bg-[var(--tenant-primary,#FF7A00)]/15 px-1 py-0.5 text-[8px] font-bold uppercase text-[var(--tenant-primary,#FF7A00)]">
       Novo
     </span>
   );
@@ -102,10 +102,10 @@ export function ConfigSidebarNav({
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "mx-2 flex w-[calc(100%-1rem)] items-center justify-between rounded-lg px-3 py-2.5 text-left transition",
+          "mx-2 flex w-[calc(100%-1rem)] items-center justify-between px-3 py-2.5 text-left transition",
           onConfigArea
-            ? "bg-[#7E57C2] text-white"
-            : "bg-[#F3F4F6] text-[#374151] hover:bg-[#EDE7F6]",
+            ? "bg-[var(--tenant-primary,#FF7A00)] font-medium text-white"
+            : "text-[#6B7280] hover:bg-[#F6F7F9] hover:text-[#111111]",
         )}
       >
         <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em]">
@@ -116,13 +116,13 @@ export function ConfigSidebarNav({
       </button>
 
       {open ? (
-        <div className="mx-2 mt-1 overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#FAFAFA]">
+        <div className="mt-1">
           {groups.map((group) => (
-            <div key={group.key} className="border-b border-[#EEEEEE] last:border-b-0">
-              <p className="px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[#6B7280]">
+            <div key={group.key}>
+              <p className="px-4 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[#6B7280]">
                 {group.title}
               </p>
-              <ul className="pb-1.5">
+              <ul className="pb-1">
                 {group.items.map((item) => {
                   const href = configNavHref(tenantSlug, item.path);
                   const active = isConfigItemActive(pathname, tenantSlug, item.path);
@@ -132,10 +132,10 @@ export function ConfigSidebarNav({
                         to={href}
                         onClick={onNavigate}
                         className={cn(
-                          "flex items-center justify-between gap-2 py-1.5 pl-5 pr-3 text-[12px] transition",
+                          "mx-2 flex items-center justify-between gap-2 rounded-lg py-2 pl-7 pr-3 text-[12px] transition",
                           active
-                            ? "bg-[#EDE7F6] font-semibold text-[#5E35B1]"
-                            : "text-[#4B5563] hover:bg-white hover:text-[#111111]",
+                            ? "bg-[var(--tenant-primary,#FF7A00)]/10 font-medium text-[var(--tenant-primary,#FF7A00)]"
+                            : "text-[#6B7280] hover:bg-[#F6F7F9] hover:text-[#111111]",
                         )}
                       >
                         <span className="truncate">{item.label}</span>

@@ -49,7 +49,7 @@ function GroupTabs({
             className={cn(
               "border-b-2 px-4 py-3 text-sm transition",
               active
-                ? "border-[#7E57C2] font-semibold text-[#1F2937]"
+                ? "border-[var(--tenant-primary,#FF7A00)] font-semibold text-[#1F2937]"
                 : "border-transparent text-[#6B7280] hover:text-[#374151]",
             )}
           >
@@ -84,7 +84,7 @@ export function ConfiguracoesShell({ children }: { children: ReactNode }) {
     void navigate({ to: target, replace: true });
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="size-8 animate-spin rounded-full border-2 border-[#7E57C2] border-t-transparent" />
+        <div className="size-8 animate-spin rounded-full border-2 border-[var(--tenant-primary,#FF7A00)] border-t-transparent" />
       </div>
     );
   }
