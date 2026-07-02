@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { MapPinned, Save, Settings2, Store, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { ConfigPageBack } from "@/components/config-hub-ui";
 import {
   deleteBairroEntregaServer,
   fetchOperationalAdminServer,
@@ -97,13 +98,14 @@ function ConfiguracaoOperacaoPage() {
     <GestaoPage
       title="Operacao da loja"
       subtitle="Pedido minimo, taxa de entrega e bairros atendidos."
+      actions={<ConfigPageBack />}
     >
       <div className="space-y-6">
         <GestaoCard className="border-sky-200 bg-sky-50/50">
           <p className="text-sm text-sky-900">
             Horarios, pausa imediata e abertura da loja estao em{" "}
-            <Link to="/painel/estabelecimento/horarios" className="font-semibold underline">
-              Horarios de funcionamento
+            <Link to="/painel/configuracoes/horarios" className="font-semibold underline">
+              Horários de funcionamento
             </Link>
             .
           </p>

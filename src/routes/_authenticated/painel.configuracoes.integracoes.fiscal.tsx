@@ -1,10 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { ConfiguracaoIntegracaoDetalhePage } from "./-painel.configuracoes.shared";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/painel/configuracoes/integracoes/fiscal")({
-  component: FiscalIntegracaoPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/painel/fiscal/configuracoes" });
+  },
 });
-
-function FiscalIntegracaoPage() {
-  return <ConfiguracaoIntegracaoDetalhePage integrationKey="fiscal" />;
-}

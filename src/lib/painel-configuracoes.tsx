@@ -136,7 +136,7 @@ export const integrationConfigs: IntegrationConfig[] = [
     titulo: "Fiscal",
     descricao: "NFC-e, NF-e, XML, DANFE e envio para contabilidade.",
     icon: Receipt,
-    route: "/painel/configuracoes/integracoes/fiscal",
+    route: "/painel/fiscal/configuracoes",
     envs: ["FISCAL_PROVIDER", "ENCRYPTION_KEY", "FISCAL_ENVIRONMENT"],
     details: (data) => [
       `Provider: ${data?.fiscal.provider ?? "sefaz"} (direto)`,

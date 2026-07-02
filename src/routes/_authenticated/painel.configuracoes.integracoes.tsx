@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getIntegrationStatus } from "@/lib/api/integrations.functions";
 import { StatusBadge } from "@/components/painel-configuracoes-ui";
 import { GestaoInteractiveCard, GestaoPage } from "@/components/gestao-ui";
+import { ConfigPageBack } from "@/components/config-hub-ui";
 import { integrationConfigs } from "@/lib/painel-configuracoes";
 
 export const Route = createFileRoute("/_authenticated/painel/configuracoes/integracoes")({
@@ -16,7 +17,11 @@ function ConfiguracoesIntegracoesPage() {
   });
 
   return (
-    <GestaoPage title="Integracoes" subtitle="Mercado Pago, Banco Inter, fiscal e canais externos.">
+    <GestaoPage
+      title="Integracoes"
+      subtitle="Mercado Pago, Banco Inter, fiscal e canais externos."
+      actions={<ConfigPageBack />}
+    >
       <section className="grid gap-4 xl:grid-cols-2">
         {integrationConfigs.map((integration) => (
           <Link key={integration.key} to={integration.route} className="block">

@@ -5,7 +5,10 @@
 {$DOMAIN} {
   encode gzip zstd
 
-  @metro path /metro /metro/* /index.ts.bundle* /index.exp /status /manifest /_expo/* /assets/*
+  # Norfood web Vite bundles live at /assets/*.js — never proxy all /assets/* to Metro.
+  @metro path /metro /metro/* /index.ts.bundle* /index.exp /status /manifest /_expo/*
+  @expo_assets path /assets/assets/*
+
   handle @metro {
     @metro_prefixed path /metro /metro/*
     handle @metro_prefixed {
@@ -17,6 +20,15 @@
         }
       }
     }
+    reverse_proxy expo-metro:8081 {
+      transport http {
+        read_timeout 300s
+        write_timeout 300s
+      }
+    }
+  }
+
+  handle @expo_assets {
     reverse_proxy expo-metro:8081 {
       transport http {
         read_timeout 300s

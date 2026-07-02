@@ -89,9 +89,16 @@ import { Route as AuthenticatedPainelEstabelecimentoVisualRouteImport } from './
 import { Route as AuthenticatedPainelEstabelecimentoPlanoRouteImport } from './routes/_authenticated/painel.estabelecimento.plano'
 import { Route as AuthenticatedPainelEstabelecimentoPagamentosRouteImport } from './routes/_authenticated/painel.estabelecimento.pagamentos'
 import { Route as AuthenticatedPainelEstabelecimentoHorariosRouteImport } from './routes/_authenticated/painel.estabelecimento.horarios'
+import { Route as AuthenticatedPainelConfiguracoesPlanoRouteImport } from './routes/_authenticated/painel.configuracoes.plano'
+import { Route as AuthenticatedPainelConfiguracoesPagamentosRouteImport } from './routes/_authenticated/painel.configuracoes.pagamentos'
 import { Route as AuthenticatedPainelConfiguracoesOperacaoRouteImport } from './routes/_authenticated/painel.configuracoes.operacao'
+import { Route as AuthenticatedPainelConfiguracoesMesasRouteImport } from './routes/_authenticated/painel.configuracoes.mesas'
+import { Route as AuthenticatedPainelConfiguracoesLojaRouteImport } from './routes/_authenticated/painel.configuracoes.loja'
 import { Route as AuthenticatedPainelConfiguracoesIntegracoesRouteImport } from './routes/_authenticated/painel.configuracoes.integracoes'
 import { Route as AuthenticatedPainelConfiguracoesImpressorasRouteImport } from './routes/_authenticated/painel.configuracoes.impressoras'
+import { Route as AuthenticatedPainelConfiguracoesHorariosRouteImport } from './routes/_authenticated/painel.configuracoes.horarios'
+import { Route as AuthenticatedPainelConfiguracoesEquipeRouteImport } from './routes/_authenticated/painel.configuracoes.equipe'
+import { Route as AuthenticatedPainelConfiguracoesDeliveryRouteImport } from './routes/_authenticated/painel.configuracoes.delivery'
 import { Route as AuthenticatedPainelAtendimentoConversasRouteImport } from './routes/_authenticated/painel.atendimento.conversas'
 import { Route as AuthenticatedPainelAtendimentoContatosRouteImport } from './routes/_authenticated/painel.atendimento.contatos'
 import { Route as AuthenticatedPainelAtendimentoConfiguracoesRouteImport } from './routes/_authenticated/painel.atendimento.configuracoes'
@@ -544,10 +551,34 @@ const AuthenticatedPainelEstabelecimentoHorariosRoute =
     path: '/estabelecimento/horarios',
     getParentRoute: () => AuthenticatedPainelRoute,
   } as any)
+const AuthenticatedPainelConfiguracoesPlanoRoute =
+  AuthenticatedPainelConfiguracoesPlanoRouteImport.update({
+    id: '/plano',
+    path: '/plano',
+    getParentRoute: () => AuthenticatedPainelConfiguracoesRoute,
+  } as any)
+const AuthenticatedPainelConfiguracoesPagamentosRoute =
+  AuthenticatedPainelConfiguracoesPagamentosRouteImport.update({
+    id: '/pagamentos',
+    path: '/pagamentos',
+    getParentRoute: () => AuthenticatedPainelConfiguracoesRoute,
+  } as any)
 const AuthenticatedPainelConfiguracoesOperacaoRoute =
   AuthenticatedPainelConfiguracoesOperacaoRouteImport.update({
     id: '/operacao',
     path: '/operacao',
+    getParentRoute: () => AuthenticatedPainelConfiguracoesRoute,
+  } as any)
+const AuthenticatedPainelConfiguracoesMesasRoute =
+  AuthenticatedPainelConfiguracoesMesasRouteImport.update({
+    id: '/mesas',
+    path: '/mesas',
+    getParentRoute: () => AuthenticatedPainelConfiguracoesRoute,
+  } as any)
+const AuthenticatedPainelConfiguracoesLojaRoute =
+  AuthenticatedPainelConfiguracoesLojaRouteImport.update({
+    id: '/loja',
+    path: '/loja',
     getParentRoute: () => AuthenticatedPainelConfiguracoesRoute,
   } as any)
 const AuthenticatedPainelConfiguracoesIntegracoesRoute =
@@ -560,6 +591,24 @@ const AuthenticatedPainelConfiguracoesImpressorasRoute =
   AuthenticatedPainelConfiguracoesImpressorasRouteImport.update({
     id: '/impressoras',
     path: '/impressoras',
+    getParentRoute: () => AuthenticatedPainelConfiguracoesRoute,
+  } as any)
+const AuthenticatedPainelConfiguracoesHorariosRoute =
+  AuthenticatedPainelConfiguracoesHorariosRouteImport.update({
+    id: '/horarios',
+    path: '/horarios',
+    getParentRoute: () => AuthenticatedPainelConfiguracoesRoute,
+  } as any)
+const AuthenticatedPainelConfiguracoesEquipeRoute =
+  AuthenticatedPainelConfiguracoesEquipeRouteImport.update({
+    id: '/equipe',
+    path: '/equipe',
+    getParentRoute: () => AuthenticatedPainelConfiguracoesRoute,
+  } as any)
+const AuthenticatedPainelConfiguracoesDeliveryRoute =
+  AuthenticatedPainelConfiguracoesDeliveryRouteImport.update({
+    id: '/delivery',
+    path: '/delivery',
     getParentRoute: () => AuthenticatedPainelConfiguracoesRoute,
   } as any)
 const AuthenticatedPainelAtendimentoConversasRoute =
@@ -693,9 +742,16 @@ export interface FileRoutesByFullPath {
   '/painel/atendimento/configuracoes': typeof AuthenticatedPainelAtendimentoConfiguracoesRoute
   '/painel/atendimento/contatos': typeof AuthenticatedPainelAtendimentoContatosRoute
   '/painel/atendimento/conversas': typeof AuthenticatedPainelAtendimentoConversasRoute
+  '/painel/configuracoes/delivery': typeof AuthenticatedPainelConfiguracoesDeliveryRoute
+  '/painel/configuracoes/equipe': typeof AuthenticatedPainelConfiguracoesEquipeRoute
+  '/painel/configuracoes/horarios': typeof AuthenticatedPainelConfiguracoesHorariosRoute
   '/painel/configuracoes/impressoras': typeof AuthenticatedPainelConfiguracoesImpressorasRouteWithChildren
   '/painel/configuracoes/integracoes': typeof AuthenticatedPainelConfiguracoesIntegracoesRouteWithChildren
+  '/painel/configuracoes/loja': typeof AuthenticatedPainelConfiguracoesLojaRoute
+  '/painel/configuracoes/mesas': typeof AuthenticatedPainelConfiguracoesMesasRoute
   '/painel/configuracoes/operacao': typeof AuthenticatedPainelConfiguracoesOperacaoRoute
+  '/painel/configuracoes/pagamentos': typeof AuthenticatedPainelConfiguracoesPagamentosRoute
+  '/painel/configuracoes/plano': typeof AuthenticatedPainelConfiguracoesPlanoRoute
   '/painel/estabelecimento/horarios': typeof AuthenticatedPainelEstabelecimentoHorariosRoute
   '/painel/estabelecimento/pagamentos': typeof AuthenticatedPainelEstabelecimentoPagamentosRoute
   '/painel/estabelecimento/plano': typeof AuthenticatedPainelEstabelecimentoPlanoRoute
@@ -781,9 +837,16 @@ export interface FileRoutesByTo {
   '/painel/atendimento/configuracoes': typeof AuthenticatedPainelAtendimentoConfiguracoesRoute
   '/painel/atendimento/contatos': typeof AuthenticatedPainelAtendimentoContatosRoute
   '/painel/atendimento/conversas': typeof AuthenticatedPainelAtendimentoConversasRoute
+  '/painel/configuracoes/delivery': typeof AuthenticatedPainelConfiguracoesDeliveryRoute
+  '/painel/configuracoes/equipe': typeof AuthenticatedPainelConfiguracoesEquipeRoute
+  '/painel/configuracoes/horarios': typeof AuthenticatedPainelConfiguracoesHorariosRoute
   '/painel/configuracoes/impressoras': typeof AuthenticatedPainelConfiguracoesImpressorasRouteWithChildren
   '/painel/configuracoes/integracoes': typeof AuthenticatedPainelConfiguracoesIntegracoesRouteWithChildren
+  '/painel/configuracoes/loja': typeof AuthenticatedPainelConfiguracoesLojaRoute
+  '/painel/configuracoes/mesas': typeof AuthenticatedPainelConfiguracoesMesasRoute
   '/painel/configuracoes/operacao': typeof AuthenticatedPainelConfiguracoesOperacaoRoute
+  '/painel/configuracoes/pagamentos': typeof AuthenticatedPainelConfiguracoesPagamentosRoute
+  '/painel/configuracoes/plano': typeof AuthenticatedPainelConfiguracoesPlanoRoute
   '/painel/estabelecimento/horarios': typeof AuthenticatedPainelEstabelecimentoHorariosRoute
   '/painel/estabelecimento/pagamentos': typeof AuthenticatedPainelEstabelecimentoPagamentosRoute
   '/painel/estabelecimento/plano': typeof AuthenticatedPainelEstabelecimentoPlanoRoute
@@ -879,9 +942,16 @@ export interface FileRoutesById {
   '/_authenticated/painel/atendimento/configuracoes': typeof AuthenticatedPainelAtendimentoConfiguracoesRoute
   '/_authenticated/painel/atendimento/contatos': typeof AuthenticatedPainelAtendimentoContatosRoute
   '/_authenticated/painel/atendimento/conversas': typeof AuthenticatedPainelAtendimentoConversasRoute
+  '/_authenticated/painel/configuracoes/delivery': typeof AuthenticatedPainelConfiguracoesDeliveryRoute
+  '/_authenticated/painel/configuracoes/equipe': typeof AuthenticatedPainelConfiguracoesEquipeRoute
+  '/_authenticated/painel/configuracoes/horarios': typeof AuthenticatedPainelConfiguracoesHorariosRoute
   '/_authenticated/painel/configuracoes/impressoras': typeof AuthenticatedPainelConfiguracoesImpressorasRouteWithChildren
   '/_authenticated/painel/configuracoes/integracoes': typeof AuthenticatedPainelConfiguracoesIntegracoesRouteWithChildren
+  '/_authenticated/painel/configuracoes/loja': typeof AuthenticatedPainelConfiguracoesLojaRoute
+  '/_authenticated/painel/configuracoes/mesas': typeof AuthenticatedPainelConfiguracoesMesasRoute
   '/_authenticated/painel/configuracoes/operacao': typeof AuthenticatedPainelConfiguracoesOperacaoRoute
+  '/_authenticated/painel/configuracoes/pagamentos': typeof AuthenticatedPainelConfiguracoesPagamentosRoute
+  '/_authenticated/painel/configuracoes/plano': typeof AuthenticatedPainelConfiguracoesPlanoRoute
   '/_authenticated/painel/estabelecimento/horarios': typeof AuthenticatedPainelEstabelecimentoHorariosRoute
   '/_authenticated/painel/estabelecimento/pagamentos': typeof AuthenticatedPainelEstabelecimentoPagamentosRoute
   '/_authenticated/painel/estabelecimento/plano': typeof AuthenticatedPainelEstabelecimentoPlanoRoute
@@ -977,9 +1047,16 @@ export interface FileRouteTypes {
     | '/painel/atendimento/configuracoes'
     | '/painel/atendimento/contatos'
     | '/painel/atendimento/conversas'
+    | '/painel/configuracoes/delivery'
+    | '/painel/configuracoes/equipe'
+    | '/painel/configuracoes/horarios'
     | '/painel/configuracoes/impressoras'
     | '/painel/configuracoes/integracoes'
+    | '/painel/configuracoes/loja'
+    | '/painel/configuracoes/mesas'
     | '/painel/configuracoes/operacao'
+    | '/painel/configuracoes/pagamentos'
+    | '/painel/configuracoes/plano'
     | '/painel/estabelecimento/horarios'
     | '/painel/estabelecimento/pagamentos'
     | '/painel/estabelecimento/plano'
@@ -1065,9 +1142,16 @@ export interface FileRouteTypes {
     | '/painel/atendimento/configuracoes'
     | '/painel/atendimento/contatos'
     | '/painel/atendimento/conversas'
+    | '/painel/configuracoes/delivery'
+    | '/painel/configuracoes/equipe'
+    | '/painel/configuracoes/horarios'
     | '/painel/configuracoes/impressoras'
     | '/painel/configuracoes/integracoes'
+    | '/painel/configuracoes/loja'
+    | '/painel/configuracoes/mesas'
     | '/painel/configuracoes/operacao'
+    | '/painel/configuracoes/pagamentos'
+    | '/painel/configuracoes/plano'
     | '/painel/estabelecimento/horarios'
     | '/painel/estabelecimento/pagamentos'
     | '/painel/estabelecimento/plano'
@@ -1162,9 +1246,16 @@ export interface FileRouteTypes {
     | '/_authenticated/painel/atendimento/configuracoes'
     | '/_authenticated/painel/atendimento/contatos'
     | '/_authenticated/painel/atendimento/conversas'
+    | '/_authenticated/painel/configuracoes/delivery'
+    | '/_authenticated/painel/configuracoes/equipe'
+    | '/_authenticated/painel/configuracoes/horarios'
     | '/_authenticated/painel/configuracoes/impressoras'
     | '/_authenticated/painel/configuracoes/integracoes'
+    | '/_authenticated/painel/configuracoes/loja'
+    | '/_authenticated/painel/configuracoes/mesas'
     | '/_authenticated/painel/configuracoes/operacao'
+    | '/_authenticated/painel/configuracoes/pagamentos'
+    | '/_authenticated/painel/configuracoes/plano'
     | '/_authenticated/painel/estabelecimento/horarios'
     | '/_authenticated/painel/estabelecimento/pagamentos'
     | '/_authenticated/painel/estabelecimento/plano'
@@ -1788,11 +1879,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPainelEstabelecimentoHorariosRouteImport
       parentRoute: typeof AuthenticatedPainelRoute
     }
+    '/_authenticated/painel/configuracoes/plano': {
+      id: '/_authenticated/painel/configuracoes/plano'
+      path: '/plano'
+      fullPath: '/painel/configuracoes/plano'
+      preLoaderRoute: typeof AuthenticatedPainelConfiguracoesPlanoRouteImport
+      parentRoute: typeof AuthenticatedPainelConfiguracoesRoute
+    }
+    '/_authenticated/painel/configuracoes/pagamentos': {
+      id: '/_authenticated/painel/configuracoes/pagamentos'
+      path: '/pagamentos'
+      fullPath: '/painel/configuracoes/pagamentos'
+      preLoaderRoute: typeof AuthenticatedPainelConfiguracoesPagamentosRouteImport
+      parentRoute: typeof AuthenticatedPainelConfiguracoesRoute
+    }
     '/_authenticated/painel/configuracoes/operacao': {
       id: '/_authenticated/painel/configuracoes/operacao'
       path: '/operacao'
       fullPath: '/painel/configuracoes/operacao'
       preLoaderRoute: typeof AuthenticatedPainelConfiguracoesOperacaoRouteImport
+      parentRoute: typeof AuthenticatedPainelConfiguracoesRoute
+    }
+    '/_authenticated/painel/configuracoes/mesas': {
+      id: '/_authenticated/painel/configuracoes/mesas'
+      path: '/mesas'
+      fullPath: '/painel/configuracoes/mesas'
+      preLoaderRoute: typeof AuthenticatedPainelConfiguracoesMesasRouteImport
+      parentRoute: typeof AuthenticatedPainelConfiguracoesRoute
+    }
+    '/_authenticated/painel/configuracoes/loja': {
+      id: '/_authenticated/painel/configuracoes/loja'
+      path: '/loja'
+      fullPath: '/painel/configuracoes/loja'
+      preLoaderRoute: typeof AuthenticatedPainelConfiguracoesLojaRouteImport
       parentRoute: typeof AuthenticatedPainelConfiguracoesRoute
     }
     '/_authenticated/painel/configuracoes/integracoes': {
@@ -1807,6 +1926,27 @@ declare module '@tanstack/react-router' {
       path: '/impressoras'
       fullPath: '/painel/configuracoes/impressoras'
       preLoaderRoute: typeof AuthenticatedPainelConfiguracoesImpressorasRouteImport
+      parentRoute: typeof AuthenticatedPainelConfiguracoesRoute
+    }
+    '/_authenticated/painel/configuracoes/horarios': {
+      id: '/_authenticated/painel/configuracoes/horarios'
+      path: '/horarios'
+      fullPath: '/painel/configuracoes/horarios'
+      preLoaderRoute: typeof AuthenticatedPainelConfiguracoesHorariosRouteImport
+      parentRoute: typeof AuthenticatedPainelConfiguracoesRoute
+    }
+    '/_authenticated/painel/configuracoes/equipe': {
+      id: '/_authenticated/painel/configuracoes/equipe'
+      path: '/equipe'
+      fullPath: '/painel/configuracoes/equipe'
+      preLoaderRoute: typeof AuthenticatedPainelConfiguracoesEquipeRouteImport
+      parentRoute: typeof AuthenticatedPainelConfiguracoesRoute
+    }
+    '/_authenticated/painel/configuracoes/delivery': {
+      id: '/_authenticated/painel/configuracoes/delivery'
+      path: '/delivery'
+      fullPath: '/painel/configuracoes/delivery'
+      preLoaderRoute: typeof AuthenticatedPainelConfiguracoesDeliveryRouteImport
       parentRoute: typeof AuthenticatedPainelConfiguracoesRoute
     }
     '/_authenticated/painel/atendimento/conversas': {
@@ -1972,20 +2112,41 @@ const AuthenticatedPainelConfiguracoesIntegracoesRouteWithChildren =
   )
 
 interface AuthenticatedPainelConfiguracoesRouteChildren {
+  AuthenticatedPainelConfiguracoesDeliveryRoute: typeof AuthenticatedPainelConfiguracoesDeliveryRoute
+  AuthenticatedPainelConfiguracoesEquipeRoute: typeof AuthenticatedPainelConfiguracoesEquipeRoute
+  AuthenticatedPainelConfiguracoesHorariosRoute: typeof AuthenticatedPainelConfiguracoesHorariosRoute
   AuthenticatedPainelConfiguracoesImpressorasRoute: typeof AuthenticatedPainelConfiguracoesImpressorasRouteWithChildren
   AuthenticatedPainelConfiguracoesIntegracoesRoute: typeof AuthenticatedPainelConfiguracoesIntegracoesRouteWithChildren
+  AuthenticatedPainelConfiguracoesLojaRoute: typeof AuthenticatedPainelConfiguracoesLojaRoute
+  AuthenticatedPainelConfiguracoesMesasRoute: typeof AuthenticatedPainelConfiguracoesMesasRoute
   AuthenticatedPainelConfiguracoesOperacaoRoute: typeof AuthenticatedPainelConfiguracoesOperacaoRoute
+  AuthenticatedPainelConfiguracoesPagamentosRoute: typeof AuthenticatedPainelConfiguracoesPagamentosRoute
+  AuthenticatedPainelConfiguracoesPlanoRoute: typeof AuthenticatedPainelConfiguracoesPlanoRoute
   AuthenticatedPainelConfiguracoesIndexRoute: typeof AuthenticatedPainelConfiguracoesIndexRoute
 }
 
 const AuthenticatedPainelConfiguracoesRouteChildren: AuthenticatedPainelConfiguracoesRouteChildren =
   {
+    AuthenticatedPainelConfiguracoesDeliveryRoute:
+      AuthenticatedPainelConfiguracoesDeliveryRoute,
+    AuthenticatedPainelConfiguracoesEquipeRoute:
+      AuthenticatedPainelConfiguracoesEquipeRoute,
+    AuthenticatedPainelConfiguracoesHorariosRoute:
+      AuthenticatedPainelConfiguracoesHorariosRoute,
     AuthenticatedPainelConfiguracoesImpressorasRoute:
       AuthenticatedPainelConfiguracoesImpressorasRouteWithChildren,
     AuthenticatedPainelConfiguracoesIntegracoesRoute:
       AuthenticatedPainelConfiguracoesIntegracoesRouteWithChildren,
+    AuthenticatedPainelConfiguracoesLojaRoute:
+      AuthenticatedPainelConfiguracoesLojaRoute,
+    AuthenticatedPainelConfiguracoesMesasRoute:
+      AuthenticatedPainelConfiguracoesMesasRoute,
     AuthenticatedPainelConfiguracoesOperacaoRoute:
       AuthenticatedPainelConfiguracoesOperacaoRoute,
+    AuthenticatedPainelConfiguracoesPagamentosRoute:
+      AuthenticatedPainelConfiguracoesPagamentosRoute,
+    AuthenticatedPainelConfiguracoesPlanoRoute:
+      AuthenticatedPainelConfiguracoesPlanoRoute,
     AuthenticatedPainelConfiguracoesIndexRoute:
       AuthenticatedPainelConfiguracoesIndexRoute,
   }

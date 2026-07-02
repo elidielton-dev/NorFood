@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, UserCog } from "lucide-react";
+import { ConfigPageBack } from "@/components/config-hub-ui";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ColaboradorFormModal } from "@/components/colaborador-form-modal";
@@ -27,10 +28,10 @@ import { useTenantId, useTenantSlug } from "@/lib/tenant/tenant-context";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/painel/colaboradores")({
-  component: ColaboradoresPage,
+  component: () => <ColaboradoresPage />,
 });
 
-function ColaboradoresPage() {
+export function ColaboradoresPage({ backTo }: { backTo?: string } = {}) {
   const queryClient = useQueryClient();
   const tenantId = useTenantId();
   const tenantSlug = useTenantSlug();
@@ -101,10 +102,13 @@ function ColaboradoresPage() {
         title="Colaboradores"
         subtitle="Equipe com acesso ao painel, cozinha e entregas"
         actions={
-          <GestaoButton onClick={handleOpenNew}>
-            <Plus className="size-4" />
-            Novo colaborador
-          </GestaoButton>
+          <div className="flex flex-wrap gap-2">
+            {backTo ? <ConfigPageBack to={backTo} /> : null}
+            <GestaoButton onClick={handleOpenNew}>
+              <Plus className="size-4" />
+              Novo colaborador
+            </GestaoButton>
+          </div>
         }
       >
         {isLoading ? (

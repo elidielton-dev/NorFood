@@ -7,6 +7,7 @@ import {
   GestaoPage,
   GestaoSectionTitle,
 } from "@/components/gestao-ui";
+import { ConfigPageBack } from "@/components/config-hub-ui";
 import { printerPanels } from "@/lib/painel-configuracoes";
 
 export const Route = createFileRoute("/_authenticated/painel/configuracoes/impressoras")({
@@ -15,7 +16,11 @@ export const Route = createFileRoute("/_authenticated/painel/configuracoes/impre
 
 function ConfiguracoesImpressorasPage() {
   return (
-    <GestaoPage title="Impressao" subtitle="Impressoras e regras de comprovantes por painel.">
+    <GestaoPage
+      title="Impressao"
+      subtitle="Impressoras e regras de comprovantes por painel."
+      actions={<ConfigPageBack />}
+    >
       <section className="space-y-4">
         <GestaoHeroCard>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
