@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ParceiroShell } from "@/routes/parceiro";
+import { ParceiroPage } from "@/routes/parceiro";
 import {
   createResellerTenant,
   fetchResellerDashboard,
@@ -63,7 +63,7 @@ function ParceiroNovaRestaurantePage() {
   }
 
   return (
-    <ParceiroShell title="Novo restaurante" subtitle="Cadastro manual na carteira.">
+    <ParceiroPage title="Novo restaurante" subtitle="Cadastro manual na carteira.">
       <form
         className="max-w-xl space-y-4 rounded-2xl border border-[#E5E7EB] bg-white p-6"
         onSubmit={(e) => {
@@ -148,7 +148,7 @@ function ParceiroNovaRestaurantePage() {
           </Link>
         </div>
       </form>
-    </ParceiroShell>
+    </ParceiroPage>
   );
 }
 

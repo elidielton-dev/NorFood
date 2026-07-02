@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ParceiroShell } from "@/routes/parceiro";
+import { ParceiroPage } from "@/routes/parceiro";
 import {
   createActivationToken,
   fetchActivationTokens,
@@ -61,7 +61,7 @@ function ParceiroTokensPage() {
   });
 
   return (
-    <ParceiroShell title="Tokens de ativacao" subtitle="Links para novos restaurantes se cadastrarem.">
+    <ParceiroPage title="Tokens de ativacao" subtitle="Links para novos restaurantes se cadastrarem.">
       <div className="mb-6 grid gap-3 rounded-2xl border border-[#E5E7EB] bg-white p-4 sm:grid-cols-4">
         <label className="text-sm">
           <span className="mb-1 block font-medium">Plano</span>
@@ -158,6 +158,6 @@ function ParceiroTokensPage() {
           </table>
         </div>
       )}
-    </ParceiroShell>
+    </ParceiroPage>
   );
 }

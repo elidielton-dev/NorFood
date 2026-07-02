@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { ExternalLink, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { ParceiroShell } from "@/routes/parceiro";
+import { ParceiroPage } from "@/routes/parceiro";
 import { fetchResellerTenants, impersonateResellerTenant } from "@/lib/reseller/client";
 import { tenantPath } from "@/lib/tenant/painel-routes";
 
@@ -11,7 +11,6 @@ export const Route = createFileRoute("/parceiro/restaurantes/")({
 });
 
 function ParceiroRestaurantesPage() {
-  const qc = useQueryClient();
   const { data: tenants = [], isLoading } = useQuery({
     queryKey: ["reseller-tenants"],
     queryFn: fetchResellerTenants,
@@ -26,8 +25,10 @@ function ParceiroRestaurantesPage() {
   });
 
   return (
-    <ParceiroShell title="Restaurantes" subtitle="Carteira de clientes da revendedora.">
-      <div className="mb-4 flex justify-end">
+    <ParceiroPage
+      title="Restaurantes"
+      subtitle="Carteira de clientes da revendedora."
+      actions={
         <Link
           to="/parceiro/restaurantes/nova"
           className="inline-flex items-center gap-2 rounded-xl bg-[#111111] px-4 py-2 text-sm font-medium text-white"
@@ -35,7 +36,8 @@ function ParceiroRestaurantesPage() {
           <Plus className="size-4" />
           Novo
         </Link>
-      </div>
+      }
+    >
       {isLoading ? (
         <p className="text-sm text-[#6B7280]">Carregando...</p>
       ) : tenants.length === 0 ? (
@@ -91,6 +93,6 @@ function ParceiroRestaurantesPage() {
           </table>
         </div>
       )}
-    </ParceiroShell>
+    </ParceiroPage>
   );
 }

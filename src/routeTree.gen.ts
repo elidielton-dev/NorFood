@@ -26,6 +26,14 @@ import { Route as TTenantSlugRouteImport } from './routes/t.$tenantSlug'
 import { Route as ParceiroTokensRouteImport } from './routes/parceiro.tokens'
 import { Route as ParceiroSemAcessoRouteImport } from './routes/parceiro.sem-acesso'
 import { Route as ParceiroRestaurantesRouteImport } from './routes/parceiro.restaurantes'
+import { Route as ParceiroRelatoriosRouteImport } from './routes/parceiro.relatorios'
+import { Route as ParceiroMarketingRouteImport } from './routes/parceiro.marketing'
+import { Route as ParceiroFinanceiroRouteImport } from './routes/parceiro.financeiro'
+import { Route as ParceiroEquipeRouteImport } from './routes/parceiro.equipe'
+import { Route as ParceiroConquistasRouteImport } from './routes/parceiro.conquistas'
+import { Route as ParceiroConfiguracoesRouteImport } from './routes/parceiro.configuracoes'
+import { Route as ParceiroAjudaRouteImport } from './routes/parceiro.ajuda'
+import { Route as ParceiroAcademiaRouteImport } from './routes/parceiro.academia'
 import { Route as LojaTenantSlugRouteImport } from './routes/loja.$tenantSlug'
 import { Route as EntregadorLoginRouteImport } from './routes/entregador.login'
 import { Route as EntregadorExpoGoRouteImport } from './routes/entregador.expo-go'
@@ -207,6 +215,46 @@ const ParceiroSemAcessoRoute = ParceiroSemAcessoRouteImport.update({
 const ParceiroRestaurantesRoute = ParceiroRestaurantesRouteImport.update({
   id: '/restaurantes',
   path: '/restaurantes',
+  getParentRoute: () => ParceiroRoute,
+} as any)
+const ParceiroRelatoriosRoute = ParceiroRelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
+  getParentRoute: () => ParceiroRoute,
+} as any)
+const ParceiroMarketingRoute = ParceiroMarketingRouteImport.update({
+  id: '/marketing',
+  path: '/marketing',
+  getParentRoute: () => ParceiroRoute,
+} as any)
+const ParceiroFinanceiroRoute = ParceiroFinanceiroRouteImport.update({
+  id: '/financeiro',
+  path: '/financeiro',
+  getParentRoute: () => ParceiroRoute,
+} as any)
+const ParceiroEquipeRoute = ParceiroEquipeRouteImport.update({
+  id: '/equipe',
+  path: '/equipe',
+  getParentRoute: () => ParceiroRoute,
+} as any)
+const ParceiroConquistasRoute = ParceiroConquistasRouteImport.update({
+  id: '/conquistas',
+  path: '/conquistas',
+  getParentRoute: () => ParceiroRoute,
+} as any)
+const ParceiroConfiguracoesRoute = ParceiroConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => ParceiroRoute,
+} as any)
+const ParceiroAjudaRoute = ParceiroAjudaRouteImport.update({
+  id: '/ajuda',
+  path: '/ajuda',
+  getParentRoute: () => ParceiroRoute,
+} as any)
+const ParceiroAcademiaRoute = ParceiroAcademiaRouteImport.update({
+  id: '/academia',
+  path: '/academia',
   getParentRoute: () => ParceiroRoute,
 } as any)
 const LojaTenantSlugRoute = LojaTenantSlugRouteImport.update({
@@ -794,6 +842,14 @@ export interface FileRoutesByFullPath {
   '/entregador/expo-go': typeof EntregadorExpoGoRoute
   '/entregador/login': typeof EntregadorLoginRoute
   '/loja/$tenantSlug': typeof LojaTenantSlugRoute
+  '/parceiro/academia': typeof ParceiroAcademiaRoute
+  '/parceiro/ajuda': typeof ParceiroAjudaRoute
+  '/parceiro/configuracoes': typeof ParceiroConfiguracoesRoute
+  '/parceiro/conquistas': typeof ParceiroConquistasRoute
+  '/parceiro/equipe': typeof ParceiroEquipeRoute
+  '/parceiro/financeiro': typeof ParceiroFinanceiroRoute
+  '/parceiro/marketing': typeof ParceiroMarketingRoute
+  '/parceiro/relatorios': typeof ParceiroRelatoriosRoute
   '/parceiro/restaurantes': typeof ParceiroRestaurantesRouteWithChildren
   '/parceiro/sem-acesso': typeof ParceiroSemAcessoRoute
   '/parceiro/tokens': typeof ParceiroTokensRoute
@@ -906,6 +962,14 @@ export interface FileRoutesByTo {
   '/entregador/expo-go': typeof EntregadorExpoGoRoute
   '/entregador/login': typeof EntregadorLoginRoute
   '/loja/$tenantSlug': typeof LojaTenantSlugRoute
+  '/parceiro/academia': typeof ParceiroAcademiaRoute
+  '/parceiro/ajuda': typeof ParceiroAjudaRoute
+  '/parceiro/configuracoes': typeof ParceiroConfiguracoesRoute
+  '/parceiro/conquistas': typeof ParceiroConquistasRoute
+  '/parceiro/equipe': typeof ParceiroEquipeRoute
+  '/parceiro/financeiro': typeof ParceiroFinanceiroRoute
+  '/parceiro/marketing': typeof ParceiroMarketingRoute
+  '/parceiro/relatorios': typeof ParceiroRelatoriosRoute
   '/parceiro/sem-acesso': typeof ParceiroSemAcessoRoute
   '/parceiro/tokens': typeof ParceiroTokensRoute
   '/admin': typeof AdminIndexRoute
@@ -1017,6 +1081,14 @@ export interface FileRoutesById {
   '/entregador/expo-go': typeof EntregadorExpoGoRoute
   '/entregador/login': typeof EntregadorLoginRoute
   '/loja/$tenantSlug': typeof LojaTenantSlugRoute
+  '/parceiro/academia': typeof ParceiroAcademiaRoute
+  '/parceiro/ajuda': typeof ParceiroAjudaRoute
+  '/parceiro/configuracoes': typeof ParceiroConfiguracoesRoute
+  '/parceiro/conquistas': typeof ParceiroConquistasRoute
+  '/parceiro/equipe': typeof ParceiroEquipeRoute
+  '/parceiro/financeiro': typeof ParceiroFinanceiroRoute
+  '/parceiro/marketing': typeof ParceiroMarketingRoute
+  '/parceiro/relatorios': typeof ParceiroRelatoriosRoute
   '/parceiro/restaurantes': typeof ParceiroRestaurantesRouteWithChildren
   '/parceiro/sem-acesso': typeof ParceiroSemAcessoRoute
   '/parceiro/tokens': typeof ParceiroTokensRoute
@@ -1135,6 +1207,14 @@ export interface FileRouteTypes {
     | '/entregador/expo-go'
     | '/entregador/login'
     | '/loja/$tenantSlug'
+    | '/parceiro/academia'
+    | '/parceiro/ajuda'
+    | '/parceiro/configuracoes'
+    | '/parceiro/conquistas'
+    | '/parceiro/equipe'
+    | '/parceiro/financeiro'
+    | '/parceiro/marketing'
+    | '/parceiro/relatorios'
     | '/parceiro/restaurantes'
     | '/parceiro/sem-acesso'
     | '/parceiro/tokens'
@@ -1247,6 +1327,14 @@ export interface FileRouteTypes {
     | '/entregador/expo-go'
     | '/entregador/login'
     | '/loja/$tenantSlug'
+    | '/parceiro/academia'
+    | '/parceiro/ajuda'
+    | '/parceiro/configuracoes'
+    | '/parceiro/conquistas'
+    | '/parceiro/equipe'
+    | '/parceiro/financeiro'
+    | '/parceiro/marketing'
+    | '/parceiro/relatorios'
     | '/parceiro/sem-acesso'
     | '/parceiro/tokens'
     | '/admin'
@@ -1357,6 +1445,14 @@ export interface FileRouteTypes {
     | '/entregador/expo-go'
     | '/entregador/login'
     | '/loja/$tenantSlug'
+    | '/parceiro/academia'
+    | '/parceiro/ajuda'
+    | '/parceiro/configuracoes'
+    | '/parceiro/conquistas'
+    | '/parceiro/equipe'
+    | '/parceiro/financeiro'
+    | '/parceiro/marketing'
+    | '/parceiro/relatorios'
     | '/parceiro/restaurantes'
     | '/parceiro/sem-acesso'
     | '/parceiro/tokens'
@@ -1592,6 +1688,62 @@ declare module '@tanstack/react-router' {
       path: '/restaurantes'
       fullPath: '/parceiro/restaurantes'
       preLoaderRoute: typeof ParceiroRestaurantesRouteImport
+      parentRoute: typeof ParceiroRoute
+    }
+    '/parceiro/relatorios': {
+      id: '/parceiro/relatorios'
+      path: '/relatorios'
+      fullPath: '/parceiro/relatorios'
+      preLoaderRoute: typeof ParceiroRelatoriosRouteImport
+      parentRoute: typeof ParceiroRoute
+    }
+    '/parceiro/marketing': {
+      id: '/parceiro/marketing'
+      path: '/marketing'
+      fullPath: '/parceiro/marketing'
+      preLoaderRoute: typeof ParceiroMarketingRouteImport
+      parentRoute: typeof ParceiroRoute
+    }
+    '/parceiro/financeiro': {
+      id: '/parceiro/financeiro'
+      path: '/financeiro'
+      fullPath: '/parceiro/financeiro'
+      preLoaderRoute: typeof ParceiroFinanceiroRouteImport
+      parentRoute: typeof ParceiroRoute
+    }
+    '/parceiro/equipe': {
+      id: '/parceiro/equipe'
+      path: '/equipe'
+      fullPath: '/parceiro/equipe'
+      preLoaderRoute: typeof ParceiroEquipeRouteImport
+      parentRoute: typeof ParceiroRoute
+    }
+    '/parceiro/conquistas': {
+      id: '/parceiro/conquistas'
+      path: '/conquistas'
+      fullPath: '/parceiro/conquistas'
+      preLoaderRoute: typeof ParceiroConquistasRouteImport
+      parentRoute: typeof ParceiroRoute
+    }
+    '/parceiro/configuracoes': {
+      id: '/parceiro/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/parceiro/configuracoes'
+      preLoaderRoute: typeof ParceiroConfiguracoesRouteImport
+      parentRoute: typeof ParceiroRoute
+    }
+    '/parceiro/ajuda': {
+      id: '/parceiro/ajuda'
+      path: '/ajuda'
+      fullPath: '/parceiro/ajuda'
+      preLoaderRoute: typeof ParceiroAjudaRouteImport
+      parentRoute: typeof ParceiroRoute
+    }
+    '/parceiro/academia': {
+      id: '/parceiro/academia'
+      path: '/academia'
+      fullPath: '/parceiro/academia'
+      preLoaderRoute: typeof ParceiroAcademiaRouteImport
       parentRoute: typeof ParceiroRoute
     }
     '/loja/$tenantSlug': {
@@ -2683,6 +2835,14 @@ const ParceiroRestaurantesRouteWithChildren =
   ParceiroRestaurantesRoute._addFileChildren(ParceiroRestaurantesRouteChildren)
 
 interface ParceiroRouteChildren {
+  ParceiroAcademiaRoute: typeof ParceiroAcademiaRoute
+  ParceiroAjudaRoute: typeof ParceiroAjudaRoute
+  ParceiroConfiguracoesRoute: typeof ParceiroConfiguracoesRoute
+  ParceiroConquistasRoute: typeof ParceiroConquistasRoute
+  ParceiroEquipeRoute: typeof ParceiroEquipeRoute
+  ParceiroFinanceiroRoute: typeof ParceiroFinanceiroRoute
+  ParceiroMarketingRoute: typeof ParceiroMarketingRoute
+  ParceiroRelatoriosRoute: typeof ParceiroRelatoriosRoute
   ParceiroRestaurantesRoute: typeof ParceiroRestaurantesRouteWithChildren
   ParceiroSemAcessoRoute: typeof ParceiroSemAcessoRoute
   ParceiroTokensRoute: typeof ParceiroTokensRoute
@@ -2690,6 +2850,14 @@ interface ParceiroRouteChildren {
 }
 
 const ParceiroRouteChildren: ParceiroRouteChildren = {
+  ParceiroAcademiaRoute: ParceiroAcademiaRoute,
+  ParceiroAjudaRoute: ParceiroAjudaRoute,
+  ParceiroConfiguracoesRoute: ParceiroConfiguracoesRoute,
+  ParceiroConquistasRoute: ParceiroConquistasRoute,
+  ParceiroEquipeRoute: ParceiroEquipeRoute,
+  ParceiroFinanceiroRoute: ParceiroFinanceiroRoute,
+  ParceiroMarketingRoute: ParceiroMarketingRoute,
+  ParceiroRelatoriosRoute: ParceiroRelatoriosRoute,
   ParceiroRestaurantesRoute: ParceiroRestaurantesRouteWithChildren,
   ParceiroSemAcessoRoute: ParceiroSemAcessoRoute,
   ParceiroTokensRoute: ParceiroTokensRoute,

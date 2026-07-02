@@ -1,7 +1,8 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, useLocation } from "@tanstack/react-router";
 import { getAuthenticatedUser } from "@/lib/auth-session";
 import { checkCurrentUserPlatformAdmin } from "@/lib/platform-admin/client";
 import { checkResellerAccess } from "@/lib/reseller/client";
+import { ParceiroLayoutShell } from "@/components/parceiro/parceiro-layout-shell";
 
 export const Route = createFileRoute("/parceiro")({
   ssr: false,
@@ -32,7 +33,22 @@ export const Route = createFileRoute("/parceiro")({
 
     throw redirect({ to: "/parceiro/sem-acesso" });
   },
-  component: () => <Outlet />,
+  component: ParceiroLayoutRoute,
 });
 
-export { ParceiroShell } from "@/routes/parceiro-shell";
+function ParceiroLayoutRoute() {
+  const location = useLocation();
+  const normalized = location.pathname.replace(/\/$/, "") || "/";
+
+  if (normalized === "/parceiro/sem-acesso") {
+    return <Outlet />;
+  }
+
+  return (
+    <ParceiroLayoutShell>
+      <Outlet />
+    </ParceiroLayoutShell>
+  );
+}
+
+export { ParceiroPage, ParceiroCard } from "@/components/parceiro/parceiro-layout-shell";

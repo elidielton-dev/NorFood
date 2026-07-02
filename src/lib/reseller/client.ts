@@ -16,6 +16,9 @@ import {
   startPlatformImpersonationServer,
   suggestResellerSlugServer,
   updateResellerStatusAdminServer,
+  listResellerTeamServer,
+  getResellerProfileServer,
+  listResellerInvoicesServer,
 } from "@/lib/api/platform-reseller.functions";
 
 export async function checkResellerAccess() {
@@ -73,6 +76,18 @@ export async function createActivationToken(input: {
 
 export async function revokeActivationToken(tokenId: string) {
   return revokeActivationTokenServer({ data: tokenId });
+}
+
+export async function fetchResellerTeam() {
+  return listResellerTeamServer();
+}
+
+export async function fetchResellerProfile() {
+  return getResellerProfileServer();
+}
+
+export async function fetchResellerInvoices() {
+  return listResellerInvoicesServer();
 }
 
 export async function impersonateResellerTenant(tenantId: string) {

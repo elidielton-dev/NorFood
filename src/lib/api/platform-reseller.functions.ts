@@ -646,6 +646,102 @@ export const checkResellerAccessServer = createServerFn({ method: "GET" })
     };
   });
 
+export type ResellerTeamMember = {
+  id: string;
+  user_id: string;
+  role: string;
+  status: string;
+  email: string | null;
+  name: string | null;
+  created_at: string;
+};
+
+export const listResellerTeamServer = createServerFn({ method: "GET" })
+  .middleware([requireResellerStaff])
+  .handler(async ({ context }): Promise<ResellerTeamMember[]> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const resellerId = context.resellerId as string;
+    const { data, error } = await supabaseAdmin
+      .from("reseller_users")
+      .select("id, user_id, role, status, created_at")
+      .eq("reseller_id", resellerId)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+
+    const members: ResellerTeamMember[] = [];
+    for (const row of data ?? []) {
+      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(row.user_id);
+      members.push({
+        id: String(row.id),
+        user_id: String(row.user_id),
+        role: String(row.role),
+        status: String(row.status),
+        email: userData.user?.email ?? null,
+        name:
+          (userData.user?.user_metadata?.nome as string | undefined) ??
+          (userData.user?.user_metadata?.name as string | undefined) ??
+          null,
+        created_at: String(row.created_at),
+      });
+    }
+    return members;
+  });
+
+export const getResellerProfileServer = createServerFn({ method: "GET" })
+  .middleware([requireResellerStaff])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const resellerId = context.resellerId as string;
+    const [{ data: reseller }, { data: billing }] = await Promise.all([
+      supabaseAdmin.from("resellers").select("*").eq("id", resellerId).maybeSingle(),
+      supabaseAdmin.from("reseller_billing").select("*").eq("reseller_id", resellerId).maybeSingle(),
+    ]);
+    if (!reseller) throw new Error("Revendedora nao encontrada.");
+    return {
+      reseller: mapReseller(reseller as Record<string, unknown>),
+      billing: billing ?? null,
+    };
+  });
+
+export type ResellerInvoiceRow = {
+  id: string;
+  period_start: string;
+  period_end: string;
+  active_tenant_count: number;
+  calculated_amount: number;
+  final_amount: number;
+  status: string;
+  paid_at: string | null;
+  created_at: string;
+};
+
+export const listResellerInvoicesServer = createServerFn({ method: "GET" })
+  .middleware([requireResellerStaff])
+  .handler(async ({ context }): Promise<ResellerInvoiceRow[]> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const resellerId = context.resellerId as string;
+    const { data, error } = await supabaseAdmin
+      .from("reseller_invoices")
+      .select(
+        "id, period_start, period_end, active_tenant_count, calculated_amount, final_amount, status, paid_at, created_at",
+      )
+      .eq("reseller_id", resellerId)
+      .order("period_start", { ascending: false })
+      .limit(24);
+    if (error) throw error;
+    return (data ?? []).map((row) => ({
+      id: String(row.id),
+      period_start: String(row.period_start),
+      period_end: String(row.period_end),
+      active_tenant_count: Number(row.active_tenant_count),
+      calculated_amount: Number(row.calculated_amount),
+      final_amount: Number(row.final_amount),
+      status: String(row.status),
+      paid_at: (row.paid_at as string | null) ?? null,
+      created_at: String(row.created_at),
+    }));
+  });
+
 // Used during signup with token
 export async function consumeActivationTokenForSignup(
   tokenPlain: string,
