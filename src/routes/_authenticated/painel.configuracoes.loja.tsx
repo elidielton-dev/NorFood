@@ -9,7 +9,7 @@ import {
 import { fetchTenantAdminSettingsServer } from "@/lib/api/tenant-settings-admin.functions";
 import { lojaPath } from "@/lib/tenant/painel-routes";
 import { useTenant, useTenantSlug } from "@/lib/tenant/tenant-context";
-import { GestaoAlert, GestaoButton } from "@/components/gestao-ui";
+import { GestaoButton } from "@/components/gestao-ui";
 
 export const Route = createFileRoute("/_authenticated/painel/configuracoes/loja")({
   component: ConfiguracoesLojaPage,
@@ -43,7 +43,7 @@ function ConfiguracoesLojaPage() {
   return (
     <ConfiguracoesPageFrame
       title="Dados e aparência"
-      description="Informações cadastrais da loja. Para alterar, entre em contato com o suporte Norfood."
+      description="Informações cadastrais da loja no painel e na vitrine online."
       actions={
         <a href={lojaUrl} target="_blank" rel="noreferrer">
           <GestaoButton variant="secondary">
@@ -53,11 +53,6 @@ function ConfiguracoesLojaPage() {
         </a>
       }
     >
-      <GestaoAlert tone="info">
-        Os dados abaixo são exibidos apenas para consulta. Alterações de nome, logo e vitrine são
-        feitas pela equipe Norfood.
-      </GestaoAlert>
-
       <ConfigSection title="Identidade da loja" description="Nome e marca exibidos no painel e na vitrine.">
         <ConfigSettingRow
           description="Nome do restaurante."
