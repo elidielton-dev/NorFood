@@ -101,7 +101,7 @@ export async function getOperationalConfig(tenantId?: string) {
 
 export async function validateAndPriceOrderItems(
   itens: OrderItemInput[],
-  options?: { checkStock?: boolean },
+  options?: { checkStock?: boolean; tenantId?: string },
 ) {
   if (!itens.length) {
     throw new Error("O pedido precisa ter pelo menos 1 item.");
@@ -116,11 +116,16 @@ export async function validateAndPriceOrderItems(
     ...new Set(itens.flatMap((item) => (item.adicionais ?? []).map((a) => a.id))),
   ];
 
+  let produtosQuery = supabaseAdmin
+    .from("produtos")
+    .select("id, nome, preco, preco_promocional, ativo, estoque")
+    .in("id", productIds);
+  if (options?.tenantId) {
+    produtosQuery = produtosQuery.eq("tenant_id", options.tenantId);
+  }
+
   const [produtosResult, variacoesResult, adicionaisResult, promocoesResult] = await Promise.all([
-    supabaseAdmin
-      .from("produtos")
-      .select("id, nome, preco, preco_promocional, ativo, estoque")
-      .in("id", productIds),
+    produtosQuery,
     variacaoIds.length
       ? supabaseAdmin
           .from("produto_variacoes")

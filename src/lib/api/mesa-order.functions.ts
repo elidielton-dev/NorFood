@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Enums } from "@/integrations/supabase/types";
 import {
   getOperationalConfig,
@@ -12,6 +11,7 @@ type FormaPagamento = Enums<"forma_pagamento">;
 
 type CreateMesaQrOrderPayload = {
   qrcodeToken: string;
+  customerName: string;
   cupom_codigo?: string | null;
   observacoes?: string | null;
   itens: Array<{
@@ -23,10 +23,20 @@ type CreateMesaQrOrderPayload = {
   }>;
 };
 
+function buildMesaObservacoes(customerName: string, mesaNumero: number, extra?: string | null) {
+  const base = `Cliente: ${customerName.trim()} · Mesa ${mesaNumero} via QR`;
+  const extraText = extra?.trim();
+  return extraText ? `${base} · ${extraText}` : base;
+}
+
 export const createMesaQrOrder = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .validator((input: CreateMesaQrOrderPayload) => input)
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data }) => {
+    const customerName = data.customerName?.trim();
+    if (!customerName || customerName.length < 2) {
+      throw new Error("Informe seu nome para enviar o pedido da mesa.");
+    }
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: mesa, error: mesaError } = await supabaseAdmin
       .from("mesas")
@@ -39,7 +49,7 @@ export const createMesaQrOrder = createServerFn({ method: "POST" })
       throw new Error("Esta mesa esta reservada. Solicite ajuda da equipe.");
     }
 
-    const tenantId = (mesa as { tenant_id?: string | null }).tenant_id ?? undefined;
+    const tenantId = mesa.tenant_id ?? undefined;
     const config = await getOperationalConfig(tenantId);
 
     if (!config.loja_aberta) {
@@ -63,6 +73,7 @@ export const createMesaQrOrder = createServerFn({ method: "POST" })
 
     const { itens, subtotal } = await validateAndPriceOrderItems(data.itens, {
       checkStock: true,
+      tenantId,
     });
 
     if (subtotal < Number(config.pedido_minimo)) {
@@ -82,6 +93,7 @@ export const createMesaQrOrder = createServerFn({ method: "POST" })
     }
 
     const total = subtotal - desconto;
+    const observacoes = buildMesaObservacoes(customerName, mesa.numero, data.observacoes);
 
     if (existingOrder) {
       const { error: itemError } = await supabaseAdmin.from("pedido_itens").insert(
@@ -112,7 +124,7 @@ export const createMesaQrOrder = createServerFn({ method: "POST" })
           desconto,
           total: novoTotal,
           cupom_id: cupomId,
-          observacoes: data.observacoes ?? `Mesa ${mesa.numero} via QR`,
+          observacoes,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existingOrder.id)
@@ -134,15 +146,16 @@ export const createMesaQrOrder = createServerFn({ method: "POST" })
       .insert({
         canal: "qrcode",
         mesa_id: mesa.id,
-        cliente_id: context.userId,
+        tenant_id: mesa.tenant_id ?? null,
+        cliente_id: null,
         status: "aberto",
         subtotal,
         desconto,
         taxa_entrega: 0,
         total,
-        forma_pagamento: null,
+        forma_pagamento: null as FormaPagamento | null,
         cupom_id: cupomId,
-        observacoes: data.observacoes ?? `Mesa ${mesa.numero} via QR`,
+        observacoes,
       })
       .select("*")
       .single();
@@ -176,10 +189,32 @@ export const resolveMesaByToken = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: mesa, error } = await supabaseAdmin
       .from("mesas")
-      .select("id, numero, status, capacidade")
+      .select("id, numero, status, capacidade, tenant_id")
       .eq("qrcode_token", data.qrcodeToken)
       .maybeSingle();
     if (error) throw error;
     if (!mesa) throw new Error("Mesa nao encontrada.");
-    return mesa;
+
+    let tenantSlug: string | null = null;
+    let tenantName: string | null = null;
+    if (mesa.tenant_id) {
+      const { data: tenant, error: tenantError } = await supabaseAdmin
+        .from("tenants")
+        .select("slug, name")
+        .eq("id", mesa.tenant_id)
+        .maybeSingle();
+      if (tenantError) throw tenantError;
+      tenantSlug = tenant?.slug ?? null;
+      tenantName = tenant?.name ?? null;
+    }
+
+    return {
+      id: mesa.id,
+      numero: mesa.numero,
+      status: mesa.status,
+      capacidade: mesa.capacidade,
+      tenant_id: mesa.tenant_id,
+      tenant_slug: tenantSlug,
+      tenant_name: tenantName,
+    };
   });

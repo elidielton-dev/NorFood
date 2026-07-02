@@ -94,6 +94,7 @@ import { OrderTrackingMap } from "@/components/order-tracking-map-lazy";
 import { createDeliveryOrder } from "@/lib/api/orders.functions";
 import { getTenantAccessStatusServer } from "@/lib/api/platform-billing.functions";
 import { createMesaQrOrder, resolveMesaByToken } from "@/lib/api/mesa-order.functions";
+import { getMesaGuestName, setMesaGuestName } from "@/lib/mesa-guest";
 import { validateCouponServer } from "@/lib/api/coupons.functions";
 import { expirePendingMercadoPagoOrders } from "@/lib/api/mercado-pago.functions";
 import {
@@ -187,6 +188,10 @@ function Shell({
   const [customizingDoce, setCustomizingDoce] = useState<Doce | null>(null);
   const [ordersVersion, setOrdersVersion] = useState(0);
   const [mesaInfo, setMesaInfo] = useState<{ numero: number; status: string } | null>(null);
+  const [mesaGuestName, setMesaGuestNameState] = useState<string | null>(null);
+  const [mesaNameDialogOpen, setMesaNameDialogOpen] = useState(false);
+  const [mesaNameInput, setMesaNameInput] = useState("");
+  const [mesaNameError, setMesaNameError] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const { theme, toggle } = useTheme();
   const mesaMode = Boolean(mesaToken);
@@ -212,7 +217,28 @@ function Shell({
     void resolveMesaByToken({ data: { qrcodeToken: mesaToken } })
       .then((mesa) => setMesaInfo({ numero: mesa.numero, status: mesa.status }))
       .catch(() => setMesaInfo(null));
+
+    const storedName = getMesaGuestName(mesaToken);
+    if (storedName) {
+      setMesaGuestNameState(storedName);
+      setMesaNameDialogOpen(false);
+    } else {
+      setMesaNameDialogOpen(true);
+    }
   }, [mesaToken]);
+
+  function confirmMesaGuestName() {
+    if (!mesaToken) return;
+    const name = mesaNameInput.trim();
+    if (name.length < 2) {
+      setMesaNameError("Informe seu nome para continuar.");
+      return;
+    }
+    setMesaGuestName(mesaToken, name);
+    setMesaGuestNameState(name);
+    setMesaNameError(null);
+    setMesaNameDialogOpen(false);
+  }
   const { totalItens, adicionar } = useCarrinho();
 
   function handleQuickAdd(doce: Doce) {
@@ -228,7 +254,7 @@ function Shell({
 
   useEffect(() => {
     if (!mesaMode) return;
-    if (tab === "favoritos" || tab === "ofertas") {
+    if (tab === "favoritos" || tab === "ofertas" || tab === "perfil") {
       setTab("home");
     }
   }, [mesaMode, tab]);
@@ -429,6 +455,8 @@ function Shell({
               theme={theme}
               onToggleTheme={toggle}
               customer={customer}
+              mesaMode={mesaMode}
+              mesaGuestName={mesaGuestName}
               onOpenProfile={() => setTab("perfil")}
               onOpenSearch={() => setSearchOpen(true)}
               menuSourceLabel={menuSourceLabel}
@@ -473,8 +501,10 @@ function Shell({
                 customer={customer}
                 mesaToken={mesaToken}
                 mesaInfo={mesaInfo}
+                mesaGuestName={mesaGuestName}
                 tenantSlug={tenantSlug}
                 onRequireProfile={() => setTab("perfil")}
+                onRequireMesaName={() => setMesaNameDialogOpen(true)}
                 onOrderCreated={(options) => {
                   setOrdersVersion((value) => value + 1);
                   if (!options?.keepCheckoutVisible) {
@@ -532,6 +562,51 @@ function Shell({
             handleQuickAdd(doce);
           }}
         />
+        {mesaMode ? (
+          <Dialog
+            open={mesaNameDialogOpen}
+            onOpenChange={(open) => {
+              if (!mesaGuestName && !open) return;
+              setMesaNameDialogOpen(open);
+            }}
+          >
+            <DialogContent className="max-w-sm rounded-3xl">
+              <DialogHeader>
+                <DialogTitle className="font-display text-xl">
+                  {mesaInfo ? `Mesa ${mesaInfo.numero}` : "Bem-vindo(a)"}
+                </DialogTitle>
+                <DialogDescription>
+                  Informe seu nome para fazer o pedido. Não é necessário criar conta.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3">
+                <input
+                  value={mesaNameInput}
+                  onChange={(event) => {
+                    setMesaNameInput(event.target.value);
+                    if (mesaNameError) setMesaNameError(null);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") confirmMesaGuestName();
+                  }}
+                  placeholder="Seu nome"
+                  autoFocus
+                  className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm outline-none"
+                />
+                {mesaNameError ? (
+                  <p className="text-sm text-rose-600">{mesaNameError}</p>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={confirmMesaGuestName}
+                  className="w-full rounded-full gradient-sage py-3.5 font-medium text-primary-foreground shadow-soft"
+                >
+                  Continuar
+                </button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        ) : null}
       </div>
     </div>
   );
@@ -640,6 +715,8 @@ function Header({
   theme,
   onToggleTheme,
   customer,
+  mesaMode = false,
+  mesaGuestName = null,
   onOpenProfile,
   onOpenSearch,
   menuSourceLabel,
@@ -651,6 +728,8 @@ function Header({
   theme: string;
   onToggleTheme: () => void;
   customer: CustomerAccount | null;
+  mesaMode?: boolean;
+  mesaGuestName?: string | null;
   onOpenProfile: () => void;
   onOpenSearch: () => void;
   menuSourceLabel: string | null;
@@ -677,7 +756,9 @@ function Header({
         <div>
           <p className="text-xs text-muted-foreground">
             {mesaInfo
-              ? `Mesa ${mesaInfo.numero} · pedido pelo QR`
+              ? mesaGuestName
+                ? `Mesa ${mesaInfo.numero} · ${firstName(mesaGuestName)}`
+                : `Mesa ${mesaInfo.numero} · pedido pelo QR`
               : customer
                 ? `Ola, ${firstName(customer.name)}`
                 : "Ola, seja bem-vindo(a)"}
@@ -692,13 +773,15 @@ function Header({
         <IconBtn onClick={onOpenSearch} label="Buscar">
           <Search className="size-4" />
         </IconBtn>
-        <button
-          onClick={onOpenProfile}
-          aria-label={customer ? "Abrir perfil" : "Entrar"}
-          className="grid size-10 place-items-center rounded-full gradient-sage text-primary-foreground shadow-soft transition hover:shadow-glow active:scale-95"
-        >
-          <User className="size-4" />
-        </button>
+        {!mesaMode ? (
+          <button
+            onClick={onOpenProfile}
+            aria-label={customer ? "Abrir perfil" : "Entrar"}
+            className="grid size-10 place-items-center rounded-full gradient-sage text-primary-foreground shadow-soft transition hover:shadow-glow active:scale-95"
+          >
+            <User className="size-4" />
+          </button>
+        ) : null}
       </div>
     </header>
   );
@@ -1046,15 +1129,19 @@ function Carrinho({
   customer,
   mesaToken,
   mesaInfo,
+  mesaGuestName,
   tenantSlug,
   onRequireProfile,
+  onRequireMesaName,
   onOrderCreated,
 }: {
   customer: CustomerAccount | null;
   mesaToken: string | null;
   mesaInfo: { numero: number; status: string } | null;
+  mesaGuestName: string | null;
   tenantSlug?: string;
   onRequireProfile: () => void;
+  onRequireMesaName: () => void;
   onOrderCreated: (options?: { keepCheckoutVisible?: boolean }) => void;
 }) {
   const brandName = useBrandName();
@@ -1241,19 +1328,15 @@ function Carrinho({
   }
 
   async function finalizeMesaOrder() {
-    if (!customer) {
-      setCheckoutMessage("Entre ou crie sua conta para enviar o pedido da mesa.");
-      onRequireProfile();
-      return;
-    }
-
-    if (!customer.name.trim() || !customer.phone.trim()) {
-      setCheckoutMessage("Complete nome e telefone no perfil antes de enviar o pedido.");
-      return;
-    }
-
     if (!mesaToken) {
       setCheckoutMessage("QR Code da mesa invalido.");
+      return;
+    }
+
+    const guestName = mesaGuestName?.trim();
+    if (!guestName || guestName.length < 2) {
+      setCheckoutMessage("Informe seu nome para enviar o pedido.");
+      onRequireMesaName();
       return;
     }
 
@@ -1261,19 +1344,13 @@ function Carrinho({
     setCheckoutMessage(null);
 
     try {
-      const headers = await getCustomerAuthorizationHeaders();
-      if (!headers) {
-        throw new Error("Sessao do cliente nao encontrada.");
-      }
-
       const pedido = await createMesaQrOrder({
         data: {
           qrcodeToken: mesaToken,
+          customerName: guestName,
           cupom_codigo: cupomCodigo,
-          observacoes: `Mesa ${mesaInfo?.numero ?? ""} pedido via QR`,
           itens: itens.map(mapCartItemToOrderItem),
         },
-        headers,
       });
 
       setOrderNumber(pedido.numero);
@@ -1586,6 +1663,9 @@ function Carrinho({
             <p className="font-medium">
               Mesa {mesaInfo?.numero ?? "..."} · Pedido direto pelo QR Code
             </p>
+            {mesaGuestName ? (
+              <p className="mt-1 text-muted-foreground">Pedindo como {mesaGuestName}</p>
+            ) : null}
             <p className="mt-1 text-muted-foreground">
               O pedido vai para a cozinha. O pagamento e feito com a equipe da loja.
             </p>
@@ -2718,7 +2798,9 @@ function BottomNav({
           { id: "ofertas" as Tab, icon: <TicketIcon className="size-5" />, label: "Ofertas" },
         ]),
     { id: "carrinho", icon: <ShoppingBag className="size-5" />, label: "Carrinho" },
-    { id: "perfil", icon: <User className="size-5" />, label: "Perfil" },
+    ...(mesaMode
+      ? []
+      : [{ id: "perfil" as Tab, icon: <User className="size-5" />, label: "Perfil" }]),
   ];
 
   return (
