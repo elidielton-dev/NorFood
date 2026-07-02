@@ -2,10 +2,18 @@ import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { GestaoButton } from "@/components/gestao-ui";
+import { useTenantOptional } from "@/lib/tenant/tenant-context";
+import { mapLegacyPainelPath } from "@/lib/tenant/painel-routes";
 
 export function ConfigPageBack({ to = "/painel/configuracoes" }: { to?: string }) {
+  const tenantCtx = useTenantOptional();
+  const backTo =
+    tenantCtx && to.startsWith("/painel")
+      ? (mapLegacyPainelPath(to, tenantCtx.tenant.slug) ?? to)
+      : to;
+
   return (
-    <Link to={to} className="inline-block">
+    <Link to={backTo} className="inline-block">
       <GestaoButton variant="secondary" size="sm">
         <ArrowLeft className="size-4" />
         Voltar para configurações

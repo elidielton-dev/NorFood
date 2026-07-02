@@ -61,22 +61,23 @@ export const TENANT_PAINEL_REGISTRY: Record<string, ComponentType> = {
   ),
   cupons: painelPage(() => import("@/routes/_authenticated/painel.cupons")),
 
-  // Estabelecimento
-  "estabelecimento/horarios": painelPage(
-    () => import("@/routes/_authenticated/painel.estabelecimento.horarios"),
+  // Configuracoes
+  configuracoes: painelPage(() => import("@/routes/_authenticated/painel.configuracoes.index")),
+  "configuracoes/loja": painelPage(() => import("@/routes/_authenticated/painel.configuracoes.loja")),
+  "configuracoes/horarios": painelPage(
+    () => import("@/routes/_authenticated/painel.configuracoes.horarios"),
   ),
+  "configuracoes/mesas": painelPage(() => import("@/routes/_authenticated/painel.configuracoes.mesas")),
+  "configuracoes/pagamentos": painelPage(
+    () => import("@/routes/_authenticated/painel.configuracoes.pagamentos"),
+  ),
+  "configuracoes/delivery": painelPage(
+    () => import("@/routes/_authenticated/painel.configuracoes.delivery"),
+  ),
+  "configuracoes/equipe": painelPage(() => import("@/routes/_authenticated/painel.configuracoes.equipe")),
+  "configuracoes/plano": painelPage(() => import("@/routes/_authenticated/painel.configuracoes.plano")),
   "configuracoes/operacao": painelPage(
     () => import("@/routes/_authenticated/painel.configuracoes.operacao"),
-  ),
-  "estabelecimento/pagamentos": painelPage(
-    () => import("@/routes/_authenticated/painel.estabelecimento.pagamentos"),
-  ),
-  "estabelecimento/plano": painelPage(
-    () => import("@/routes/_authenticated/painel.estabelecimento.plano"),
-  ),
-  colaboradores: painelPage(() => import("@/routes/_authenticated/painel.colaboradores")),
-  "estabelecimento/visual": painelPage(
-    () => import("@/routes/_authenticated/painel.estabelecimento.visual"),
   ),
   "configuracoes/impressoras": painelPage(
     () => import("@/routes/_authenticated/painel.configuracoes.impressoras"),
@@ -84,6 +85,15 @@ export const TENANT_PAINEL_REGISTRY: Record<string, ComponentType> = {
   "configuracoes/integracoes": painelPage(
     () => import("@/routes/_authenticated/painel.configuracoes.integracoes"),
   ),
+  colaboradores: painelPage(() => import("@/routes/_authenticated/painel.colaboradores")),
+  "estabelecimento/horarios": painelPage(
+    () => import("@/routes/_authenticated/painel.configuracoes.horarios"),
+  ),
+  "estabelecimento/pagamentos": painelPage(
+    () => import("@/routes/_authenticated/painel.configuracoes.pagamentos"),
+  ),
+  "estabelecimento/plano": painelPage(() => import("@/routes/_authenticated/painel.configuracoes.plano")),
+  "estabelecimento/visual": painelPage(() => import("@/routes/_authenticated/painel.configuracoes.loja")),
 
   // Atendimento
   "atendimento/conversas": painelPage(
@@ -136,17 +146,11 @@ export const TENANT_PAINEL_REGISTRY: Record<string, ComponentType> = {
   cozinha: painelPage(() => import("@/routes/_authenticated/painel.kds")),
   pedidos: painelPage(() => import("@/routes/_authenticated/painel.kds")),
   categorias: painelPage(() => import("@/routes/_authenticated/painel.produtos.categorias")),
-  configuracoes: painelPage(() => import("@/routes/_authenticated/painel.configuracoes.integracoes")),
   "configuracoes/empresa": painelPage(
     () => import("@/routes/_authenticated/painel.configuracoes.operacao"),
   ),
-  "configuracoes/usuarios": painelPage(() => import("@/routes/_authenticated/painel.colaboradores")),
-  "configuracoes/aparencia": painelPage(
-    () => import("@/routes/_authenticated/painel.estabelecimento.visual"),
-  ),
-  "configuracoes/pagamentos": painelPage(
-    () => import("@/routes/_authenticated/painel.estabelecimento.pagamentos"),
-  ),
+  "configuracoes/usuarios": painelPage(() => import("@/routes/_authenticated/painel.configuracoes.equipe")),
+  "configuracoes/aparencia": painelPage(() => import("@/routes/_authenticated/painel.configuracoes.loja")),
   caixa: painelPage(() => import("@/routes/_authenticated/painel.financeiro.index")),
   fidelidade: painelPage(() => import("@/routes/_authenticated/painel.clientes")),
   entregador: painelPage(() => import("@/routes/_authenticated/painel.delivery")),

@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CONFIG_HUB_SECTIONS } from "@/lib/painel-configuracoes-hub";
+import { getConfigHubSections } from "@/lib/painel-configuracoes-hub";
 import { ConfigHubCard } from "@/components/config-hub-ui";
 import { GestaoCard, GestaoPage, GestaoSectionTitle } from "@/components/gestao-ui";
-import { lojaPath } from "@/lib/tenant/painel-routes";
+import { lojaPath, tenantPath } from "@/lib/tenant/painel-routes";
 import { useTenant } from "@/lib/tenant/tenant-context";
 import { ExternalLink } from "lucide-react";
 
@@ -12,6 +12,7 @@ export const Route = createFileRoute("/_authenticated/painel/configuracoes/")({
 
 function ConfiguracoesIndexPage() {
   const { tenant } = useTenant();
+  const hubSections = getConfigHubSections(tenant.slug);
 
   return (
     <GestaoPage
@@ -30,7 +31,7 @@ function ConfiguracoesIndexPage() {
       }
     >
       <div className="space-y-8">
-        {CONFIG_HUB_SECTIONS.map((section) => (
+        {hubSections.map((section) => (
           <section key={section.key}>
             <GestaoCard className="border-none bg-transparent p-0 shadow-none">
               <GestaoSectionTitle title={section.title} description={section.description} />
@@ -56,7 +57,7 @@ function ConfiguracoesIndexPage() {
             Aqui você configura <strong>como a loja funciona</strong>, não o dia a dia dos pedidos.
           </p>
           <Link
-            to="/painel/atendimento/configuracoes"
+            to={tenantPath(tenant.slug, "atendimento/configuracoes")}
             className="mt-3 inline-block text-sm font-semibold text-sage underline"
           >
             Configurações do WhatsApp / atendimento

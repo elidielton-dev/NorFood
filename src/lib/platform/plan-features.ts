@@ -90,6 +90,7 @@ export function planFeatureForRoute(path: string): PlanFeatureKey | null {
 
   if (!segment || segment === "dashboard") return null;
   if (full === "estabelecimento/plano" || full.startsWith("estabelecimento/plano/")) return null;
+  if (full === "configuracoes/plano" || full.startsWith("configuracoes/plano/")) return null;
 
   if (segment === "kds" || segment === "cozinha" || segment === "pedidos") return "kds";
   if (segment === "delivery" || segment === "entregador") return "delivery_app";

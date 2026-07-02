@@ -13,6 +13,8 @@ import {
   Wallet,
 } from "lucide-react";
 
+import { mapLegacyPainelPath } from "@/lib/tenant/painel-routes";
+
 export type ConfigHubItem = {
   key: string;
   title: string;
@@ -172,3 +174,18 @@ export const CONFIG_HUB_SECTIONS: ConfigHubSection[] = [
     ],
   },
 ];
+
+function mapHubPath(tenantSlug: string, legacyPath: string) {
+  return mapLegacyPainelPath(legacyPath, tenantSlug) ?? legacyPath;
+}
+
+/** Links do hub com rotas tenant (/t/:slug/...). */
+export function getConfigHubSections(tenantSlug: string): ConfigHubSection[] {
+  return CONFIG_HUB_SECTIONS.map((section) => ({
+    ...section,
+    items: section.items.map((item) => ({
+      ...item,
+      to: mapHubPath(tenantSlug, item.to),
+    })),
+  }));
+}
