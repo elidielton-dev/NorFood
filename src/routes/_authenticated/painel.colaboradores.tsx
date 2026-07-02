@@ -1,9 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, UserCog } from "lucide-react";
-import { ConfigPageBack } from "@/components/config-hub-ui";
 import { useState } from "react";
 import { toast } from "sonner";
+import {
+  ConfigSection,
+  ConfiguracoesPageFrame,
+} from "@/components/configuracoes/configuracoes-page-frame";
 import { ColaboradorFormModal } from "@/components/colaborador-form-modal";
 import {
   fetchColaboradorServer,
@@ -96,76 +99,96 @@ export function ColaboradoresPage({ backTo }: { backTo?: string } = {}) {
     saveMutation.mutate(form);
   }
 
+  const tableContent =
+    isLoading ? (
+      <p className="text-sm text-muted-foreground">Carregando equipe...</p>
+    ) : colaboradores.length === 0 ? (
+      <GestaoEmptyState
+        icon={<UserCog className="size-8" />}
+        title="Nenhum colaborador cadastrado"
+        description="Cadastre a equipe com acesso ao painel, cozinha, salão ou entregas."
+        action={
+          <GestaoButton onClick={handleOpenNew}>
+            <Plus className="size-4" />
+            Novo colaborador
+          </GestaoButton>
+        }
+      />
+    ) : (
+      <GestaoTable>
+        <GestaoTableHead>
+          <tr>
+            <th className="p-3">Nome</th>
+            <th className="hidden p-3 md:table-cell">E-mail</th>
+            <th className="hidden p-3 sm:table-cell">Telefone</th>
+            <th className="p-3">Papéis</th>
+          </tr>
+        </GestaoTableHead>
+        <tbody>
+          {colaboradores.map((colaborador) => {
+            const isRowLoading = loadingColaboradorId === colaborador.id;
+            return (
+              <tr
+                key={colaborador.id}
+                onClick={() => void handleOpenEdit(colaborador.id)}
+                className={cn(
+                  "cursor-pointer border-t border-[#F3F4F6] transition hover:bg-[#FAFAFA]",
+                  isRowLoading && "opacity-60",
+                )}
+              >
+                <td className="p-3 font-medium">{colaborador.nome ?? "Sem nome"}</td>
+                <td className="hidden p-3 md:table-cell">{colaborador.email ?? "—"}</td>
+                <td className="hidden p-3 sm:table-cell">{colaborador.telefone ?? "—"}</td>
+                <td className="p-3">
+                  <div className="flex flex-wrap gap-1.5">
+                    {colaborador.roles.map((role) => (
+                      <StatusPill key={role} tone="neutral">
+                        {formatStaffRoleLabel(role)}
+                      </StatusPill>
+                    ))}
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </GestaoTable>
+    );
+
   return (
     <>
-      <GestaoPage
-        title="Colaboradores"
-        subtitle="Equipe com acesso ao painel, cozinha e entregas"
-        actions={
-          <div className="flex flex-wrap gap-2">
-            {backTo ? <ConfigPageBack to={backTo} /> : null}
+      {backTo ? (
+        <ConfiguracoesPageFrame
+          title="Colaboradores"
+          description="Equipe com acesso ao painel, cozinha e entregas."
+          actions={
             <GestaoButton onClick={handleOpenNew}>
               <Plus className="size-4" />
               Novo colaborador
             </GestaoButton>
-          </div>
-        }
-      >
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">Carregando equipe...</p>
-        ) : colaboradores.length === 0 ? (
-          <GestaoEmptyState
-            icon={<UserCog className="size-8" />}
-            title="Nenhum colaborador cadastrado"
-            description="Cadastre a equipe com acesso ao painel, cozinha, salao ou entregas."
-            action={
-              <GestaoButton onClick={handleOpenNew}>
-                <Plus className="size-4" />
-                Novo colaborador
-              </GestaoButton>
-            }
-          />
-        ) : (
-          <GestaoTable>
-            <GestaoTableHead>
-              <tr>
-                <th className="p-3">Nome</th>
-                <th className="hidden p-3 md:table-cell">E-mail</th>
-                <th className="hidden p-3 sm:table-cell">Telefone</th>
-                <th className="p-3">Papeis</th>
-              </tr>
-            </GestaoTableHead>
-            <tbody>
-              {colaboradores.map((colaborador) => {
-                const isRowLoading = loadingColaboradorId === colaborador.id;
-                return (
-                  <tr
-                    key={colaborador.id}
-                    onClick={() => void handleOpenEdit(colaborador.id)}
-                    className={cn(
-                      "cursor-pointer border-t border-[color:var(--honey-line)] transition hover:bg-[color:var(--gestao-cream)]/50",
-                      isRowLoading && "opacity-60",
-                    )}
-                  >
-                    <td className="p-3 font-medium">{colaborador.nome ?? "Sem nome"}</td>
-                    <td className="hidden p-3 md:table-cell">{colaborador.email ?? "—"}</td>
-                    <td className="hidden p-3 sm:table-cell">{colaborador.telefone ?? "—"}</td>
-                    <td className="p-3">
-                      <div className="flex flex-wrap gap-1.5">
-                        {colaborador.roles.map((role) => (
-                          <StatusPill key={role} tone="neutral">
-                            {formatStaffRoleLabel(role)}
-                          </StatusPill>
-                        ))}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </GestaoTable>
-        )}
-      </GestaoPage>
+          }
+        >
+          <ConfigSection
+            title="Equipe cadastrada"
+            description="Clique em um colaborador para editar papéis e dados de acesso."
+          >
+            {tableContent}
+          </ConfigSection>
+        </ConfiguracoesPageFrame>
+      ) : (
+        <GestaoPage
+          title="Colaboradores"
+          subtitle="Equipe com acesso ao painel, cozinha e entregas"
+          actions={
+            <GestaoButton onClick={handleOpenNew}>
+              <Plus className="size-4" />
+              Novo colaborador
+            </GestaoButton>
+          }
+        >
+          {tableContent}
+        </GestaoPage>
+      )}
 
       <ColaboradorFormModal
         open={modalOpen}

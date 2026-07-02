@@ -3,13 +3,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CreditCard, RefreshCw, Smartphone } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ConfigPageBack } from "@/components/config-hub-ui";
+import {
+  ConfigSection,
+  ConfiguracoesPageFrame,
+} from "@/components/configuracoes/configuracoes-page-frame";
 import {
   GestaoAlert,
   GestaoButton,
-  GestaoCard,
   GestaoPage,
-  GestaoSectionTitle,
   StatusPill,
 } from "@/components/gestao-ui";
 import { supabase } from "@/integrations/supabase/client";
@@ -154,25 +155,20 @@ export function PlanoNorfoodPage({ backTo }: { backTo?: string } = {}) {
     activeInvoice.status !== "waived" &&
     Number(activeInvoice.final_amount) > 0;
 
-  return (
-    <GestaoPage
-      title="Plano Norfood"
-      subtitle="Assinatura da plataforma e pagamento via Mercado Pago"
-      actions={backTo ? <ConfigPageBack to={backTo} /> : undefined}
-    >
+  const planBody = (
+    <>
       {!mpEnabled ? (
         <GestaoAlert tone="warning">
-          Mercado Pago ainda nao esta configurado no servidor (MP_ACCESS_TOKEN). Entre em contato
-          com o suporte Norfood para ativar cobranca online.
+          Mercado Pago ainda não está configurado no servidor (MP_ACCESS_TOKEN). Entre em contato
+          com o suporte Norfood para ativar cobrança online.
         </GestaoAlert>
       ) : null}
 
-      <GestaoCard>
-        <GestaoSectionTitle title="Seu plano" description="Modelo de cobranca escolhido no cadastro." />
+      <ConfigSection title="Seu plano" description="Modelo de cobrança escolhido no cadastro.">
         {isLoading ? (
           <p className="text-sm text-[#6B7280]">Carregando...</p>
         ) : (
-          <div className="mt-4 space-y-3">
+          <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-lg font-semibold text-[#111111]">{planDescription}</span>
               {inTrial ? <StatusPill tone="warning">Trial ativo</StatusPill> : null}
@@ -182,7 +178,7 @@ export function PlanoNorfoodPage({ backTo }: { backTo?: string } = {}) {
             </div>
             {billing?.trial_ends_at ? (
               <p className="text-sm text-[#6B7280]">
-                Trial ate{" "}
+                Trial até{" "}
                 {new Date(billing.trial_ends_at).toLocaleDateString("pt-BR", {
                   day: "2-digit",
                   month: "long",
@@ -193,33 +189,32 @@ export function PlanoNorfoodPage({ backTo }: { backTo?: string } = {}) {
             ) : null}
             {planFeatures?.monthlyOrderLimit != null ? (
               <p className="text-sm text-[#6B7280]">
-                Pedidos este m├¬s:{" "}
+                Pedidos este mês:{" "}
                 <strong>
                   {planFeatures.monthlyOrderCount}/{planFeatures.monthlyOrderLimit}
                 </strong>
                 {planFeatures.ordersRemaining === 0 ? (
-                  <span className="text-rose-600"> ÔÇö limite atingido</span>
+                  <span className="text-rose-600"> — limite atingido</span>
                 ) : null}
               </p>
             ) : null}
             {planFeatures?.planId && BILLING_PLANS[planFeatures.planId] ? (
               <ul className="mt-2 space-y-1 text-sm text-[#6B7280]">
                 {listPlanMarketingFeatures(planFeatures.planId).map((feature) => (
-                  <li key={feature}>ÔÇó {feature}</li>
+                  <li key={feature}>• {feature}</li>
                 ))}
               </ul>
             ) : null}
           </div>
         )}
-      </GestaoCard>
+      </ConfigSection>
 
       {activeInvoice ? (
-        <GestaoCard>
-          <GestaoSectionTitle
-            title="Fatura do periodo"
-            description={`${activeInvoice.period_start} a ${activeInvoice.period_end}`}
-          />
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+        <ConfigSection
+          title="Fatura do período"
+          description={`${activeInvoice.period_start} a ${activeInvoice.period_end}`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-2xl font-bold text-[#111111]">
                 {formatPlanPrice(activeInvoice.final_amount)}
@@ -227,7 +222,7 @@ export function PlanoNorfoodPage({ backTo }: { backTo?: string } = {}) {
               <p className="text-sm text-[#6B7280]">
                 Status: <strong>{activeInvoice.status}</strong>
                 {activeInvoice.paid_at
-                  ? ` ÔÇö pago em ${new Date(activeInvoice.paid_at).toLocaleString("pt-BR")}`
+                  ? ` — pago em ${new Date(activeInvoice.paid_at).toLocaleString("pt-BR")}`
                   : ""}
               </p>
             </div>
@@ -238,7 +233,7 @@ export function PlanoNorfoodPage({ backTo }: { backTo?: string } = {}) {
                   onClick={() => checkoutMutation.mutate(activeInvoice.id)}
                 >
                   <CreditCard className="size-4" />
-                  Pagar cartao / boleto
+                  Pagar cartão / boleto
                 </GestaoButton>
                 <GestaoButton
                   variant="secondary"
@@ -268,21 +263,20 @@ export function PlanoNorfoodPage({ backTo }: { backTo?: string } = {}) {
                 onClick={() => refreshPixMutation.mutate(activeInvoice.id)}
               >
                 <RefreshCw className="size-4" />
-                Ja paguei ÔÇö verificar
+                Já paguei — verificar
               </GestaoButton>
             </div>
           ) : null}
-        </GestaoCard>
+        </ConfigSection>
       ) : null}
 
       {data?.recent_invoices?.length ? (
-        <GestaoCard>
-          <GestaoSectionTitle title="Historico de faturas" />
-          <ul className="mt-4 divide-y divide-[#E5E7EB]">
+        <ConfigSection title="Histórico de faturas" description="Últimas cobranças da plataforma.">
+          <ul className="divide-y divide-[#E5E7EB]">
             {data.recent_invoices.map((inv) => (
               <li key={inv.id} className="flex items-center justify-between py-3 text-sm">
                 <span>
-                  {inv.period_start} ÔÇö {inv.period_end}
+                  {inv.period_start} — {inv.period_end}
                 </span>
                 <span className="font-semibold">{formatPlanPrice(inv.final_amount)}</span>
                 <StatusPill tone={inv.status === "paid" ? "success" : "neutral"}>
@@ -291,19 +285,18 @@ export function PlanoNorfoodPage({ backTo }: { backTo?: string } = {}) {
               </li>
             ))}
           </ul>
-        </GestaoCard>
+        </ConfigSection>
       ) : null}
 
       {!isDemoTenant ? (
-        <GestaoCard className="border-red-200 bg-red-50/40">
-          <GestaoSectionTitle
-            title="Excluir conta"
-            description="Remove permanentemente o restaurante e todos os dados associados."
-          />
+        <ConfigSection
+          title="Excluir conta"
+          description="Remove permanentemente o restaurante e todos os dados associados."
+        >
           {showDeleteForm ? (
-            <div className="mt-4 space-y-3">
+            <div className="space-y-3">
               <GestaoAlert tone="warning">
-                Esta a├º├úo ├® irrevers├¡vel. Pedidos, produtos e configura├º├Áes ser├úo apagados.
+                Esta ação é irreversível. Pedidos, produtos e configurações serão apagados.
               </GestaoAlert>
               <label className="block text-sm font-medium text-[#111111]">
                 Digite <code className="rounded bg-white px-1">{tenant.slug}</code> para confirmar
@@ -339,16 +332,32 @@ export function PlanoNorfoodPage({ backTo }: { backTo?: string } = {}) {
               </div>
             </div>
           ) : (
-            <GestaoButton
-              className="mt-4"
-              variant="danger"
-              onClick={() => setShowDeleteForm(true)}
-            >
+            <GestaoButton variant="danger" onClick={() => setShowDeleteForm(true)}>
               Excluir minha conta
             </GestaoButton>
           )}
-        </GestaoCard>
+        </ConfigSection>
       ) : null}
+    </>
+  );
+
+  if (backTo) {
+    return (
+      <ConfiguracoesPageFrame
+        title="Plano Norfood"
+        description="Assinatura da plataforma e pagamento via Mercado Pago."
+      >
+        {planBody}
+      </ConfiguracoesPageFrame>
+    );
+  }
+
+  return (
+    <GestaoPage
+      title="Plano Norfood"
+      subtitle="Assinatura da plataforma e pagamento via Mercado Pago"
+    >
+      {planBody}
     </GestaoPage>
   );
 }

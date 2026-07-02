@@ -1,9 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Copy, Plus, Save, Trash2, Utensils, Wand2 } from "lucide-react";
+import { Copy, Plus, Trash2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
-import { ConfigPageBack } from "@/components/config-hub-ui";
+import {
+  ConfigSection,
+  ConfiguracoesPageFrame,
+} from "@/components/configuracoes/configuracoes-page-frame";
 import {
   deleteMesaAdminServer,
   fetchMesasAdminServer,
@@ -15,11 +18,8 @@ import { useTenant, useTenantSlug } from "@/lib/tenant/tenant-context";
 import { tenantQueryKey } from "@/lib/tenant/query-keys";
 import {
   GestaoButton,
-  GestaoCard,
   GestaoField,
   GestaoInput,
-  GestaoPage,
-  GestaoSectionTitle,
   GestaoTable,
   GestaoTableHead,
   GestaoEmptyState,
@@ -80,30 +80,24 @@ function ConfiguracoesMesasPage() {
   }
 
   return (
-    <GestaoPage
+    <ConfiguracoesPageFrame
       title="Mesas do salão"
-      subtitle="Cadastre mesas para o painel de salão e cardápio por QR Code."
-      actions={<ConfigPageBack />}
+      description="Cadastre mesas para o painel de salão e cardápio por QR Code."
     >
-      <GestaoCard>
-        <GestaoSectionTitle
-          title="Criação rápida"
-          description="Gera mesas 1 a 12 (ou complementa as que faltam)."
-          action={<Wand2 className="size-5 text-sage" />}
-        />
-        <div className="mt-4 flex flex-wrap gap-2">
+      <ConfigSection title="Criação rápida" description="Gera mesas 1 a 12 ou complementa até 20.">
+        <div className="flex flex-wrap gap-2">
           <GestaoButton variant="secondary" onClick={() => seedMutation.mutate(12)} disabled={seedMutation.isPending}>
+            <Wand2 className="size-4" />
             Criar mesas 1–12
           </GestaoButton>
           <GestaoButton variant="secondary" onClick={() => seedMutation.mutate(20)} disabled={seedMutation.isPending}>
             Completar até 20
           </GestaoButton>
         </div>
-      </GestaoCard>
+      </ConfigSection>
 
-      <GestaoCard>
-        <GestaoSectionTitle title="Nova mesa" description="Número único dentro do seu restaurante." />
-        <div className="mt-4 flex flex-wrap items-end gap-3">
+      <ConfigSection title="Nova mesa" description="Número único dentro do seu restaurante.">
+        <div className="flex flex-wrap items-end gap-3">
           <GestaoField label="Número">
             <GestaoInput
               type="number"
@@ -136,25 +130,21 @@ function ConfiguracoesMesasPage() {
             Adicionar
           </GestaoButton>
         </div>
-      </GestaoCard>
+      </ConfigSection>
 
-      <GestaoCard>
-        <GestaoSectionTitle
-          title={`Mesas cadastradas (${mesas.length})`}
-          description="Use o painel Mesas para abrir pedidos. QR aponta para o cardápio digital."
-          action={<Utensils className="size-5 text-sage" />}
-        />
-
+      <ConfigSection
+        title={`Mesas cadastradas (${mesas.length})`}
+        description="Use o painel Mesas para abrir pedidos. O QR aponta para o cardápio digital."
+      >
         {isLoading ? (
-          <p className="mt-4 text-sm text-muted-foreground">Carregando...</p>
+          <p className="text-sm text-muted-foreground">Carregando...</p>
         ) : mesas.length === 0 ? (
           <GestaoEmptyState
-            className="mt-4"
             title="Nenhuma mesa cadastrada"
             description="Clique em Criar mesas 1–12 para começar."
           />
         ) : (
-          <GestaoTable className="mt-4">
+          <GestaoTable>
             <GestaoTableHead>
               <tr>
                 <th className="p-3">Mesa</th>
@@ -166,7 +156,7 @@ function ConfiguracoesMesasPage() {
             </GestaoTableHead>
             <tbody>
               {mesas.map((mesa) => (
-                <tr key={mesa.id} className="border-t border-[color:var(--honey-line)]">
+                <tr key={mesa.id} className="border-t border-[#F3F4F6]">
                   <td className="p-3 font-semibold">#{mesa.numero}</td>
                   <td className="p-3">{mesa.capacidade} lugares</td>
                   <td className="p-3 hidden md:table-cell">
@@ -207,7 +197,7 @@ function ConfiguracoesMesasPage() {
             {lojaPath(tenant.slug)}
           </a>
         </p>
-      </GestaoCard>
-    </GestaoPage>
+      </ConfigSection>
+    </ConfiguracoesPageFrame>
   );
 }

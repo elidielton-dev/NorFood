@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Bell,
   Copy,
@@ -13,8 +13,13 @@ import {
   Wifi,
   WifiOff,
 } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import {
+  ConfigSection,
+  ConfigSettingRow,
+  ConfigSwitchRow,
+  ConfiguracoesPageFrame,
+} from "@/components/configuracoes/configuracoes-page-frame";
 import { GestaoAlert, GestaoButton, GestaoInput } from "@/components/gestao-ui";
 import { cn } from "@/lib/utils";
 import {
@@ -43,7 +48,7 @@ import {
   useAtendimentoNotificationSettings,
 } from "@/lib/atendimento/notification-settings";
 import type { AtendimentoProvider } from "@/lib/waba/types";
-import { AtendimentoPageHeader, atendimento } from "@/components/atendimento/atendimento-ui";
+import { atendimento } from "@/components/atendimento/atendimento-ui";
 
 type SettingsSection = "whatsapp" | "templates" | "notificacoes";
 
@@ -57,12 +62,10 @@ export function AtendimentoConfiguracoes() {
   const [section, setSection] = useState<SettingsSection>("whatsapp");
 
   return (
-    <div className={atendimento.page}>
-      <AtendimentoPageHeader
-        title="Configurações"
-        subtitle="Escolha Meta Cloud API ou Evolution (QR). Histórico das conversas: últimos 7 dias."
-      />
-
+    <ConfiguracoesPageFrame
+      title="WhatsApp / atendimento"
+      description="Conexão Meta ou Evolution, notificações e templates. Histórico das conversas: últimos 7 dias."
+    >
       <AtendimentoStatsBar />
 
       <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
@@ -70,7 +73,7 @@ export function AtendimentoConfiguracoes() {
           aria-label="Seções de configuração"
           className={cn(
             "flex gap-1 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-            "border-b border-[color:var(--honey-line)]",
+            "border-b border-[#E5E7EB]",
             "lg:sticky lg:top-0 lg:flex-col lg:overflow-visible lg:border-b-0 lg:pb-0",
           )}
         >
@@ -85,8 +88,8 @@ export function AtendimentoConfiguracoes() {
                 className={cn(
                   "flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium whitespace-nowrap transition-colors lg:w-full",
                   active
-                    ? "bg-sage/10 text-sage"
-                    : "text-muted-foreground hover:bg-[color:var(--gestao-cream)]/60 hover:text-[color:var(--gestao-ink)]",
+                    ? "bg-[#FFF7ED] text-[var(--tenant-primary,#FF7A00)]"
+                    : "text-[#6B7280] hover:bg-[#F9FAFB] hover:text-[#374151]",
                 )}
               >
                 <Icon className="size-4 shrink-0" />
@@ -106,7 +109,7 @@ export function AtendimentoConfiguracoes() {
           )}
         </div>
       </div>
-    </div>
+    </ConfiguracoesPageFrame>
   );
 }
 
@@ -119,26 +122,26 @@ function AtendimentoStatsBar() {
   if (!data) return null;
 
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
-      <div className={cn(atendimento.card, "px-4 py-3")}>
-        <p className="text-xs text-muted-foreground">Conversas abertas</p>
-        <p className="mt-1 text-2xl font-semibold text-[color:var(--gestao-ink)]">
-          {data.openConversations}
-        </p>
-      </div>
-      <div className={cn(atendimento.card, "px-4 py-3")}>
-        <p className="text-xs text-muted-foreground">Mensagens recebidas (7d)</p>
-        <p className="mt-1 text-2xl font-semibold text-[color:var(--gestao-ink)]">
-          {data.inboundMessages7d}
-        </p>
-      </div>
-      <div className={cn(atendimento.card, "px-4 py-3")}>
-        <p className="text-xs text-muted-foreground">Automacoes enviadas (7d)</p>
-        <p className="mt-1 text-2xl font-semibold text-[color:var(--gestao-ink)]">
-          {data.automationsSent7d}
-        </p>
-      </div>
-    </div>
+    <ConfigSection title="Resumo" description="Indicadores do atendimento nos últimos 7 dias.">
+      <ConfigSettingRow
+        description="Conversas ainda em atendimento no painel."
+        control={
+          <span className="text-lg font-semibold text-[#111111]">{data.openConversations}</span>
+        }
+      />
+      <ConfigSettingRow
+        description="Mensagens recebidas de clientes no período."
+        control={
+          <span className="text-lg font-semibold text-[#111111]">{data.inboundMessages7d}</span>
+        }
+      />
+      <ConfigSettingRow
+        description="Respostas automáticas enviadas pelo sistema."
+        control={
+          <span className="text-lg font-semibold text-[#111111]">{data.automationsSent7d}</span>
+        }
+      />
+    </ConfigSection>
   );
 }
 
@@ -303,38 +306,37 @@ function WhatsAppPanel() {
   const activeProvider = config?.active_provider ?? providerChoice;
 
   return (
-    <div className="space-y-4">
-      <div className={cn(atendimento.card, "p-5")}>
+    <div className="space-y-6">
+      <ConfigSection title="Status da conexão" description="Situação atual do WhatsApp no painel.">
         <div className="flex items-start gap-3">
           {inboxConnected ? (
-            <Wifi className="mt-0.5 size-5 shrink-0 text-sage" />
+            <Wifi className="mt-0.5 size-5 shrink-0 text-[var(--tenant-primary,#FF7A00)]" />
           ) : (
             <WifiOff className="mt-0.5 size-5 shrink-0 text-destructive" />
           )}
           <div>
-            <p className="font-semibold text-[color:var(--gestao-ink)]">
+            <p className="font-semibold text-[#111111]">
               {inboxConnected
                 ? `Conectado · ${config?.provider_label ?? activeProvider}`
                 : "Desconectado"}
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-[#6B7280]">
               {activeProvider === "meta"
                 ? (config?.display_phone_number ?? config?.phone_number_id ?? "Meta Cloud API")
                 : (evolution?.phoneNumber ?? evolution?.profileName ?? "Evolution (QR)")}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-xs text-[#6B7280]">
               O painel exibe o histórico dos últimos 7 dias. Conversas encerradas vão para
               Resolvidos.
             </p>
           </div>
         </div>
-      </div>
+      </ConfigSection>
 
-      <div className={cn(atendimento.card, "space-y-3 p-5")}>
-        <h2 className="font-display text-lg text-[color:var(--gestao-ink)]">Modo de conexão</h2>
-        <p className="text-sm text-muted-foreground">
-          Escolha como conectar o WhatsApp da loja. Use um modo por vez.
-        </p>
+      <ConfigSection
+        title="Modo de conexão"
+        description="Escolha como conectar o WhatsApp da loja. Use um modo por vez."
+      >
         <div className="grid gap-3 sm:grid-cols-2">
           {(
             [
@@ -346,7 +348,7 @@ function WhatsAppPanel() {
               {
                 id: "evolution" as const,
                 title: "Evolution (QR Code)",
-                desc: "Sem Meta. Escaneie QR na Evolution na sua VPS AWS.",
+                desc: "Sem Meta. Escaneie QR na Evolution na sua VPS.",
               },
             ] as const
           ).map((opt) => {
@@ -360,22 +362,24 @@ function WhatsAppPanel() {
                   providerMutation.mutate(opt.id);
                 }}
                 className={cn(
-                  "rounded-xl border p-4 text-left transition",
+                  "rounded-lg border p-4 text-left transition",
                   selected
-                    ? "border-sage bg-sage/5 ring-1 ring-sage/30"
-                    : "border-[color:var(--honey-line)] hover:bg-[color:var(--gestao-cream)]/40",
+                    ? "border-[var(--tenant-primary,#FF7A00)] bg-[#FFF7ED] ring-1 ring-[#FF7A00]/30"
+                    : "border-[#E5E7EB] hover:bg-[#F9FAFB]",
                 )}
               >
-                <p className="font-medium text-[color:var(--gestao-ink)]">{opt.title}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{opt.desc}</p>
+                <p className="font-medium text-[#111111]">{opt.title}</p>
+                <p className="mt-1 text-xs text-[#6B7280]">{opt.desc}</p>
                 {activeProvider === opt.id && inboxConnected ? (
-                  <p className="mt-2 text-xs font-medium text-sage">Ativo agora</p>
+                  <p className="mt-2 text-xs font-medium text-[var(--tenant-primary,#FF7A00)]">
+                    Ativo agora
+                  </p>
                 ) : null}
               </button>
             );
           })}
         </div>
-      </div>
+      </ConfigSection>
 
       {providerChoice === "evolution" ? (
         <EvolutionConnectPanel
@@ -414,40 +418,22 @@ function WhatsAppPanel() {
             </div>
           </GestaoAlert>
 
-          <div className={cn(atendimento.card, "space-y-4 p-5")}>
-            <div className="flex items-start gap-3">
-              <div className={cn(atendimento.iconBoxLg, "shrink-0")}>
-                <Smartphone className="size-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h2 className="font-display text-lg text-[color:var(--gestao-ink)]">
-                  Coexistence — celular + painel
-                </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Opcional: use o WhatsApp Business no celular e no painel (requer liberação Meta).
-                </p>
-              </div>
-            </div>
-
-            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[color:var(--honey-line)] bg-[color:var(--gestao-cream)]/30 p-4">
-              <input
-                type="checkbox"
-                className="mt-1"
-                checked={form.coexistence_mode}
-                onChange={(e) => setForm((f) => ({ ...f, coexistence_mode: e.target.checked }))}
-              />
-              <span className="text-sm">
-                <strong className="text-[color:var(--gestao-ink)]">Ativar modo Coexistence</strong>
-                <br />
-                Não usa PIN /register. Histórico antigo não é importado no painel.
-              </span>
-            </label>
+          <ConfigSection
+            title="Coexistence — celular + painel"
+            description="Use o WhatsApp Business no celular e no painel ao mesmo tempo (requer liberação Meta)."
+          >
+            <ConfigSwitchRow
+              description="Não usa PIN /register. Histórico antigo não é importado no painel."
+              label="Ativar modo Coexistence"
+              checked={form.coexistence_mode}
+              onCheckedChange={(coexistence_mode) => setForm((f) => ({ ...f, coexistence_mode }))}
+            />
 
             {coexistence ? (
-              <p className="text-sm text-muted-foreground">{coexistence.message}</p>
+              <p className="border-t border-[#F3F4F6] pt-3 text-sm text-[#6B7280]">{coexistence.message}</p>
             ) : null}
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 border-t border-[#F3F4F6] pt-4">
               <GestaoButton variant="secondary" size="sm" onClick={() => refetchCoexistence()}>
                 <RefreshCw className="size-4" />
                 Verificar status
@@ -466,81 +452,88 @@ function WhatsAppPanel() {
                 Sincronizar contatos
               </GestaoButton>
             </div>
-          </div>
+          </ConfigSection>
 
-          <div className={cn(atendimento.card, "space-y-4 p-5")}>
-            <div>
-              <h2 className="font-display text-lg text-[color:var(--gestao-ink)]">
-                Credenciais Meta
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Phone Number ID, WABA ID e Access Token permanentes do app Meta.
-              </p>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Phone Number ID">
-                <input
-                  className={atendimento.input}
+          <ConfigSection
+            title="Credenciais Meta"
+            description="Phone Number ID, WABA ID e Access Token permanentes do app Meta."
+          >
+            <ConfigSettingRow
+              description="Identificador do número de telefone no Meta for Developers."
+              control={
+                <GestaoInput
+                  className="w-56"
                   value={form.phone_number_id}
                   onChange={(e) => setForm((f) => ({ ...f, phone_number_id: e.target.value }))}
                   placeholder="ID do número no Meta"
                 />
-              </Field>
-              <Field label="WABA ID (opcional)">
-                <input
-                  className={atendimento.input}
+              }
+            />
+            <ConfigSettingRow
+              description="ID da conta WhatsApp Business (opcional)."
+              control={
+                <GestaoInput
+                  className="w-56"
                   value={form.waba_id}
                   onChange={(e) => setForm((f) => ({ ...f, waba_id: e.target.value }))}
-                  placeholder="WhatsApp Business Account ID"
+                  placeholder="WABA ID"
                 />
-              </Field>
-              <Field label="Access Token permanente" className="sm:col-span-2">
-                <input
-                  className={atendimento.input}
+              }
+            />
+            <ConfigSettingRow
+              description="Token permanente gerado no app Meta com permissões de WhatsApp."
+              control={
+                <GestaoInput
                   type="password"
+                  className="w-72"
                   value={form.access_token}
                   onChange={(e) => setForm((f) => ({ ...f, access_token: e.target.value }))}
                   placeholder="Token da API Meta"
                 />
-              </Field>
-              <Field label="Verify Token (webhook)">
-                <input
-                  className={atendimento.input}
+              }
+            />
+            <ConfigSettingRow
+              description="Texto de verificação configurado no webhook do Meta."
+              control={
+                <GestaoInput
+                  className="w-56"
                   value={form.verify_token}
                   onChange={(e) => setForm((f) => ({ ...f, verify_token: e.target.value }))}
-                  placeholder="Texto que você define no Meta"
+                  placeholder="Verify token"
                 />
-              </Field>
-              <Field label="PIN 2FA do número (6 dígitos)">
-                <input
-                  className={atendimento.input}
+              }
+            />
+            <ConfigSettingRow
+              description="PIN de dois fatores do número. Não use em modo Coexistence."
+              control={
+                <GestaoInput
+                  className="w-40"
                   value={form.pin}
                   onChange={(e) => setForm((f) => ({ ...f, pin: e.target.value }))}
-                  placeholder={
-                    form.coexistence_mode ? "Não usar em Coexistence" : "Só sem Coexistence"
-                  }
+                  placeholder={form.coexistence_mode ? "Não usar" : "6 dígitos"}
                   disabled={form.coexistence_mode}
                 />
-              </Field>
-            </div>
-
-            <GestaoButton
-              onClick={() => saveMutation.mutate()}
-              disabled={
-                !form.phone_number_id ||
-                !form.access_token ||
-                !form.verify_token ||
-                saveMutation.isPending
               }
-            >
-              {saveMutation.isPending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Save className="size-4" />
-              )}
-              Conectar Meta e salvar
-            </GestaoButton>
+            />
+
+            <div className="border-t border-[#F3F4F6] pt-4">
+              <GestaoButton
+                onClick={() => saveMutation.mutate()}
+                disabled={
+                  !form.phone_number_id ||
+                  !form.access_token ||
+                  !form.verify_token ||
+                  saveMutation.isPending
+                }
+              >
+                {saveMutation.isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Save className="size-4" />
+                )}
+                Conectar Meta e salvar
+              </GestaoButton>
+            </div>
 
             {saveMutation.isError ? (
               <p className="text-sm text-destructive">
@@ -550,11 +543,11 @@ function WhatsAppPanel() {
               </p>
             ) : null}
             {saveMutation.isSuccess ? (
-              <p className="text-sm text-sage">
+              <p className="text-sm text-[var(--tenant-primary,#FF7A00)]">
                 Meta conectada. Webhook atualizado automaticamente.
               </p>
             ) : null}
-          </div>
+          </ConfigSection>
         </>
       )}
     </div>
@@ -705,9 +698,9 @@ function EvolutionConnectPanel({
   return (
     <div className="space-y-4">
       <GestaoAlert tone="info">
-        <strong>Evolution API</strong> na sua VPS (AWS). Configure{" "}
+        <strong>Evolution API</strong> na sua VPS. Configure{" "}
         <code className="text-xs">EVOLUTION_API_URL</code> e{" "}
-        <code className="text-xs">EVOLUTION_API_KEY</code> no servidor Vercel.
+        <code className="text-xs">EVOLUTION_API_KEY</code> no servidor.
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <span className="text-xs">Webhook:</span>
           <code className="rounded-lg bg-muted px-2 py-1 text-xs">{webhookUrl}</code>
@@ -722,21 +715,10 @@ function EvolutionConnectPanel({
         </div>
       </GestaoAlert>
 
-      <div className={cn(atendimento.card, "space-y-4 p-5")}>
-        <div className="flex items-start gap-3">
-          <div className={cn(atendimento.iconBoxLg, "shrink-0")}>
-            <QrCode className="size-5" />
-          </div>
-          <div>
-            <h2 className="font-display text-lg text-[color:var(--gestao-ink)]">
-              Conectar WhatsApp
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Escaneie o QR Code ou use o numero do celular com codigo de vinculo (igual WhatsApp
-              Web).
-            </p>
-          </div>
-        </div>
+      <ConfigSection
+        title="Conectar WhatsApp"
+        description="Escaneie o QR Code ou use o número do celular com código de vinculo (igual WhatsApp Web)."
+      >
 
         {evolution?.warning ? <p className="text-sm text-amber-800">{evolution.warning}</p> : null}
 
@@ -985,7 +967,7 @@ function EvolutionConnectPanel({
             redeploy.
           </p>
         ) : null}
-      </div>
+      </ConfigSection>
     </div>
   );
 }
@@ -1013,109 +995,65 @@ function NotificacoesPanel() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className={cn(atendimento.card, "space-y-4 p-5")}>
-        <div className="flex items-start gap-3">
-          <div className={cn(atendimento.iconBoxLg, "shrink-0")}>
-            <Bell className="size-5" />
-          </div>
-          <div>
-            <h2 className="font-display text-lg text-[color:var(--gestao-ink)]">Notificações</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Ajuste som e alertas ao receber mensagens em outras conversas. As preferências são
-              sincronizadas com sua conta e ficam iguais em qualquer computador.
-            </p>
-          </div>
-        </div>
-
-        <div className="divide-y divide-[color:var(--honey-line)] rounded-xl border border-[color:var(--honey-line)]">
-          <NotificationToggleRow
-            label="Som ao receber mensagem"
-            description="Toca um sinal curto quando chega mensagem em uma conversa que não está aberta."
-            checked={settings.soundEnabled}
-            onCheckedChange={(checked) => update({ soundEnabled: checked })}
-          />
-          <NotificationToggleRow
-            label="Som só com aba em segundo plano"
-            description="O som toca apenas quando você está em outra aba ou janela do navegador."
-            checked={settings.soundOnlyWhenTabHidden}
-            onCheckedChange={(checked) => update({ soundOnlyWhenTabHidden: checked })}
-            disabled={!settings.soundEnabled}
-          />
-          <NotificationToggleRow
-            label="Notificações do navegador"
-            description="Mostra alerta na área de notificações do sistema operacional."
-            checked={settings.desktopNotificationsEnabled}
-            onCheckedChange={(checked) => void enableDesktopNotifications(checked)}
-            disabled={permission === "unsupported"}
-          />
-        </div>
-
-        {permission === "denied" ? (
-          <GestaoAlert tone="warning">
-            As notificações do navegador estão bloqueadas. Libere nas configurações do site no
-            navegador para usar alertas na área de trabalho.
-          </GestaoAlert>
-        ) : null}
-
-        <div className="flex flex-wrap gap-2">
-          <GestaoButton
-            variant="secondary"
-            size="sm"
-            onClick={() => playAtendimentoInboundChime()}
-            disabled={!settings.soundEnabled}
-          >
-            <Volume2 className="size-4" />
-            Testar som
-          </GestaoButton>
-          <GestaoButton
-            variant="secondary"
-            size="sm"
-            disabled={permission !== "granted" || !settings.desktopNotificationsEnabled}
-            onClick={() =>
-              showAtendimentoDesktopNotification({
-                title: "Abelha & Mel",
-                body: "Exemplo: nova mensagem de um cliente.",
-                tag: "atendimento-test",
-              })
-            }
-          >
-            <Bell className="size-4" />
-            Testar notificação
-          </GestaoButton>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function NotificationToggleRow({
-  label,
-  description,
-  checked,
-  onCheckedChange,
-  disabled,
-}: {
-  label: string;
-  description: string;
-  checked: boolean;
-  onCheckedChange: (checked: boolean) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-4 px-4 py-3">
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-[color:var(--gestao-ink)]">{label}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
-      </div>
-      <Switch
-        checked={checked}
-        onCheckedChange={onCheckedChange}
-        disabled={disabled}
-        aria-label={label}
-        className="mt-0.5 shrink-0"
+    <ConfigSection
+      title="Notificações"
+      description="Som e alertas ao receber mensagens em outras conversas. Preferências sincronizadas com sua conta."
+    >
+      <ConfigSwitchRow
+        description="Toca um sinal curto quando chega mensagem em uma conversa que não está aberta."
+        label="Som ao receber mensagem"
+        checked={settings.soundEnabled}
+        onCheckedChange={(checked) => update({ soundEnabled: checked })}
       />
-    </div>
+      <ConfigSwitchRow
+        description="O som toca apenas quando você está em outra aba ou janela do navegador."
+        label="Som só com aba em segundo plano"
+        checked={settings.soundOnlyWhenTabHidden}
+        onCheckedChange={(checked) => update({ soundOnlyWhenTabHidden: checked })}
+        disabled={!settings.soundEnabled}
+      />
+      <ConfigSwitchRow
+        description="Mostra alerta na área de notificações do sistema operacional."
+        label="Notificações do navegador"
+        checked={settings.desktopNotificationsEnabled}
+        onCheckedChange={(checked) => void enableDesktopNotifications(checked)}
+        disabled={permission === "unsupported"}
+      />
+
+      {permission === "denied" ? (
+        <GestaoAlert tone="warning">
+          As notificações do navegador estão bloqueadas. Libere nas configurações do site no
+          navegador para usar alertas na área de trabalho.
+        </GestaoAlert>
+      ) : null}
+
+      <div className="flex flex-wrap gap-2 border-t border-[#F3F4F6] pt-4">
+        <GestaoButton
+          variant="secondary"
+          size="sm"
+          onClick={() => playAtendimentoInboundChime()}
+          disabled={!settings.soundEnabled}
+        >
+          <Volume2 className="size-4" />
+          Testar som
+        </GestaoButton>
+        <GestaoButton
+          variant="secondary"
+          size="sm"
+          disabled={permission !== "granted" || !settings.desktopNotificationsEnabled}
+          onClick={() =>
+            showAtendimentoDesktopNotification({
+              title: "Abelha & Mel",
+              body: "Exemplo: nova mensagem de um cliente.",
+              tag: "atendimento-test",
+            })
+          }
+        >
+          <Bell className="size-4" />
+          Testar notificação
+        </GestaoButton>
+      </div>
+    </ConfigSection>
   );
 }
 
@@ -1134,16 +1072,11 @@ function TemplatesPanel() {
   });
 
   return (
-    <div className={cn(atendimento.card, "p-5")}>
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="font-display text-lg text-[color:var(--gestao-ink)]">
-            Templates de mensagem
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Modelos aprovados pela Meta para iniciar conversas fora da janela de 24h.
-          </p>
-        </div>
+    <ConfigSection
+      title="Templates de mensagem"
+      description="Modelos aprovados pela Meta para iniciar conversas fora da janela de 24h."
+    >
+      <div className="mb-4 flex justify-end">
         <GestaoButton
           type="button"
           variant="secondary"
@@ -1161,22 +1094,22 @@ function TemplatesPanel() {
 
       {isLoading ? (
         <div className="flex h-32 items-center justify-center">
-          <Loader2 className="size-6 animate-spin text-sage" />
+          <Loader2 className="size-6 animate-spin text-[var(--tenant-primary,#FF7A00)]" />
         </div>
       ) : templates.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[color:var(--honey-line)] bg-[color:var(--gestao-cream)]/30 px-4 py-8 text-center">
-          <FileText className="mx-auto size-8 text-muted-foreground/60" />
-          <p className="mt-2 text-sm text-muted-foreground">
+        <div className="rounded-lg border border-dashed border-[#E5E7EB] bg-[#F9FAFB] px-4 py-8 text-center">
+          <FileText className="mx-auto size-8 text-[#9CA3AF]" />
+          <p className="mt-2 text-sm text-[#6B7280]">
             Nenhum template sincronizado. Configure a Meta e clique em Sincronizar Meta.
           </p>
         </div>
       ) : (
-        <ul className="divide-y divide-[color:var(--honey-line)] rounded-xl border border-[color:var(--honey-line)]">
+        <ul className="divide-y divide-[#F3F4F6] rounded-lg border border-[#E5E7EB]">
           {templates.map((t: { id: string; name: string; status: string; language: string }) => (
             <li key={t.id} className="flex items-center justify-between gap-3 px-4 py-3">
               <div>
-                <p className="font-medium text-[color:var(--gestao-ink)]">{t.name}</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="font-medium text-[#111111]">{t.name}</p>
+                <p className="text-xs text-[#6B7280]">
                   {t.language} · {t.status}
                 </p>
               </div>
@@ -1184,8 +1117,8 @@ function TemplatesPanel() {
                 className={cn(
                   "rounded-full px-2 py-0.5 text-[10px] font-medium uppercase",
                   t.status === "APPROVED"
-                    ? "bg-sage/10 text-sage"
-                    : "bg-muted text-muted-foreground",
+                    ? "bg-[#FFF7ED] text-[var(--tenant-primary,#FF7A00)]"
+                    : "bg-[#F3F4F6] text-[#6B7280]",
                 )}
               >
                 {t.status}
@@ -1194,23 +1127,6 @@ function TemplatesPanel() {
           ))}
         </ul>
       )}
-    </div>
-  );
-}
-
-function Field({
-  label,
-  children,
-  className,
-}: {
-  label: string;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={className}>
-      <label className={atendimento.label}>{label}</label>
-      <div className="mt-1">{children}</div>
-    </div>
+    </ConfigSection>
   );
 }

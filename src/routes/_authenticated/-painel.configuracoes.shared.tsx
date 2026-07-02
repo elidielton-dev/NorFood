@@ -1,18 +1,16 @@
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Printer, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import { toast } from "sonner";
-import { Switch } from "@/components/ui/switch";
+import { StatusBadge } from "@/components/painel-configuracoes-ui";
 import {
-  ConfigBox,
-  ConfigDetailCard,
-  PrinterStat,
-  SettingRow,
-  StatusBadge,
-} from "@/components/painel-configuracoes-ui";
-import { ConfigPageBack } from "@/components/config-hub-ui";
-import { GestaoButton, GestaoField, GestaoHeroCard, GestaoInput, GestaoSectionTitle } from "@/components/gestao-ui";
+  ConfigSection,
+  ConfigSettingRow,
+  ConfigSwitchRow,
+  ConfiguracoesPageFrame,
+} from "@/components/configuracoes/configuracoes-page-frame";
+import { GestaoButton, GestaoInput } from "@/components/gestao-ui";
 import { getIntegrationStatus } from "@/lib/api/integrations.functions";
 import {
   fetchTenantAdminSettingsServer,
@@ -20,6 +18,7 @@ import {
   type PrinterSettings,
 } from "@/lib/api/tenant-settings-admin.functions";
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
+import { tenantPath } from "@/lib/tenant/painel-routes";
 import {
   IntegrationKey,
   PrinterPanelKey,
@@ -67,108 +66,88 @@ export function ConfiguracaoImpressoraDetalhePage({ panelKey }: { panelKey: Prin
   };
 
   return (
-    <section className="space-y-4">
-      <div className="flex justify-end">
-        <ConfigPageBack />
-      </div>
-      <GestaoHeroCard>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="grid size-11 place-items-center rounded-xl bg-sage text-primary-foreground sm:size-12 sm:rounded-2xl">
-                <Printer className="size-5" />
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gestao-gold-deep)]">
-                  Painel {panelDefault.titulo}
-                </p>
-                <h2 className="font-display text-2xl text-[color:var(--gestao-ink)] sm:text-3xl">
-                  Impressora
-                </h2>
-                <p className="text-sm text-muted-foreground">{panelDefault.descricao}</p>
-              </div>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <PrinterStat label="Impressora" value={active.printerName} hint="Principal" />
-              <PrinterStat label="Papel" value={active.paper} hint="Formato" />
-              <PrinterStat label="Copias" value={`${active.copies}`} hint="Por evento" />
-              <PrinterStat
-                label="Pre-visualizacao"
-                value={active.showPreview ? "Ativa" : "Desligada"}
-                hint="Antes de imprimir"
-              />
-            </div>
-          </div>
-          <StatusBadge ativo={active.autoPrint} ativoLabel="Auto impressao ligada" />
-        </div>
-      </GestaoHeroCard>
+    <ConfiguracoesPageFrame
+      title={`Impressora — ${panelDefault.titulo}`}
+      description={panelDefault.descricao}
+      actions={
+        <GestaoButton onClick={() => saveMutation.mutate(active)} disabled={saveMutation.isPending}>
+          <Save className="size-4" />
+          Salvar
+        </GestaoButton>
+      }
+    >
+      <ConfigSection title="Equipamento" description="Nome da impressora, papel e cópias por evento.">
+        <ConfigSettingRow
+          description="Nome da impressora instalada neste computador ou na rede."
+          control={
+            <GestaoInput
+              className="w-56"
+              value={active.printerName}
+              onChange={(e) => setSettings({ ...active, printerName: e.target.value })}
+            />
+          }
+        />
+        <ConfigSettingRow
+          description="Formato do papel utilizado neste painel."
+          control={
+            <GestaoInput
+              className="w-40"
+              value={active.paper}
+              onChange={(e) => setSettings({ ...active, paper: e.target.value })}
+            />
+          }
+        />
+        <ConfigSettingRow
+          description="Número de cópias impressas a cada evento."
+          control={
+            <GestaoInput
+              type="number"
+              min={1}
+              className="w-24"
+              value={active.copies}
+              onChange={(e) => setSettings({ ...active, copies: Number(e.target.value) || 1 })}
+            />
+          }
+        />
+      </ConfigSection>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ConfigDetailCard title="Configuracao">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <GestaoField label="Nome da impressora">
-              <GestaoInput
-                value={active.printerName}
-                onChange={(e) => setSettings({ ...active, printerName: e.target.value })}
-              />
-            </GestaoField>
-            <GestaoField label="Papel">
-              <GestaoInput value={active.paper} onChange={(e) => setSettings({ ...active, paper: e.target.value })} />
-            </GestaoField>
-            <GestaoField label="Copias">
-              <GestaoInput
-                type="number"
-                min={1}
-                value={active.copies}
-                onChange={(e) => setSettings({ ...active, copies: Number(e.target.value) || 1 })}
-              />
-            </GestaoField>
-          </div>
-          <div className="mt-5 space-y-3 rounded-xl border border-[color:var(--honey-line)] bg-[color:var(--gestao-cream)]/50 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm">Imprimir automaticamente</span>
-              <Switch
-                checked={active.autoPrint}
-                onCheckedChange={(autoPrint) => setSettings({ ...active, autoPrint })}
-              />
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm">Cortar papel ao finalizar</span>
-              <Switch
-                checked={active.cutPaper}
-                onCheckedChange={(cutPaper) => setSettings({ ...active, cutPaper })}
-              />
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm">Exibir pre-visualizacao</span>
-              <Switch
-                checked={active.showPreview}
-                onCheckedChange={(showPreview) => setSettings({ ...active, showPreview })}
-              />
-            </div>
-          </div>
-          <GestaoButton className="mt-4" onClick={() => saveMutation.mutate(active)} disabled={saveMutation.isPending}>
-            <Save className="size-4" />
-            Salvar impressora
-          </GestaoButton>
-        </ConfigDetailCard>
+      <ConfigSection title="Comportamento" description="Autoimpressão, corte e pré-visualização.">
+        <ConfigSwitchRow
+          description="Envia o pedido para a impressora assim que o evento ocorre neste painel."
+          label="Imprimir automaticamente"
+          checked={active.autoPrint}
+          onCheckedChange={(autoPrint) => setSettings({ ...active, autoPrint })}
+        />
+        <ConfigSwitchRow
+          description="Aciona o corte automático da bobina ao finalizar cada impressão."
+          label="Cortar papel ao finalizar"
+          checked={active.cutPaper}
+          onCheckedChange={(cutPaper) => setSettings({ ...active, cutPaper })}
+        />
+        <ConfigSwitchRow
+          description="Mostra uma pré-visualização antes de confirmar a impressão."
+          label="Exibir pré-visualização"
+          checked={active.showPreview}
+          onCheckedChange={(showPreview) => setSettings({ ...active, showPreview })}
+        />
+      </ConfigSection>
 
-        <ConfigDetailCard title="Itens deste painel">
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            {panelDefault.itens.map((item) => (
-              <li key={item} className="rounded-xl bg-[color:var(--gestao-cream)]/50 px-3 py-3">
-                {item}
-              </li>
-            ))}
-          </ul>
-          <Link to="/painel/configuracoes/impressoras" className="mt-5 inline-block">
-            <GestaoButton variant="secondary" size="sm">
-              Voltar para impressoras
-            </GestaoButton>
-          </Link>
-        </ConfigDetailCard>
-      </div>
-    </section>
+      <ConfigSection title="Itens deste painel" description="Documentos impressos nesta área.">
+        <ul className="space-y-2 text-sm text-[#4B5563]">
+          {panelDefault.itens.map((item) => (
+            <li key={item} className="rounded-lg bg-[#F9FAFB] px-3 py-2.5">
+              {item}
+            </li>
+          ))}
+        </ul>
+        <Link
+          to={tenantPath(tenantSlug, "configuracoes/impressoras")}
+          className="mt-4 inline-block text-sm font-medium text-[var(--tenant-primary,#FF7A00)] hover:underline"
+        >
+          Voltar para impressoras
+        </Link>
+      </ConfigSection>
+    </ConfiguracoesPageFrame>
   );
 }
 
@@ -178,7 +157,8 @@ export function ConfiguracaoIntegracaoDetalhePage({
   integrationKey: IntegrationKey;
 }) {
   const integration = getIntegrationConfig(integrationKey);
-  const { data } = useQuery({
+  const tenantSlug = useTenantSlug();
+  const { data, isLoading } = useQuery({
     queryKey: ["integration-status"],
     queryFn: () => getIntegrationStatus(),
   });
@@ -188,62 +168,46 @@ export function ConfiguracaoIntegracaoDetalhePage({
   }
 
   return (
-    <section className="space-y-4">
-      <div className="flex justify-end">
-        <ConfigPageBack to="/painel/configuracoes/integracoes" />
-      </div>
-      <GestaoHeroCard>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="grid size-11 place-items-center rounded-xl bg-sage text-primary-foreground sm:size-12 sm:rounded-2xl">
-              <integration.icon className="size-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gestao-gold-deep)]">
-                Integracao
-              </p>
-              <h2 className="font-display text-2xl text-[color:var(--gestao-ink)] sm:text-3xl">
-                {integration.titulo}
-              </h2>
-              <p className="text-sm text-muted-foreground">{integration.descricao}</p>
-            </div>
-          </div>
-          <StatusBadge ativo={integration.isActive(data)} />
-        </div>
-      </GestaoHeroCard>
-
-      <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-        <ConfigDetailCard title="Leitura da integracao">
-          <div className="space-y-3 text-sm text-muted-foreground">
+    <ConfiguracoesPageFrame
+      title={integration.titulo}
+      description={integration.descricao}
+      actions={<StatusBadge ativo={integration.isActive(data)} />}
+    >
+      <ConfigSection title="Status da integração" description="Leitura atual das credenciais e conexão.">
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Carregando...</p>
+        ) : (
+          <div className="space-y-2">
             {integration.details(data).map((detail) => (
-              <div
-                key={detail}
-                className="rounded-xl bg-[color:var(--gestao-cream)]/50 px-3 py-3 text-[color:var(--gestao-ink)]"
-              >
+              <p key={detail} className="rounded-lg bg-[#F9FAFB] px-3 py-2.5 text-sm text-[#374151]">
                 {detail}
-              </div>
+              </p>
             ))}
           </div>
-        </ConfigDetailCard>
+        )}
+      </ConfigSection>
 
-        <ConfigDetailCard title="Variaveis esperadas">
-          <div className="flex flex-wrap gap-2">
-            {integration.envs.map((envName) => (
-              <code
-                key={envName}
-                className="rounded-full border border-border bg-background px-3 py-1.5 text-xs"
-              >
-                {envName}
-              </code>
-            ))}
-          </div>
-          <Link to="/painel/configuracoes/integracoes" className="mt-5 inline-block">
-            <GestaoButton variant="secondary" size="sm">
-              Voltar para integracoes
-            </GestaoButton>
-          </Link>
-        </ConfigDetailCard>
-      </div>
-    </section>
+      <ConfigSection
+        title="Variáveis de ambiente"
+        description="Chaves esperadas no servidor para ativar esta integração."
+      >
+        <div className="flex flex-wrap gap-2">
+          {integration.envs.map((envName) => (
+            <code
+              key={envName}
+              className="rounded-full border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs text-[#374151]"
+            >
+              {envName}
+            </code>
+          ))}
+        </div>
+        <Link
+          to={tenantPath(tenantSlug, "configuracoes/integracoes")}
+          className="mt-4 inline-block text-sm font-medium text-[var(--tenant-primary,#FF7A00)] hover:underline"
+        >
+          Voltar para integrações
+        </Link>
+      </ConfigSection>
+    </ConfiguracoesPageFrame>
   );
 }
