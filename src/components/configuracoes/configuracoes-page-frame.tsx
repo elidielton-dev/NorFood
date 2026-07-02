@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export function ConfiguracoesPageFrame({
   title,
@@ -67,5 +69,57 @@ export function ConfigSettingRow({
       <p className="max-w-xl text-sm text-[#4B5563]">{description}</p>
       <div className="shrink-0">{control}</div>
     </div>
+  );
+}
+
+export function ConfigSwitchRow({
+  description,
+  label,
+  checked,
+  onCheckedChange,
+  disabled,
+}: {
+  description: string;
+  label: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <ConfigSettingRow
+      description={description}
+      control={
+        <label className="flex cursor-pointer items-center gap-2.5">
+          <Switch checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
+          <span className="text-sm font-medium text-[#374151]">{label}</span>
+        </label>
+      }
+    />
+  );
+}
+
+export function ConfigCheckboxRow({
+  description,
+  label,
+  checked,
+  onCheckedChange,
+  disabled,
+}: {
+  description: string;
+  label: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <ConfigSettingRow
+      description={description}
+      control={
+        <label className="flex cursor-pointer items-center gap-2.5">
+          <Checkbox checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
+          <span className="text-sm font-medium text-[#374151]">{label}</span>
+        </label>
+      }
+    />
   );
 }

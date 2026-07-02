@@ -1,7 +1,7 @@
 ﻿import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Clock, Copy, PauseCircle, PlayCircle, RefreshCw, Save, Store, Timer } from "lucide-react";
+import { Clock, Copy, PauseCircle, PlayCircle, RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
 import { fetchHorariosPainelServer, saveHorariosPainelServer } from "@/lib/api/horarios.functions";
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
@@ -17,17 +17,19 @@ import {
 import {
   GestaoAlert,
   GestaoButton,
-  GestaoCard,
   GestaoInput,
-  GestaoPage,
-  GestaoSectionTitle,
   GestaoTable,
   GestaoTableHead,
   StatusPill,
 } from "@/components/gestao-ui";
-import { ConfigPageBack } from "@/components/config-hub-ui";
+import {
+  ConfigSection,
+  ConfigSwitchRow,
+  ConfiguracoesPageFrame,
+} from "@/components/configuracoes/configuracoes-page-frame";
+import { tenantPath } from "@/lib/tenant/painel-routes";
 
-export function HorariosPage({ backTo }: { backTo?: string } = {}) {
+export function HorariosPage(_props: { backTo?: string } = {}) {
   const tenantSlug = useTenantSlug();
   const qc = useQueryClient();
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
@@ -118,50 +120,50 @@ export function HorariosPage({ backTo }: { backTo?: string } = {}) {
 
   if (isLoading && !data) {
     return (
-      <GestaoPage title="Horarios" subtitle="Carregando grade de funcionamento...">
-        <GestaoCard>
-          <p className="text-sm text-muted-foreground">Carregando horarios...</p>
-        </GestaoCard>
-      </GestaoPage>
+      <ConfiguracoesPageFrame title="Horários de funcionamento" description="Carregando...">
+        <p className="text-sm text-muted-foreground">Carregando horários...</p>
+      </ConfiguracoesPageFrame>
     );
   }
 
   if ((isError || !activeConfig || !status) && !data) {
     return (
-      <GestaoPage title="Horarios" subtitle="Nao foi possivel carregar os horarios.">
-        <GestaoCard className="space-y-4">
-          <GestaoAlert tone="warning">
-            {error instanceof Error ? error.message : "Erro ao buscar horarios da loja."}
-          </GestaoAlert>
-          <GestaoButton onClick={() => void refetch()}>
-            <RefreshCw className="size-4" />
-            Tentar novamente
-          </GestaoButton>
-        </GestaoCard>
-      </GestaoPage>
+      <ConfiguracoesPageFrame
+        title="Horários de funcionamento"
+        description="Não foi possível carregar os horários."
+      >
+        <GestaoAlert tone="warning">
+          {error instanceof Error ? error.message : "Erro ao buscar horários da loja."}
+        </GestaoAlert>
+        <GestaoButton className="mt-4" onClick={() => void refetch()}>
+          <RefreshCw className="size-4" />
+          Tentar novamente
+        </GestaoButton>
+      </ConfiguracoesPageFrame>
     );
   }
 
   if (!activeConfig || !status) {
     return (
-      <GestaoPage title="Horarios" subtitle="Carregando grade de funcionamento...">
-        <GestaoCard>
-          <p className="text-sm text-muted-foreground">Preparando horarios...</p>
-        </GestaoCard>
-      </GestaoPage>
+      <ConfiguracoesPageFrame title="Horários de funcionamento" description="Carregando...">
+        <p className="text-sm text-muted-foreground">Preparando horários...</p>
+      </ConfiguracoesPageFrame>
     );
   }
 
   return (
-    <GestaoPage
-      title="Horarios de funcionamento"
-      subtitle="Grade semanal, pausa imediata e controle de quando a loja aceita pedidos."
+    <ConfiguracoesPageFrame
+      title="Horários de funcionamento"
+      description="Grade semanal, pausa imediata e controle de quando a loja aceita pedidos."
       actions={
         <div className="flex flex-wrap gap-2">
-          {backTo ? <ConfigPageBack to={backTo} /> : null}
           <GestaoButton variant="secondary" onClick={() => void refetch()} disabled={isFetching}>
             <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />
             Atualizar
+          </GestaoButton>
+          <GestaoButton onClick={salvarTudo} disabled={saveMutation.isPending}>
+            <Save className="size-4" />
+            Salvar horários
           </GestaoButton>
         </div>
       }
@@ -175,166 +177,113 @@ export function HorariosPage({ backTo }: { backTo?: string } = {}) {
         </GestaoAlert>
       ) : null}
 
-      <GestaoCard
-        className={
-          status.abertaAgora
-            ? "border-emerald-200 bg-gradient-to-br from-emerald-50/90 to-white"
-            : "border-rose-200 bg-gradient-to-br from-rose-50/80 to-white"
-        }
-      >
-        <div className="flex flex-wrap items-start justify-between gap-4">
+      <ConfigSection title="Status atual" description={status.motivo}>
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
               <span
                 className={`size-3 rounded-full ${status.abertaAgora ? "bg-emerald-500" : "bg-rose-500"}`}
               />
-              <p className="font-display text-2xl text-[color:var(--gestao-ink)]">
+              <p className="text-lg font-semibold text-[#1F2937]">
                 {status.abertaAgora ? "Loja aberta agora" : "Loja fechada agora"}
               </p>
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">{status.motivo}</p>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-2 text-sm text-[#6B7280]">
               {status.diaAtual}
               {status.horarioHoje?.ativo
-                ? ` ┬À ${status.horarioHoje.abre} as ${status.horarioHoje.fecha}`
-                : " ┬À sem expediente hoje"}
-              {status.proximaAbertura ? ` ┬À Proxima abertura: ${status.proximaAbertura}` : ""}
+                ? ` · ${status.horarioHoje.abre} às ${status.horarioHoje.fecha}`
+                : " · sem expediente hoje"}
+              {status.proximaAbertura ? ` · Próxima abertura: ${status.proximaAbertura}` : ""}
             </p>
           </div>
           <StatusPill tone={status.abertaAgora ? "success" : "danger"}>
-            {activeConfig.horario_automatico ? "Grade automatica" : "Controle manual"}
+            {activeConfig.horario_automatico ? "Grade automática" : "Controle manual"}
           </StatusPill>
         </div>
-      </GestaoCard>
+      </ConfigSection>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <GestaoCard>
-          <GestaoSectionTitle
-            title="Modo de funcionamento"
-            description="Automatico segue a grade. Manual usa o interruptor e a grade continua editavel."
-            action={<Timer className="size-5 text-sage" />}
-          />
-          <div className="mt-4 space-y-3">
-            <label className="flex cursor-pointer items-center justify-between rounded-xl border border-[color:var(--honey-line)] px-4 py-3">
-              <div>
-                <p className="text-sm font-semibold">Seguir grade de horarios</p>
-                <p className="text-xs text-muted-foreground">
-                  Ligado: abre e fecha sozinho. Desligado: voce controla com o interruptor abaixo.
-                </p>
-              </div>
-              <input
-                type="checkbox"
-                checked={activeConfig.horario_automatico}
-                onChange={(e) =>
-                  setConfig({
-                    ...activeConfig,
-                    horario_automatico: e.target.checked,
-                  })
-                }
-              />
-            </label>
-
-            <label className="flex cursor-pointer items-center justify-between rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3">
-              <div className="flex items-start gap-2">
-                <PauseCircle className="mt-0.5 size-4 text-amber-700" />
-                <div>
-                  <p className="text-sm font-semibold text-amber-900">Pausa imediata</p>
-                  <p className="text-xs text-amber-800">
-                    Fecha a loja agora, em qualquer modo, ate desativar.
-                  </p>
-                </div>
-              </div>
-              <input
-                type="checkbox"
-                checked={activeConfig.pausa_imediata}
-                onChange={(e) => setConfig({ ...activeConfig, pausa_imediata: e.target.checked })}
-              />
-            </label>
-
-            {!activeConfig.horario_automatico ? (
-              <div className="space-y-3 rounded-xl border border-sky-200 bg-sky-50/50 p-4">
-                <div className="flex items-start gap-2">
-                  <Store className="mt-0.5 size-4 text-sky-700" />
-                  <div>
-                    <p className="text-sm font-semibold text-sky-900">Controle manual de pedidos</p>
-                    <p className="text-xs text-sky-800">
-                      Decide se a loja aceita pedidos agora. A grade semanal abaixo continua
-                      editavel para vitrine e referencia.
-                    </p>
-                  </div>
-                </div>
-                <label className="flex cursor-pointer items-center justify-between rounded-xl border border-sky-200 bg-white px-4 py-3">
-                  <span className="text-sm font-semibold">Loja aberta para pedidos</span>
-                  <input
-                    type="checkbox"
-                    checked={activeConfig.loja_aberta}
-                    onChange={(e) => setConfig({ ...activeConfig, loja_aberta: e.target.checked })}
-                  />
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  <GestaoButton
-                    size="sm"
-                    onClick={() =>
-                      setConfig({ ...activeConfig, loja_aberta: true, pausa_imediata: false })
-                    }
-                  >
-                    <PlayCircle className="size-4" />
-                    Abrir loja agora
-                  </GestaoButton>
-                  <GestaoButton
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => setConfig({ ...activeConfig, loja_aberta: false })}
-                  >
-                    <PauseCircle className="size-4" />
-                    Fechar loja agora
-                  </GestaoButton>
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </GestaoCard>
-
-        <GestaoCard>
-          <GestaoSectionTitle
-            title="Atalhos"
-            description="Presets rapidos da grade semanal."
-            action={<Clock className="size-5 text-gold" />}
-          />
-          <div className="mt-4 flex flex-wrap gap-2">
-            <GestaoButton variant="secondary" size="sm" onClick={aplicarHorarioComercial}>
-              <PlayCircle className="size-4" />
-              Horario comercial padrao
-            </GestaoButton>
-            <GestaoButton variant="secondary" size="sm" onClick={copiarSegundaParaDiasUteis}>
-              <Copy className="size-4" />
-              Segunda para dias uteis
-            </GestaoButton>
-            <Link to="/painel/configuracoes/operacao">
-              <GestaoButton variant="secondary" size="sm">
-                Operacao da loja
-              </GestaoButton>
-            </Link>
-          </div>
-        </GestaoCard>
-      </div>
-
-      <GestaoCard>
-        <GestaoSectionTitle
-          title="Grade semanal"
-          description={
-            activeConfig.horario_automatico
-              ? "Define quando a loja abre e fecha automaticamente."
-              : "Edite os horarios de funcionamento. No modo manual, a grade fica salva para vitrine e referencia."
+      <ConfigSection
+        title="Operação da loja"
+        description="Automático segue a grade. Manual usa o interruptor e a grade continua editável."
+      >
+        <ConfigSwitchRow
+          description="Define se a loja abre e fecha automaticamente conforme a grade semanal abaixo."
+          label="Seguir grade de horários"
+          checked={activeConfig.horario_automatico}
+          onCheckedChange={(checked) =>
+            setConfig({ ...activeConfig, horario_automatico: checked })
           }
         />
+        <ConfigSwitchRow
+          description="Fecha a loja imediatamente, em qualquer modo, até você desativar esta opção."
+          label="Pausa imediata"
+          checked={activeConfig.pausa_imediata}
+          onCheckedChange={(checked) => setConfig({ ...activeConfig, pausa_imediata: checked })}
+        />
         {!activeConfig.horario_automatico ? (
-          <GestaoAlert tone="info" className="mt-4">
+          <>
+            <ConfigSwitchRow
+              description="No modo manual, decide se a loja aceita pedidos neste momento."
+              label="Loja aberta para pedidos"
+              checked={activeConfig.loja_aberta}
+              onCheckedChange={(checked) => setConfig({ ...activeConfig, loja_aberta: checked })}
+            />
+            <div className="flex flex-wrap gap-2 border-t border-[#F3F4F6] pt-4">
+              <GestaoButton
+                size="sm"
+                onClick={() =>
+                  setConfig({ ...activeConfig, loja_aberta: true, pausa_imediata: false })
+                }
+              >
+                <PlayCircle className="size-4" />
+                Abrir loja agora
+              </GestaoButton>
+              <GestaoButton
+                size="sm"
+                variant="secondary"
+                onClick={() => setConfig({ ...activeConfig, loja_aberta: false })}
+              >
+                <PauseCircle className="size-4" />
+                Fechar loja agora
+              </GestaoButton>
+            </div>
+          </>
+        ) : null}
+      </ConfigSection>
+
+      <ConfigSection title="Atalhos" description="Presets rápidos da grade semanal.">
+        <div className="flex flex-wrap gap-2">
+          <GestaoButton variant="secondary" size="sm" onClick={aplicarHorarioComercial}>
+            <PlayCircle className="size-4" />
+            Horário comercial padrão
+          </GestaoButton>
+          <GestaoButton variant="secondary" size="sm" onClick={copiarSegundaParaDiasUteis}>
+            <Copy className="size-4" />
+            Segunda para dias úteis
+          </GestaoButton>
+          <Link to={tenantPath(tenantSlug, "configuracoes/operacao")}>
+            <GestaoButton variant="secondary" size="sm">
+              Operação da loja
+            </GestaoButton>
+          </Link>
+        </div>
+      </ConfigSection>
+
+      <ConfigSection
+        title="Grade semanal"
+        description={
+          activeConfig.horario_automatico
+            ? "Define quando a loja abre e fecha automaticamente."
+            : "Edite os horários de funcionamento. No modo manual, a grade fica salva para vitrine e referência."
+        }
+      >
+        {!activeConfig.horario_automatico ? (
+          <GestaoAlert tone="info" className="mb-4">
             Modo manual ativo: a grade abaixo pode ser editada e salva normalmente. O interruptor de
             controle manual decide se a loja aceita pedidos neste momento.
           </GestaoAlert>
         ) : null}
-        <GestaoTable className="mt-4">
+        <GestaoTable>
           <GestaoTableHead>
             <tr>
               <th className="p-3">Dia</th>
@@ -386,17 +335,10 @@ export function HorariosPage({ backTo }: { backTo?: string } = {}) {
 
         {!ensureFullWeek(activeHorarios).every((h) => !h.ativo || isValidHorarioDia(h)) ? (
           <GestaoAlert tone="warning" className="mt-4">
-            Alguns dias tem horario invalido. A abertura deve ser antes do fechamento.
+            Alguns dias têm horário inválido. A abertura deve ser antes do fechamento.
           </GestaoAlert>
         ) : null}
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          <GestaoButton onClick={salvarTudo} disabled={saveMutation.isPending}>
-            <Save className="size-4" />
-            Salvar horarios
-          </GestaoButton>
-        </div>
-      </GestaoCard>
-    </GestaoPage>
+      </ConfigSection>
+    </ConfiguracoesPageFrame>
   );
 }

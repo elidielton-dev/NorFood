@@ -18,16 +18,17 @@ import { formatCep, formatCnpj, isValidCnpj, onlyDigits, validateEmpresaFiscal }
 import {
   GestaoAlert,
   GestaoButton,
-  GestaoCard,
   GestaoField,
   GestaoInput,
-  GestaoPage,
-  GestaoSectionTitle,
   GestaoSelect,
   GestaoUnderlineTabs,
 } from "@/components/gestao-ui";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import {
+  ConfigSection,
+  ConfigSettingRow,
+  ConfigSwitchRow,
+  ConfiguracoesPageFrame,
+} from "@/components/configuracoes/configuracoes-page-frame";
 
 export const Route = createFileRoute("/_authenticated/painel/fiscal/configuracoes")({
   component: FiscalConfiguracoesPage,
@@ -279,34 +280,26 @@ function FiscalConfiguracoesPage() {
 
   if (isLoading) {
     return (
-      <GestaoPage title="Configuracoes fiscais" subtitle="Carregando...">
-        <GestaoCard>
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
-            Carregando modulo fiscal...
-          </p>
-        </GestaoCard>
-      </GestaoPage>
+      <ConfiguracoesPageFrame title="Configuração fiscal" description="Carregando...">
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+          Carregando módulo fiscal...
+        </p>
+      </ConfiguracoesPageFrame>
     );
   }
 
   if (isError || !data) {
     return (
-      <GestaoPage title="Configuracoes fiscais" subtitle="Modulo fiscal">
+      <ConfiguracoesPageFrame title="Configuração fiscal" description="Módulo fiscal">
         <GestaoAlert tone="warning">
-          <p className="font-medium">Nao foi possivel carregar as configuracoes fiscais</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            {mutationErrorMessage(error)}
-          </p>
-          <p className="text-sm text-muted-foreground mt-2">
-            Se as tabelas ainda nao existem, rode{" "}
-            <code>scripts/production-fiscal-migrations.sql</code> no Supabase SQL Editor.
-          </p>
+          <p className="font-medium">Não foi possível carregar as configurações fiscais</p>
+          <p className="mt-1 text-sm text-muted-foreground">{mutationErrorMessage(error)}</p>
           <GestaoButton className="mt-4" onClick={() => void refetch()}>
             Tentar novamente
           </GestaoButton>
         </GestaoAlert>
-      </GestaoPage>
+      </ConfiguracoesPageFrame>
     );
   }
 
@@ -315,23 +308,25 @@ function FiscalConfiguracoesPage() {
   const cert = data.config.certificado;
 
   return (
-    <GestaoPage
-      title="Configuracoes fiscais"
-      subtitle="Dados da empresa, certificado A1 criptografado e emissao NFC-e direta na SEFAZ (PE)."
-    >
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Link
-          to="/painel/fiscal"
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[color:var(--honey-line)] bg-background px-4 text-sm font-semibold hover:bg-muted/50"
-        >
-          Voltar para notas
-        </Link>
-        {isFetching ? (
+    <ConfiguracoesPageFrame
+      title="Configuração fiscal"
+      description="Dados da empresa, certificado A1 e emissão NFC-e direta na SEFAZ (PE)."
+      actions={
+        isFetching ? (
           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
             <Loader2 className="size-3 animate-spin" />
             Atualizando...
           </span>
-        ) : null}
+        ) : null
+      }
+    >
+      <div className="mb-2">
+        <Link
+          to="/painel/fiscal"
+          className="text-sm font-medium text-[var(--tenant-primary,#FF7A00)] hover:underline"
+        >
+          Voltar para notas fiscais
+        </Link>
       </div>
 
       {formErrors.length > 0 && (
@@ -376,11 +371,10 @@ function FiscalConfiguracoesPage() {
       />
 
       {tab === "empresa" && (
-        <GestaoCard className="mt-4 space-y-4">
-          <GestaoSectionTitle
-            title="Dados do emitente"
-            description="Informe o CNPJ para buscar razao social, endereco e CNAE em bases publicas gratuitas. A inscricao estadual deve ser preenchida manualmente."
-          />
+        <ConfigSection
+          title="Dados do emitente"
+          description="Informe o CNPJ para buscar razão social, endereço e CNAE. A inscrição estadual deve ser preenchida manualmente."
+        >
           <div className="grid gap-4 sm:grid-cols-2">
             <GestaoField label="CNPJ" className="sm:col-span-2">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -540,49 +534,47 @@ function FiscalConfiguracoesPage() {
             )}
             Salvar empresa
           </GestaoButton>
-        </GestaoCard>
+        </ConfigSection>
       )}
 
       {tab === "nfce" && (
-        <GestaoCard className="mt-4 space-y-5">
-          <GestaoSectionTitle
-            title="NFC-e (modelo 65)"
-            description="Use o seletor Homologacao / Producao no topo da pagina fiscal para trocar o ambiente SEFAZ."
-          />
+        <ConfigSection
+          title="NFC-e (modelo 65)"
+          description="Use o seletor Homologação / Produção no topo da página fiscal para trocar o ambiente SEFAZ."
+        >
           <GestaoAlert tone="info">
             <p className="text-sm text-muted-foreground">
-              Emissao 100% direta na SEFAZ (sem Webmania). Regime tributario padrao: Simples Nacional
-              (CRT 1) — ajuste na aba Empresa se necessario. O CSC pode ser diferente entre
-              homologacao e producao no portal da SEFAZ PE.
+              Emissão direta na SEFAZ (sem Webmania). Regime padrão: Simples Nacional (CRT 1). O CSC
+              pode ser diferente entre homologação e produção no portal da SEFAZ PE.
             </p>
           </GestaoAlert>
-          <div className="flex items-center justify-between rounded-xl border border-[color:var(--honey-line)] p-4">
-            <div>
-              <Label className="font-medium">Habilitar NFC-e</Label>
-              <p className="text-xs text-muted-foreground">Permite emitir notas de consumidor</p>
-            </div>
-            <Switch
-              checked={configForm.nfceHabilitada}
-              onCheckedChange={(checked) =>
-                setConfigForm((c) => ({ ...c, nfceHabilitada: checked }))
-              }
-            />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <GestaoField label="Serie NFC-e">
+          <ConfigSwitchRow
+            description="Permite emitir notas de consumidor eletrônicas (NFC-e) para vendas do restaurante."
+            label="Habilitar NFC-e"
+            checked={configForm.nfceHabilitada}
+            onCheckedChange={(checked) => setConfigForm((c) => ({ ...c, nfceHabilitada: checked }))}
+          />
+          <ConfigSettingRow
+            description="Número da série utilizada na emissão das notas NFC-e."
+            control={
               <GestaoInput
                 type="number"
                 min={1}
+                className="w-28"
                 value={configForm.serieNfce}
                 onChange={(e) =>
                   setConfigForm((c) => ({ ...c, serieNfce: Number(e.target.value) || 1 }))
                 }
               />
-            </GestaoField>
-            <GestaoField label="Proximo numero">
+            }
+          />
+          <ConfigSettingRow
+            description="Próximo número sequencial que será usado na próxima emissão."
+            control={
               <GestaoInput
                 type="number"
                 min={1}
+                className="w-28"
                 value={configForm.proximoNumeroNfce}
                 onChange={(e) =>
                   setConfigForm((c) => ({
@@ -591,43 +583,49 @@ function FiscalConfiguracoesPage() {
                   }))
                 }
               />
-            </GestaoField>
-            <GestaoField label="CSC ID (SEFAZ)">
+            }
+          />
+          <ConfigSettingRow
+            description="Identificador do CSC cadastrado no portal da SEFAZ."
+            control={
               <GestaoInput
+                className="w-40"
                 value={configForm.cscId}
                 onChange={(e) => setConfigForm((c) => ({ ...c, cscId: e.target.value }))}
                 placeholder="000001"
               />
-            </GestaoField>
-            <GestaoField label="CSC Token" className="sm:col-span-2">
+            }
+          />
+          <ConfigSettingRow
+            description="Token do CSC. Deixe vazio para manter o token já configurado."
+            control={
               <GestaoInput
                 type="password"
+                className="w-64"
                 value={cscToken}
                 onChange={(e) => setCscToken(e.target.value)}
                 placeholder={
-                  data.config.cscTokenConfigured
-                    ? "•••••••• (deixe vazio para manter)"
-                    : "Token do portal SEFAZ"
+                  data.config.cscTokenConfigured ? "••••••••" : "Token do portal SEFAZ"
                 }
               />
-            </GestaoField>
-          </div>
-          <div className="space-y-3 rounded-xl border border-[color:var(--honey-line)] p-4">
-            <p className="text-sm font-medium">Emissao automatica</p>
+            }
+          />
+          <div className="border-t border-[#F3F4F6] pt-2">
+            <p className="mb-2 text-sm font-semibold text-[#374151]">Emissão automática</p>
             {(
               [
-                ["emitirAutomaticoPdv", "PDV / Balcao"],
-                ["emitirAutomaticoDelivery", "Delivery"],
-                ["emitirAutomaticoMesas", "Mesas"],
+                ["emitirAutomaticoPdv", "PDV / Balcão", "Emite NFC-e automaticamente nas vendas do balcão."],
+                ["emitirAutomaticoDelivery", "Delivery", "Emite NFC-e automaticamente nos pedidos delivery."],
+                ["emitirAutomaticoMesas", "Mesas", "Emite NFC-e automaticamente nos pedidos de mesa."],
               ] as const
-            ).map(([key, label]) => (
-              <div key={key} className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">{label}</span>
-                <Switch
-                  checked={configForm[key]}
-                  onCheckedChange={(checked) => setConfigForm((c) => ({ ...c, [key]: checked }))}
-                />
-              </div>
+            ).map(([key, label, description]) => (
+              <ConfigSwitchRow
+                key={key}
+                description={description}
+                label={label}
+                checked={configForm[key]}
+                onCheckedChange={(checked) => setConfigForm((c) => ({ ...c, [key]: checked }))}
+              />
             ))}
           </div>
           <div className="flex flex-wrap gap-2">
@@ -657,15 +655,14 @@ function FiscalConfiguracoesPage() {
               </GestaoButton>
             )}
           </div>
-        </GestaoCard>
+        </ConfigSection>
       )}
 
       {tab === "certificado" && (
-        <GestaoCard className="mt-4 space-y-4">
-          <GestaoSectionTitle
-            title="Certificado digital A1"
-            description="Arquivo .pfx criptografado com AES-256-GCM (ENCRYPTION_KEY). A senha nunca e armazenada em texto puro."
-          />
+        <ConfigSection
+          title="Certificado digital A1"
+          description="Arquivo .pfx criptografado com AES-256-GCM. A senha nunca é armazenada em texto puro."
+        >
           {cert.instalado ? (
             <GestaoAlert tone="info">
               <p className="font-medium">{cert.titular}</p>
@@ -748,8 +745,8 @@ function FiscalConfiguracoesPage() {
               </GestaoButton>
             )}
           </div>
-        </GestaoCard>
+        </ConfigSection>
       )}
-    </GestaoPage>
+    </ConfiguracoesPageFrame>
   );
 }
