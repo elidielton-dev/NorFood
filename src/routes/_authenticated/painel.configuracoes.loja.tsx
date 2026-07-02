@@ -1,9 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { ExternalLink, Palette, Save } from "lucide-react";
+import { ExternalLink, Save } from "lucide-react";
 import { toast } from "sonner";
-import { ConfigPageBack } from "@/components/config-hub-ui";
+import {
+  ConfigSection,
+  ConfiguracoesPageFrame,
+} from "@/components/configuracoes/configuracoes-page-frame";
 import {
   fetchTenantAdminSettingsServer,
   saveTenantProfileServer,
@@ -12,11 +15,8 @@ import { lojaPath } from "@/lib/tenant/painel-routes";
 import { useTenant, useTenantSlug } from "@/lib/tenant/tenant-context";
 import {
   GestaoButton,
-  GestaoCard,
   GestaoField,
   GestaoInput,
-  GestaoPage,
-  GestaoSectionTitle,
 } from "@/components/gestao-ui";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -99,39 +99,29 @@ function ConfiguracoesLojaPage() {
 
   if (isLoading || !form) {
     return (
-      <GestaoPage title="Dados e aparência" subtitle="Carregando...">
-        <GestaoCard>
-          <p className="text-sm text-muted-foreground">Carregando configurações...</p>
-        </GestaoCard>
-      </GestaoPage>
+      <ConfiguracoesPageFrame title="Dados e aparência" description="Carregando...">
+        <p className="text-sm text-muted-foreground">Carregando configurações...</p>
+      </ConfiguracoesPageFrame>
     );
   }
 
   const lojaUrl = lojaPath(ctxTenant.slug);
 
   return (
-    <GestaoPage
+    <ConfiguracoesPageFrame
       title="Dados e aparência"
-      subtitle="Identidade da loja no painel e na vitrine online."
+      description="Identidade da loja no painel e na vitrine online."
       actions={
-        <div className="flex flex-wrap gap-2">
-          <ConfigPageBack />
-          <a href={lojaUrl} target="_blank" rel="noreferrer">
-            <GestaoButton variant="secondary">
-              <ExternalLink className="size-4" />
-              Ver loja
-            </GestaoButton>
-          </a>
-        </div>
+        <a href={lojaUrl} target="_blank" rel="noreferrer">
+          <GestaoButton variant="secondary">
+            <ExternalLink className="size-4" />
+            Ver loja
+          </GestaoButton>
+        </a>
       }
     >
-      <GestaoCard>
-        <GestaoSectionTitle
-          title="Marca e cores"
-          description="Nome, logo e paleta exibidos para o cliente."
-          action={<Palette className="size-5 text-sage" />}
-        />
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
+      <ConfigSection title="Marca e cores" description="Nome, logo e paleta exibidos para o cliente.">
+        <div className="grid gap-4 md:grid-cols-2">
           <GestaoField label="Nome do restaurante">
             <GestaoInput value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </GestaoField>
@@ -175,11 +165,10 @@ function ConfiguracoesLojaPage() {
         {form.logo_url ? (
           <img src={form.logo_url} alt="Logo" className="mt-4 h-16 w-auto object-contain" />
         ) : null}
-      </GestaoCard>
+      </ConfigSection>
 
-      <GestaoCard>
-        <GestaoSectionTitle title="Contato e descrição" description="Informações da vitrine e do delivery." />
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
+      <ConfigSection title="Contato e descrição" description="Informações da vitrine e do delivery.">
+        <div className="grid gap-4 md:grid-cols-2">
           <GestaoField label="Telefone / WhatsApp">
             <GestaoInput value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           </GestaoField>
@@ -212,7 +201,7 @@ function ConfiguracoesLojaPage() {
           <Save className="size-4" />
           Salvar loja
         </GestaoButton>
-      </GestaoCard>
-    </GestaoPage>
+      </ConfigSection>
+    </ConfiguracoesPageFrame>
   );
 }

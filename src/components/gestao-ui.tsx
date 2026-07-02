@@ -5,6 +5,7 @@ import {
   type InputHTMLAttributes,
 } from "react";
 import { cn } from "@/lib/utils";
+import { useConfiguracoesEmbedded } from "@/components/configuracoes/configuracoes-layout-context";
 
 /** Classes base do painel — estilo fluido inspirado em gestão de cardápio */
 export const gestao = {
@@ -34,6 +35,12 @@ export function GestaoPage({
   actions?: ReactNode;
   children: ReactNode;
 }) {
+  const embedded = useConfiguracoesEmbedded();
+
+  if (embedded) {
+    return <div className={cn(gestao.page, "space-y-5")}>{children}</div>;
+  }
+
   return (
     <div className={gestao.page}>
       <div

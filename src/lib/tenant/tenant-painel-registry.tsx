@@ -1,5 +1,6 @@
 import { lazy, Suspense, type ComponentType } from "react";
 import { PainelDashboardPage } from "@/components/painel/painel-dashboard-page";
+import { wrapConfigPainelPage } from "@/lib/configuracoes/wrap-config-page";
 
 function painelPageSkeleton() {
   return <div className="animate-pulse rounded-xl bg-[#E5E7EB] p-8" />;
@@ -38,6 +39,8 @@ function painelPage(loader: () => Promise<Record<string, unknown>>): ComponentTy
   };
 }
 
+const configPage = wrapConfigPainelPage;
+
 /** Splat path (após /t/:slug/) → componente do painel (paridade Abelha & Mel) */
 export const TENANT_PAINEL_REGISTRY: Record<string, ComponentType> = {
   dashboard: PainelDashboardPage,
@@ -62,38 +65,62 @@ export const TENANT_PAINEL_REGISTRY: Record<string, ComponentType> = {
   cupons: painelPage(() => import("@/routes/_authenticated/painel.cupons")),
 
   // Configuracoes
-  configuracoes: painelPage(() => import("@/routes/_authenticated/painel.configuracoes.index")),
-  "configuracoes/loja": painelPage(() => import("@/routes/_authenticated/painel.configuracoes.loja")),
-  "configuracoes/horarios": painelPage(
+  configuracoes: configPage(() => import("@/routes/_authenticated/painel.configuracoes.index")),
+  "configuracoes/loja": configPage(() => import("@/routes/_authenticated/painel.configuracoes.loja")),
+  "configuracoes/horarios": configPage(
     () => import("@/routes/_authenticated/painel.configuracoes.horarios"),
   ),
-  "configuracoes/mesas": painelPage(() => import("@/routes/_authenticated/painel.configuracoes.mesas")),
-  "configuracoes/pagamentos": painelPage(
+  "configuracoes/mesas": configPage(() => import("@/routes/_authenticated/painel.configuracoes.mesas")),
+  "configuracoes/pagamentos": configPage(
     () => import("@/routes/_authenticated/painel.configuracoes.pagamentos"),
   ),
-  "configuracoes/delivery": painelPage(
+  "configuracoes/delivery": configPage(
     () => import("@/routes/_authenticated/painel.configuracoes.delivery"),
   ),
-  "configuracoes/equipe": painelPage(() => import("@/routes/_authenticated/painel.configuracoes.equipe")),
-  "configuracoes/plano": painelPage(() => import("@/routes/_authenticated/painel.configuracoes.plano")),
-  "configuracoes/operacao": painelPage(
+  "configuracoes/equipe": configPage(() => import("@/routes/_authenticated/painel.configuracoes.equipe")),
+  "configuracoes/plano": configPage(() => import("@/routes/_authenticated/painel.configuracoes.plano")),
+  "configuracoes/operacao": configPage(
     () => import("@/routes/_authenticated/painel.configuracoes.operacao"),
   ),
-  "configuracoes/impressoras": painelPage(
+  "configuracoes/impressoras": configPage(
     () => import("@/routes/_authenticated/painel.configuracoes.impressoras"),
   ),
-  "configuracoes/integracoes": painelPage(
+  "configuracoes/impressoras/mesas": configPage(
+    () => import("@/routes/_authenticated/painel.configuracoes.impressoras.mesas"),
+  ),
+  "configuracoes/impressoras/delivery": configPage(
+    () => import("@/routes/_authenticated/painel.configuracoes.impressoras.delivery"),
+  ),
+  "configuracoes/impressoras/kds": configPage(
+    () => import("@/routes/_authenticated/painel.configuracoes.impressoras.kds"),
+  ),
+  "configuracoes/impressoras/fiscal": configPage(
+    () => import("@/routes/_authenticated/painel.configuracoes.impressoras.fiscal"),
+  ),
+  "configuracoes/integracoes": configPage(
     () => import("@/routes/_authenticated/painel.configuracoes.integracoes"),
   ),
+  "configuracoes/integracoes/mercado-pago": configPage(
+    () => import("@/routes/_authenticated/painel.configuracoes.integracoes.mercado-pago"),
+  ),
+  "configuracoes/integracoes/inter": configPage(
+    () => import("@/routes/_authenticated/painel.configuracoes.integracoes.inter"),
+  ),
+  "configuracoes/integracoes/fiscal": configPage(
+    () => import("@/routes/_authenticated/painel.configuracoes.integracoes.fiscal"),
+  ),
+  "configuracoes/integracoes/quero-delivery": configPage(
+    () => import("@/routes/_authenticated/painel.configuracoes.integracoes.quero-delivery"),
+  ),
   colaboradores: painelPage(() => import("@/routes/_authenticated/painel.colaboradores")),
-  "estabelecimento/horarios": painelPage(
+  "estabelecimento/horarios": configPage(
     () => import("@/routes/_authenticated/painel.configuracoes.horarios"),
   ),
-  "estabelecimento/pagamentos": painelPage(
+  "estabelecimento/pagamentos": configPage(
     () => import("@/routes/_authenticated/painel.configuracoes.pagamentos"),
   ),
-  "estabelecimento/plano": painelPage(() => import("@/routes/_authenticated/painel.configuracoes.plano")),
-  "estabelecimento/visual": painelPage(() => import("@/routes/_authenticated/painel.configuracoes.loja")),
+  "estabelecimento/plano": configPage(() => import("@/routes/_authenticated/painel.configuracoes.plano")),
+  "estabelecimento/visual": configPage(() => import("@/routes/_authenticated/painel.configuracoes.loja")),
 
   // Atendimento
   "atendimento/conversas": painelPage(
@@ -105,13 +132,13 @@ export const TENANT_PAINEL_REGISTRY: Record<string, ComponentType> = {
   "atendimento/automacoes": painelPage(
     () => import("@/routes/_authenticated/painel.atendimento.automacoes"),
   ),
-  "atendimento/configuracoes": painelPage(
+  "atendimento/configuracoes": configPage(
     () => import("@/routes/_authenticated/painel.atendimento.configuracoes"),
   ),
   atendimento: painelPage(() => import("@/routes/_authenticated/painel.atendimento.conversas")),
 
   // Financeiro
-  "financeiro/mercado-pago": painelPage(
+  "financeiro/mercado-pago": configPage(
     () => import("@/routes/_authenticated/painel.financeiro.mercado-pago"),
   ),
   financeiro: painelPage(() => import("@/routes/_authenticated/painel.financeiro.index")),
@@ -119,7 +146,7 @@ export const TENANT_PAINEL_REGISTRY: Record<string, ComponentType> = {
     () => import("@/routes/_authenticated/painel.financeiro.extratos"),
   ),
   fiscal: painelPage(() => import("@/routes/_authenticated/painel.fiscal.index")),
-  "fiscal/configuracoes": painelPage(
+  "fiscal/configuracoes": configPage(
     () => import("@/routes/_authenticated/painel.fiscal.configuracoes"),
   ),
   "financeiro/saques": painelPage(() => import("@/routes/_authenticated/painel.financeiro.saques")),
@@ -146,11 +173,11 @@ export const TENANT_PAINEL_REGISTRY: Record<string, ComponentType> = {
   cozinha: painelPage(() => import("@/routes/_authenticated/painel.kds")),
   pedidos: painelPage(() => import("@/routes/_authenticated/painel.kds")),
   categorias: painelPage(() => import("@/routes/_authenticated/painel.produtos.categorias")),
-  "configuracoes/empresa": painelPage(
+  "configuracoes/empresa": configPage(
     () => import("@/routes/_authenticated/painel.configuracoes.operacao"),
   ),
-  "configuracoes/usuarios": painelPage(() => import("@/routes/_authenticated/painel.configuracoes.equipe")),
-  "configuracoes/aparencia": painelPage(() => import("@/routes/_authenticated/painel.configuracoes.loja")),
+  "configuracoes/usuarios": configPage(() => import("@/routes/_authenticated/painel.configuracoes.equipe")),
+  "configuracoes/aparencia": configPage(() => import("@/routes/_authenticated/painel.configuracoes.loja")),
   caixa: painelPage(() => import("@/routes/_authenticated/painel.financeiro.index")),
   fidelidade: painelPage(() => import("@/routes/_authenticated/painel.clientes")),
   entregador: painelPage(() => import("@/routes/_authenticated/painel.delivery")),

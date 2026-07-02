@@ -5,12 +5,17 @@ import { GestaoButton } from "@/components/gestao-ui";
 import { useTenantOptional } from "@/lib/tenant/tenant-context";
 import { mapLegacyPainelPath } from "@/lib/tenant/painel-routes";
 
+import { useConfiguracoesEmbedded } from "@/components/configuracoes/configuracoes-layout-context";
+
 export function ConfigPageBack({ to = "/painel/configuracoes" }: { to?: string }) {
+  const embedded = useConfiguracoesEmbedded();
   const tenantCtx = useTenantOptional();
   const backTo =
     tenantCtx && to.startsWith("/painel")
       ? (mapLegacyPainelPath(to, tenantCtx.tenant.slug) ?? to)
       : to;
+
+  if (embedded) return null;
 
   return (
     <Link to={backTo} className="inline-block">
