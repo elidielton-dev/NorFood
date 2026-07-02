@@ -42,6 +42,8 @@ import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedMotoboyRouteImport } from './routes/_authenticated/motoboy'
 import { Route as AuthenticatedMesaRouteImport } from './routes/_authenticated/mesa'
 import { Route as TTenantSlugIndexRouteImport } from './routes/t.$tenantSlug.index'
+import { Route as ParceiroRestaurantesIndexRouteImport } from './routes/parceiro.restaurantes.index'
+import { Route as AdminRevendedorasIndexRouteImport } from './routes/admin.revendedoras.index'
 import { Route as AuthenticatedPainelIndexRouteImport } from './routes/_authenticated/painel.index'
 import { Route as TTenantSlugEntregadoresRouteImport } from './routes/t.$tenantSlug.entregadores'
 import { Route as TTenantSlugSplatRouteImport } from './routes/t.$tenantSlug.$'
@@ -285,6 +287,17 @@ const TTenantSlugIndexRoute = TTenantSlugIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => TTenantSlugRoute,
+} as any)
+const ParceiroRestaurantesIndexRoute =
+  ParceiroRestaurantesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => ParceiroRestaurantesRoute,
+  } as any)
+const AdminRevendedorasIndexRoute = AdminRevendedorasIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRevendedorasRoute,
 } as any)
 const AuthenticatedPainelIndexRoute =
   AuthenticatedPainelIndexRouteImport.update({
@@ -811,6 +824,8 @@ export interface FileRoutesByFullPath {
   '/t/$tenantSlug/$': typeof TTenantSlugSplatRoute
   '/t/$tenantSlug/entregadores': typeof TTenantSlugEntregadoresRoute
   '/painel/': typeof AuthenticatedPainelIndexRoute
+  '/admin/revendedoras/': typeof AdminRevendedorasIndexRoute
+  '/parceiro/restaurantes/': typeof ParceiroRestaurantesIndexRoute
   '/t/$tenantSlug/': typeof TTenantSlugIndexRoute
   '/painel/atendimento/automacoes': typeof AuthenticatedPainelAtendimentoAutomacoesRoute
   '/painel/atendimento/configuracoes': typeof AuthenticatedPainelAtendimentoConfiguracoesRoute
@@ -876,7 +891,6 @@ export interface FileRoutesByTo {
   '/admin/aprovacoes': typeof AdminAprovacoesRoute
   '/admin/faturamento': typeof AdminFaturamentoRoute
   '/admin/nova': typeof AdminNovaRoute
-  '/admin/revendedoras': typeof AdminRevendedorasRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/api/signup-client-meta': typeof ApiSignupClientMetaRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -885,7 +899,6 @@ export interface FileRoutesByTo {
   '/entregador/expo-go': typeof EntregadorExpoGoRoute
   '/entregador/login': typeof EntregadorLoginRoute
   '/loja/$tenantSlug': typeof LojaTenantSlugRoute
-  '/parceiro/restaurantes': typeof ParceiroRestaurantesRouteWithChildren
   '/parceiro/tokens': typeof ParceiroTokensRoute
   '/admin': typeof AdminIndexRoute
   '/parceiro': typeof ParceiroIndexRoute
@@ -915,6 +928,8 @@ export interface FileRoutesByTo {
   '/t/$tenantSlug/$': typeof TTenantSlugSplatRoute
   '/t/$tenantSlug/entregadores': typeof TTenantSlugEntregadoresRoute
   '/painel': typeof AuthenticatedPainelIndexRoute
+  '/admin/revendedoras': typeof AdminRevendedorasIndexRoute
+  '/parceiro/restaurantes': typeof ParceiroRestaurantesIndexRoute
   '/t/$tenantSlug': typeof TTenantSlugIndexRoute
   '/painel/atendimento/automacoes': typeof AuthenticatedPainelAtendimentoAutomacoesRoute
   '/painel/atendimento/configuracoes': typeof AuthenticatedPainelAtendimentoConfiguracoesRoute
@@ -1030,6 +1045,8 @@ export interface FileRoutesById {
   '/t/$tenantSlug/$': typeof TTenantSlugSplatRoute
   '/t/$tenantSlug/entregadores': typeof TTenantSlugEntregadoresRoute
   '/_authenticated/painel/': typeof AuthenticatedPainelIndexRoute
+  '/admin/revendedoras/': typeof AdminRevendedorasIndexRoute
+  '/parceiro/restaurantes/': typeof ParceiroRestaurantesIndexRoute
   '/t/$tenantSlug/': typeof TTenantSlugIndexRoute
   '/_authenticated/painel/atendimento/automacoes': typeof AuthenticatedPainelAtendimentoAutomacoesRoute
   '/_authenticated/painel/atendimento/configuracoes': typeof AuthenticatedPainelAtendimentoConfiguracoesRoute
@@ -1145,6 +1162,8 @@ export interface FileRouteTypes {
     | '/t/$tenantSlug/$'
     | '/t/$tenantSlug/entregadores'
     | '/painel/'
+    | '/admin/revendedoras/'
+    | '/parceiro/restaurantes/'
     | '/t/$tenantSlug/'
     | '/painel/atendimento/automacoes'
     | '/painel/atendimento/configuracoes'
@@ -1210,7 +1229,6 @@ export interface FileRouteTypes {
     | '/admin/aprovacoes'
     | '/admin/faturamento'
     | '/admin/nova'
-    | '/admin/revendedoras'
     | '/api/health'
     | '/api/signup-client-meta'
     | '/auth/callback'
@@ -1219,7 +1237,6 @@ export interface FileRouteTypes {
     | '/entregador/expo-go'
     | '/entregador/login'
     | '/loja/$tenantSlug'
-    | '/parceiro/restaurantes'
     | '/parceiro/tokens'
     | '/admin'
     | '/parceiro'
@@ -1249,6 +1266,8 @@ export interface FileRouteTypes {
     | '/t/$tenantSlug/$'
     | '/t/$tenantSlug/entregadores'
     | '/painel'
+    | '/admin/revendedoras'
+    | '/parceiro/restaurantes'
     | '/t/$tenantSlug'
     | '/painel/atendimento/automacoes'
     | '/painel/atendimento/configuracoes'
@@ -1363,6 +1382,8 @@ export interface FileRouteTypes {
     | '/t/$tenantSlug/$'
     | '/t/$tenantSlug/entregadores'
     | '/_authenticated/painel/'
+    | '/admin/revendedoras/'
+    | '/parceiro/restaurantes/'
     | '/t/$tenantSlug/'
     | '/_authenticated/painel/atendimento/automacoes'
     | '/_authenticated/painel/atendimento/configuracoes'
@@ -1672,6 +1693,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/t/$tenantSlug/'
       preLoaderRoute: typeof TTenantSlugIndexRouteImport
       parentRoute: typeof TTenantSlugRoute
+    }
+    '/parceiro/restaurantes/': {
+      id: '/parceiro/restaurantes/'
+      path: '/'
+      fullPath: '/parceiro/restaurantes/'
+      preLoaderRoute: typeof ParceiroRestaurantesIndexRouteImport
+      parentRoute: typeof ParceiroRestaurantesRoute
+    }
+    '/admin/revendedoras/': {
+      id: '/admin/revendedoras/'
+      path: '/'
+      fullPath: '/admin/revendedoras/'
+      preLoaderRoute: typeof AdminRevendedorasIndexRouteImport
+      parentRoute: typeof AdminRevendedorasRoute
     }
     '/_authenticated/painel/': {
       id: '/_authenticated/painel/'
@@ -2537,11 +2572,13 @@ const AuthenticatedRouteRouteWithChildren =
 interface AdminRevendedorasRouteChildren {
   AdminRevendedorasResellerIdRoute: typeof AdminRevendedorasResellerIdRoute
   AdminRevendedorasNovaRoute: typeof AdminRevendedorasNovaRoute
+  AdminRevendedorasIndexRoute: typeof AdminRevendedorasIndexRoute
 }
 
 const AdminRevendedorasRouteChildren: AdminRevendedorasRouteChildren = {
   AdminRevendedorasResellerIdRoute: AdminRevendedorasResellerIdRoute,
   AdminRevendedorasNovaRoute: AdminRevendedorasNovaRoute,
+  AdminRevendedorasIndexRoute: AdminRevendedorasIndexRoute,
 }
 
 const AdminRevendedorasRouteWithChildren =
@@ -2615,10 +2652,12 @@ const LojaRouteWithChildren = LojaRoute._addFileChildren(LojaRouteChildren)
 
 interface ParceiroRestaurantesRouteChildren {
   ParceiroRestaurantesNovaRoute: typeof ParceiroRestaurantesNovaRoute
+  ParceiroRestaurantesIndexRoute: typeof ParceiroRestaurantesIndexRoute
 }
 
 const ParceiroRestaurantesRouteChildren: ParceiroRestaurantesRouteChildren = {
   ParceiroRestaurantesNovaRoute: ParceiroRestaurantesNovaRoute,
+  ParceiroRestaurantesIndexRoute: ParceiroRestaurantesIndexRoute,
 }
 
 const ParceiroRestaurantesRouteWithChildren =
