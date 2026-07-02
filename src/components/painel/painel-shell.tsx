@@ -486,18 +486,17 @@ function SidebarNav({
               />
             ))}
           </div>
-          {section.title === "Produtos" ? (
-            <ConfigSidebarNav
-              tenantSlug={tenantSlug}
-              pathname={pathname}
-              expanded={expanded}
-              userRole={userRole}
-              planId={planId}
-              onNavigate={onNavigate}
-            />
-          ) : null}
         </div>
       ))}
+
+      <ConfigSidebarNav
+        tenantSlug={tenantSlug}
+        pathname={pathname}
+        expanded={expanded}
+        userRole={userRole}
+        planId={planId}
+        onNavigate={onNavigate}
+      />
     </nav>
   );
 }

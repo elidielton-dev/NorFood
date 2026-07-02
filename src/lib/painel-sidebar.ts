@@ -64,12 +64,6 @@ export const sidebarSections: SidebarSection[] = [
     ],
   },
   {
-    title: "Configuracoes",
-    items: [
-      { to: "/painel/configuracoes", label: "Configuracoes", icon: Settings2 },
-    ],
-  },
-  {
     title: "Atendimento",
     items: [
       { to: "/painel/atendimento/conversas", label: "Conversas", icon: MessageSquare },
@@ -96,6 +90,12 @@ export const sidebarSections: SidebarSection[] = [
       { to: "/painel/relatorios/estoque", label: "Estoque", icon: Package },
       { to: "/painel/relatorios/crm", label: "CRM", icon: MessageCircle },
       { to: "/painel/clientes", label: "Clientes", icon: Users },
+    ],
+  },
+  {
+    title: "Configuracoes",
+    items: [
+      { to: "/painel/configuracoes", label: "Configuracoes", icon: Settings2 },
     ],
   },
 ];
