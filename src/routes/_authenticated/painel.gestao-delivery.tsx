@@ -24,7 +24,6 @@ import {
   Banknote,
   Bell,
   Check,
-  ChefHat,
   CircleCheckBig,
   ClipboardCheck,
   Clock,
@@ -573,11 +572,6 @@ function KdsOrderCard({
               {acaoPrincipal.label}
               {acaoPrincipal.icon}
             </button>
-          ) : pedido.status === "em_preparo" ? (
-            <span className="inline-flex items-center gap-1 rounded-xl bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-800">
-              <ChefHat className="size-3.5" />
-              Aguardando cozinha
-            </span>
           ) : pedido.status === "entregue" || pedido.status === "cancelado" ? (
             <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-700">
               <CircleCheckBig className="size-3.5" />
@@ -832,6 +826,14 @@ function getPrimaryAction(status: Pedido["status"]) {
       nextStatus: "em_preparo" as const,
       label: "aceitar",
       icon: <Check className="size-4" />,
+    };
+  }
+
+  if (status === "em_preparo") {
+    return {
+      nextStatus: "pronto" as const,
+      label: "preparar",
+      icon: <ArrowRight className="size-4" />,
     };
   }
 

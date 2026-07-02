@@ -331,27 +331,6 @@ export const updateGestaoDeliveryOrderStatusServer = createServerFn({ method: "P
     await assertStaffUserId(context.userId, "Acesso restrito ao Gestao delivery.");
     const tenantId = await resolveStaffTenantId(context.userId, data.tenantSlug);
     await assertPedidoBelongsToTenant(tenantId, data.orderId);
-
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { isKitchenOrderChannel } = await import("@/lib/kitchen-stage");
-
-    const { data: current, error: loadError } = await supabaseAdmin
-      .from("pedidos")
-      .select("status,canal")
-      .eq("id", data.orderId)
-      .eq("tenant_id", tenantId)
-      .maybeSingle();
-    if (loadError) throw loadError;
-    if (!current) throw new Error("Pedido nao encontrado.");
-
-    if (
-      data.status === "pronto" &&
-      current.status === "em_preparo" &&
-      isKitchenOrderChannel(current.canal)
-    ) {
-      throw new Error("Marque como pronto no KDS Cozinha.");
-    }
-
     await applyGestaoDeliveryStatusUpdate(tenantId, data.orderId, data.status);
     return { ok: true };
   });

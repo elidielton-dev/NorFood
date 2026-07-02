@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   formatBRL,
@@ -12,30 +12,23 @@ import {
 import {
   fetchKitchenOrdersServer,
   fetchKdsOrderItemsServer,
-  updateKitchenMarkReadyServer,
-  updateKitchenProductionStageServer,
 } from "@/lib/api/delivery-panel.functions";
 import { fetchOperationalStatusServer } from "@/lib/api/operational-config.functions";
 import { resolveProductImage } from "@/lib/cardapio";
 import { useMesaQrKitchenAutoPrint } from "@/hooks/use-mesa-qr-kitchen-auto-print";
 import {
-  ArrowRight,
   Bell,
   Check,
-  ChefHat,
   ClipboardCheck,
-  Clock,
-  Printer,
   RefreshCw,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { printKitchenQrOrder } from "@/lib/kitchen-order-print";
 import {
   extractMesaQrCustomerName,
   extractMesaQrNumero,
 } from "@/lib/mesas-settings";
-import { getKitchenStage, isKitchenOrderChannel } from "@/lib/kitchen-stage";
+import { isKitchenOrderChannel } from "@/lib/kitchen-stage";
 import { isDemoSession } from "@/lib/runtime";
 import { cn } from "@/lib/utils";
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
@@ -97,17 +90,12 @@ function CozinhaKdsPage() {
     [pedidos],
   );
 
-  const aprovados = pedidosCozinha.filter(
-    (pedido) => pedido.status === "em_preparo" && getKitchenStage(pedido.observacoes) === "aprovado",
-  );
-  const emProducao = pedidosCozinha.filter(
-    (pedido) => pedido.status === "em_preparo" && getKitchenStage(pedido.observacoes) === "producao",
-  );
+  const emPreparo = pedidosCozinha.filter((pedido) => pedido.status === "em_preparo");
   const prontos = pedidosCozinha.filter((pedido) => pedido.status === "pronto");
 
   useEffect(() => {
     if (!isFetched || isLoading) return;
-    const ids = aprovados.map((pedido) => pedido.id);
+    const ids = emPreparo.map((pedido) => pedido.id);
     const idsAtuais = new Set(ids);
     if (pedidosConhecidos.current === null) {
       pedidosConhecidos.current = idsAtuais;
@@ -116,34 +104,26 @@ function CozinhaKdsPage() {
     const temNovo = ids.some((id) => !pedidosConhecidos.current!.has(id));
     if (temNovo) {
       tocarAlerta();
-      toast.success("Nova comanda aprovada na cozinha");
+      toast.success("Nova comanda na cozinha");
     }
     pedidosConhecidos.current = idsAtuais;
-  }, [aprovados, isFetched, isLoading]);
+  }, [emPreparo, isFetched, isLoading]);
 
   const lojaAberta = operacao?.loja_aberta ?? true;
-  const emFila = aprovados.length + emProducao.length;
+  const emFila = emPreparo.length;
 
   const columns = [
     {
-      key: "aprovados",
-      title: "aprovados",
+      key: "preparo",
+      title: "em preparo",
       icon: <ClipboardCheck className="size-4" />,
       iconClass: "text-sage",
       iconBg: "bg-emerald-100",
-      pedidos: aprovados,
-    },
-    {
-      key: "producao",
-      title: "em producao",
-      icon: <ChefHat className="size-4" />,
-      iconClass: "text-amber-700",
-      iconBg: "bg-amber-100",
-      pedidos: emProducao,
+      pedidos: emPreparo,
     },
     {
       key: "pronto",
-      title: "pronto",
+      title: "prontos",
       icon: <Check className="size-4" />,
       iconClass: "text-[color:var(--gestao-green)]",
       iconBg: "bg-emerald-50",
@@ -166,7 +146,7 @@ function CozinhaKdsPage() {
                 />
                 {lojaAberta ? "Aberto" : "Fechado"}
               </span>
-              <span className="whitespace-nowrap text-muted-foreground">Plano Pro</span>
+              <span className="whitespace-nowrap text-muted-foreground">Somente visual · Plano Pro</span>
             </div>
           </div>
 
@@ -202,7 +182,7 @@ function CozinhaKdsPage() {
         </div>
       ) : null}
 
-      <div className="flex gap-3 overflow-x-auto px-4 py-4 sm:px-6 lg:grid lg:grid-cols-3 lg:overflow-visible lg:pb-6">
+      <div className="flex gap-3 overflow-x-auto px-4 py-4 sm:px-6 lg:grid lg:grid-cols-2 lg:overflow-visible lg:pb-6">
         {columns.map((column) => (
           <KitchenColumn
             key={column.key}
@@ -212,7 +192,6 @@ function CozinhaKdsPage() {
             iconBg={column.iconBg}
             pedidos={column.pedidos}
             tenantSlug={tenantSlug}
-            columnKey={column.key}
           />
         ))}
       </div>
@@ -227,7 +206,6 @@ function KitchenColumn({
   iconBg,
   pedidos,
   tenantSlug,
-  columnKey,
 }: {
   title: string;
   icon: ReactNode;
@@ -235,7 +213,6 @@ function KitchenColumn({
   iconBg: string;
   pedidos: Pedido[];
   tenantSlug: string;
-  columnKey: "aprovados" | "producao" | "pronto";
 }) {
   return (
     <div className="flex min-h-[520px] w-[min(88vw,300px)] shrink-0 flex-col lg:min-h-[640px] lg:w-full">
@@ -258,12 +235,7 @@ function KitchenColumn({
             </div>
           ) : (
             pedidos.map((pedido) => (
-              <KitchenOrderCard
-                key={pedido.id}
-                pedido={pedido}
-                tenantSlug={tenantSlug}
-                columnKey={columnKey}
-              />
+              <KitchenOrderCard key={pedido.id} pedido={pedido} tenantSlug={tenantSlug} />
             ))
           )}
         </div>
@@ -272,16 +244,7 @@ function KitchenColumn({
   );
 }
 
-function KitchenOrderCard({
-  pedido,
-  tenantSlug,
-  columnKey,
-}: {
-  pedido: Pedido;
-  tenantSlug: string;
-  columnKey: "aprovados" | "producao" | "pronto";
-}) {
-  const qc = useQueryClient();
+function KitchenOrderCard({ pedido, tenantSlug }: { pedido: Pedido; tenantSlug: string }) {
   const { data: itens = [] } = useQuery({
     queryKey: ["kitchen-itens", tenantSlug, pedido.id],
     queryFn: () =>
@@ -289,50 +252,10 @@ function KitchenOrderCard({
         data: { orderId: pedido.id, tenantSlug },
       }) as Promise<PedidoItem[]>,
   });
-  const [updating, setUpdating] = useState(false);
 
   const tempoMin = Math.floor((Date.now() - new Date(pedido.created_at).getTime()) / 60000);
   const clienteNome = getClienteNome(pedido);
   const origemLabel = getOrigemLabel(pedido);
-
-  async function iniciarProducao() {
-    try {
-      setUpdating(true);
-      await updateKitchenProductionStageServer({
-        data: { tenantSlug, orderId: pedido.id, stage: "producao" },
-      });
-      toast.success(`Pedido #${pedido.numero} em producao.`);
-      void qc.invalidateQueries({ queryKey: ["kitchen-pedidos", tenantSlug] });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Nao foi possivel atualizar a comanda.");
-    } finally {
-      setUpdating(false);
-    }
-  }
-
-  async function marcarPronto() {
-    try {
-      setUpdating(true);
-      await updateKitchenMarkReadyServer({
-        data: { tenantSlug, orderId: pedido.id },
-      });
-      toast.success(`Pedido #${pedido.numero} pronto.`);
-      void qc.invalidateQueries({ queryKey: ["kitchen-pedidos", tenantSlug] });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Nao foi possivel marcar como pronto.");
-    } finally {
-      setUpdating(false);
-    }
-  }
-
-  async function imprimir() {
-    try {
-      await printKitchenQrOrder(pedido, tenantSlug);
-      toast.success("Comanda enviada para impressao.");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Nao foi possivel imprimir.");
-    }
-  }
 
   return (
     <article className="overflow-hidden rounded-xl border border-[color:var(--honey-line)]/80 bg-card shadow-[0_1px_6px_rgba(17,17,17,0.06)]">
@@ -344,21 +267,11 @@ function KitchenOrderCard({
       </div>
 
       <div className="space-y-3 p-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="truncate text-base font-extrabold text-[color:var(--gestao-ink)]">
-              {clienteNome}
-            </p>
-            <p className="truncate text-sm font-semibold text-muted-foreground">{origemLabel}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => void imprimir()}
-            className="grid size-8 shrink-0 place-items-center rounded-lg text-[color:var(--gestao-green)] transition hover:bg-[color:var(--gestao-cream)]"
-            aria-label="Imprimir comanda"
-          >
-            <Printer className="size-4" />
-          </button>
+        <div className="min-w-0">
+          <p className="truncate text-base font-extrabold text-[color:var(--gestao-ink)]">
+            {clienteNome}
+          </p>
+          <p className="truncate text-sm font-semibold text-muted-foreground">{origemLabel}</p>
         </div>
 
         <ul className="space-y-1 text-sm">
@@ -382,37 +295,6 @@ function KitchenOrderCard({
               />
             </div>
           ))}
-        </div>
-
-        <div className="flex justify-end border-t border-[color:var(--honey-line)] pt-3">
-          {columnKey === "aprovados" ? (
-            <button
-              type="button"
-              disabled={updating}
-              onClick={() => void iniciarProducao()}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-extrabold uppercase tracking-[0.06em] text-white shadow-sm transition hover:opacity-95 disabled:opacity-50"
-            >
-              Em producao
-              <ArrowRight className="size-4" />
-            </button>
-          ) : null}
-          {columnKey === "producao" ? (
-            <button
-              type="button"
-              disabled={updating}
-              onClick={() => void marcarPronto()}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-sage px-4 py-2.5 text-sm font-extrabold uppercase tracking-[0.06em] text-primary-foreground shadow-sm transition hover:opacity-95 disabled:opacity-50"
-            >
-              Pronto
-              <Check className="size-4" />
-            </button>
-          ) : null}
-          {columnKey === "pronto" ? (
-            <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-700">
-              <Check className="size-3.5" />
-              Aguardando expedicao
-            </span>
-          ) : null}
         </div>
       </div>
     </article>
