@@ -47,6 +47,8 @@ export const TENANT_PAINEL_REGISTRY: Record<string, ComponentType> = {
 
   // Pedidos
   kds: painelPage(() => import("@/routes/_authenticated/painel.kds")),
+  "gestao-delivery": painelPage(() => import("@/routes/_authenticated/painel.gestao-delivery")),
+  cozinha: painelPage(() => import("@/routes/_authenticated/painel.cozinha")),
   pdv: painelPage(() => import("@/routes/_authenticated/painel.pdv")),
   mesas: painelPage(() => import("@/routes/_authenticated/painel.mesas")),
   delivery: painelPage(() => import("@/routes/_authenticated/painel.delivery")),
@@ -170,8 +172,7 @@ export const TENANT_PAINEL_REGISTRY: Record<string, ComponentType> = {
   relatorios: painelPage(() => import("@/routes/_authenticated/painel.relatorios.vendas")),
 
   // Aliases legados
-  cozinha: painelPage(() => import("@/routes/_authenticated/painel.kds")),
-  pedidos: painelPage(() => import("@/routes/_authenticated/painel.kds")),
+  pedidos: painelPage(() => import("@/routes/_authenticated/painel.gestao-delivery")),
   categorias: painelPage(() => import("@/routes/_authenticated/painel.produtos.categorias")),
   "configuracoes/empresa": configPage(
     () => import("@/routes/_authenticated/painel.configuracoes.operacao"),

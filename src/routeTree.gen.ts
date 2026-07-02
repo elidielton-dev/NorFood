@@ -54,11 +54,13 @@ import { Route as AuthenticatedPainelProdutosRouteImport } from './routes/_authe
 import { Route as AuthenticatedPainelPdvRouteImport } from './routes/_authenticated/painel.pdv'
 import { Route as AuthenticatedPainelMesasRouteImport } from './routes/_authenticated/painel.mesas'
 import { Route as AuthenticatedPainelKdsRouteImport } from './routes/_authenticated/painel.kds'
+import { Route as AuthenticatedPainelGestaoDeliveryRouteImport } from './routes/_authenticated/painel.gestao-delivery'
 import { Route as AuthenticatedPainelFiscalRouteImport } from './routes/_authenticated/painel.fiscal'
 import { Route as AuthenticatedPainelFinanceiroRouteImport } from './routes/_authenticated/painel.financeiro'
 import { Route as AuthenticatedPainelEntregadorRouteImport } from './routes/_authenticated/painel.entregador'
 import { Route as AuthenticatedPainelDeliveryRouteImport } from './routes/_authenticated/painel.delivery'
 import { Route as AuthenticatedPainelCuponsRouteImport } from './routes/_authenticated/painel.cupons'
+import { Route as AuthenticatedPainelCozinhaRouteImport } from './routes/_authenticated/painel.cozinha'
 import { Route as AuthenticatedPainelConfiguracoesRouteImport } from './routes/_authenticated/painel.configuracoes'
 import { Route as AuthenticatedPainelColaboradoresRouteImport } from './routes/_authenticated/painel.colaboradores'
 import { Route as AuthenticatedPainelClientesRouteImport } from './routes/_authenticated/painel.clientes'
@@ -341,6 +343,12 @@ const AuthenticatedPainelKdsRoute = AuthenticatedPainelKdsRouteImport.update({
   path: '/kds',
   getParentRoute: () => AuthenticatedPainelRoute,
 } as any)
+const AuthenticatedPainelGestaoDeliveryRoute =
+  AuthenticatedPainelGestaoDeliveryRouteImport.update({
+    id: '/gestao-delivery',
+    path: '/gestao-delivery',
+    getParentRoute: () => AuthenticatedPainelRoute,
+  } as any)
 const AuthenticatedPainelFiscalRoute =
   AuthenticatedPainelFiscalRouteImport.update({
     id: '/fiscal',
@@ -369,6 +377,12 @@ const AuthenticatedPainelCuponsRoute =
   AuthenticatedPainelCuponsRouteImport.update({
     id: '/cupons',
     path: '/cupons',
+    getParentRoute: () => AuthenticatedPainelRoute,
+  } as any)
+const AuthenticatedPainelCozinhaRoute =
+  AuthenticatedPainelCozinhaRouteImport.update({
+    id: '/cozinha',
+    path: '/cozinha',
     getParentRoute: () => AuthenticatedPainelRoute,
   } as any)
 const AuthenticatedPainelConfiguracoesRoute =
@@ -715,11 +729,13 @@ export interface FileRoutesByFullPath {
   '/painel/clientes': typeof AuthenticatedPainelClientesRoute
   '/painel/colaboradores': typeof AuthenticatedPainelColaboradoresRoute
   '/painel/configuracoes': typeof AuthenticatedPainelConfiguracoesRouteWithChildren
+  '/painel/cozinha': typeof AuthenticatedPainelCozinhaRoute
   '/painel/cupons': typeof AuthenticatedPainelCuponsRoute
   '/painel/delivery': typeof AuthenticatedPainelDeliveryRoute
   '/painel/entregador': typeof AuthenticatedPainelEntregadorRoute
   '/painel/financeiro': typeof AuthenticatedPainelFinanceiroRouteWithChildren
   '/painel/fiscal': typeof AuthenticatedPainelFiscalRouteWithChildren
+  '/painel/gestao-delivery': typeof AuthenticatedPainelGestaoDeliveryRoute
   '/painel/kds': typeof AuthenticatedPainelKdsRoute
   '/painel/mesas': typeof AuthenticatedPainelMesasRoute
   '/painel/pdv': typeof AuthenticatedPainelPdvRoute
@@ -813,9 +829,11 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/painel/clientes': typeof AuthenticatedPainelClientesRoute
   '/painel/colaboradores': typeof AuthenticatedPainelColaboradoresRoute
+  '/painel/cozinha': typeof AuthenticatedPainelCozinhaRoute
   '/painel/cupons': typeof AuthenticatedPainelCuponsRoute
   '/painel/delivery': typeof AuthenticatedPainelDeliveryRoute
   '/painel/entregador': typeof AuthenticatedPainelEntregadorRoute
+  '/painel/gestao-delivery': typeof AuthenticatedPainelGestaoDeliveryRoute
   '/painel/kds': typeof AuthenticatedPainelKdsRoute
   '/painel/mesas': typeof AuthenticatedPainelMesasRoute
   '/painel/pdv': typeof AuthenticatedPainelPdvRoute
@@ -915,11 +933,13 @@ export interface FileRoutesById {
   '/_authenticated/painel/clientes': typeof AuthenticatedPainelClientesRoute
   '/_authenticated/painel/colaboradores': typeof AuthenticatedPainelColaboradoresRoute
   '/_authenticated/painel/configuracoes': typeof AuthenticatedPainelConfiguracoesRouteWithChildren
+  '/_authenticated/painel/cozinha': typeof AuthenticatedPainelCozinhaRoute
   '/_authenticated/painel/cupons': typeof AuthenticatedPainelCuponsRoute
   '/_authenticated/painel/delivery': typeof AuthenticatedPainelDeliveryRoute
   '/_authenticated/painel/entregador': typeof AuthenticatedPainelEntregadorRoute
   '/_authenticated/painel/financeiro': typeof AuthenticatedPainelFinanceiroRouteWithChildren
   '/_authenticated/painel/fiscal': typeof AuthenticatedPainelFiscalRouteWithChildren
+  '/_authenticated/painel/gestao-delivery': typeof AuthenticatedPainelGestaoDeliveryRoute
   '/_authenticated/painel/kds': typeof AuthenticatedPainelKdsRoute
   '/_authenticated/painel/mesas': typeof AuthenticatedPainelMesasRoute
   '/_authenticated/painel/pdv': typeof AuthenticatedPainelPdvRoute
@@ -1020,11 +1040,13 @@ export interface FileRouteTypes {
     | '/painel/clientes'
     | '/painel/colaboradores'
     | '/painel/configuracoes'
+    | '/painel/cozinha'
     | '/painel/cupons'
     | '/painel/delivery'
     | '/painel/entregador'
     | '/painel/financeiro'
     | '/painel/fiscal'
+    | '/painel/gestao-delivery'
     | '/painel/kds'
     | '/painel/mesas'
     | '/painel/pdv'
@@ -1118,9 +1140,11 @@ export interface FileRouteTypes {
     | '/admin'
     | '/painel/clientes'
     | '/painel/colaboradores'
+    | '/painel/cozinha'
     | '/painel/cupons'
     | '/painel/delivery'
     | '/painel/entregador'
+    | '/painel/gestao-delivery'
     | '/painel/kds'
     | '/painel/mesas'
     | '/painel/pdv'
@@ -1219,11 +1243,13 @@ export interface FileRouteTypes {
     | '/_authenticated/painel/clientes'
     | '/_authenticated/painel/colaboradores'
     | '/_authenticated/painel/configuracoes'
+    | '/_authenticated/painel/cozinha'
     | '/_authenticated/painel/cupons'
     | '/_authenticated/painel/delivery'
     | '/_authenticated/painel/entregador'
     | '/_authenticated/painel/financeiro'
     | '/_authenticated/painel/fiscal'
+    | '/_authenticated/painel/gestao-delivery'
     | '/_authenticated/painel/kds'
     | '/_authenticated/painel/mesas'
     | '/_authenticated/painel/pdv'
@@ -1634,6 +1660,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPainelKdsRouteImport
       parentRoute: typeof AuthenticatedPainelRoute
     }
+    '/_authenticated/painel/gestao-delivery': {
+      id: '/_authenticated/painel/gestao-delivery'
+      path: '/gestao-delivery'
+      fullPath: '/painel/gestao-delivery'
+      preLoaderRoute: typeof AuthenticatedPainelGestaoDeliveryRouteImport
+      parentRoute: typeof AuthenticatedPainelRoute
+    }
     '/_authenticated/painel/fiscal': {
       id: '/_authenticated/painel/fiscal'
       path: '/fiscal'
@@ -1667,6 +1700,13 @@ declare module '@tanstack/react-router' {
       path: '/cupons'
       fullPath: '/painel/cupons'
       preLoaderRoute: typeof AuthenticatedPainelCuponsRouteImport
+      parentRoute: typeof AuthenticatedPainelRoute
+    }
+    '/_authenticated/painel/cozinha': {
+      id: '/_authenticated/painel/cozinha'
+      path: '/cozinha'
+      fullPath: '/painel/cozinha'
+      preLoaderRoute: typeof AuthenticatedPainelCozinhaRouteImport
       parentRoute: typeof AuthenticatedPainelRoute
     }
     '/_authenticated/painel/configuracoes': {
@@ -2265,11 +2305,13 @@ interface AuthenticatedPainelRouteChildren {
   AuthenticatedPainelClientesRoute: typeof AuthenticatedPainelClientesRoute
   AuthenticatedPainelColaboradoresRoute: typeof AuthenticatedPainelColaboradoresRoute
   AuthenticatedPainelConfiguracoesRoute: typeof AuthenticatedPainelConfiguracoesRouteWithChildren
+  AuthenticatedPainelCozinhaRoute: typeof AuthenticatedPainelCozinhaRoute
   AuthenticatedPainelCuponsRoute: typeof AuthenticatedPainelCuponsRoute
   AuthenticatedPainelDeliveryRoute: typeof AuthenticatedPainelDeliveryRoute
   AuthenticatedPainelEntregadorRoute: typeof AuthenticatedPainelEntregadorRoute
   AuthenticatedPainelFinanceiroRoute: typeof AuthenticatedPainelFinanceiroRouteWithChildren
   AuthenticatedPainelFiscalRoute: typeof AuthenticatedPainelFiscalRouteWithChildren
+  AuthenticatedPainelGestaoDeliveryRoute: typeof AuthenticatedPainelGestaoDeliveryRoute
   AuthenticatedPainelKdsRoute: typeof AuthenticatedPainelKdsRoute
   AuthenticatedPainelMesasRoute: typeof AuthenticatedPainelMesasRoute
   AuthenticatedPainelPdvRoute: typeof AuthenticatedPainelPdvRoute
@@ -2291,12 +2333,15 @@ const AuthenticatedPainelRouteChildren: AuthenticatedPainelRouteChildren = {
   AuthenticatedPainelColaboradoresRoute: AuthenticatedPainelColaboradoresRoute,
   AuthenticatedPainelConfiguracoesRoute:
     AuthenticatedPainelConfiguracoesRouteWithChildren,
+  AuthenticatedPainelCozinhaRoute: AuthenticatedPainelCozinhaRoute,
   AuthenticatedPainelCuponsRoute: AuthenticatedPainelCuponsRoute,
   AuthenticatedPainelDeliveryRoute: AuthenticatedPainelDeliveryRoute,
   AuthenticatedPainelEntregadorRoute: AuthenticatedPainelEntregadorRoute,
   AuthenticatedPainelFinanceiroRoute:
     AuthenticatedPainelFinanceiroRouteWithChildren,
   AuthenticatedPainelFiscalRoute: AuthenticatedPainelFiscalRouteWithChildren,
+  AuthenticatedPainelGestaoDeliveryRoute:
+    AuthenticatedPainelGestaoDeliveryRoute,
   AuthenticatedPainelKdsRoute: AuthenticatedPainelKdsRoute,
   AuthenticatedPainelMesasRoute: AuthenticatedPainelMesasRoute,
   AuthenticatedPainelPdvRoute: AuthenticatedPainelPdvRoute,

@@ -83,7 +83,7 @@ export function KdsOrderDetailModal({
         data: { orderId: pedido!.id, status, tenantSlug },
       });
       toast.success(`Pedido #${pedido!.numero} atualizado.`);
-      qc.invalidateQueries({ queryKey: ["kds-pedidos", tenantSlug] });
+      qc.invalidateQueries({ queryKey: ["gestao-delivery-pedidos", tenantSlug] });
       if (status === "entregue") onClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Nao foi possivel atualizar o pedido.");
@@ -99,7 +99,7 @@ export function KdsOrderDetailModal({
         data: { orderId: pedido!.id, status: "cancelado", tenantSlug },
       });
       toast.success(`Pedido #${pedido!.numero} cancelado`);
-      qc.invalidateQueries({ queryKey: ["kds-pedidos", tenantSlug] });
+      qc.invalidateQueries({ queryKey: ["gestao-delivery-pedidos", tenantSlug] });
       onClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Nao foi possivel cancelar o pedido.");
@@ -308,6 +308,10 @@ export function KdsOrderDetailModal({
                     {acaoPrincipal.label}
                     {acaoPrincipal.icon}
                   </button>
+                ) : pedido.status === "em_preparo" ? (
+                  <span className="inline-flex flex-[1.4] items-center justify-center gap-1.5 rounded-xl bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-800">
+                    Aguardando cozinha
+                  </span>
                 ) : (
                   <span className="inline-flex flex-[1.4] items-center justify-center gap-1.5 rounded-xl bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-700">
                     <CircleCheckBig className="size-4" />
@@ -526,13 +530,6 @@ function getPrimaryAction(status: Pedido["status"]) {
       nextStatus: "em_preparo" as const,
       label: "aceitar",
       icon: <Check className="size-4" />,
-    };
-  }
-  if (status === "em_preparo") {
-    return {
-      nextStatus: "pronto" as const,
-      label: "preparar",
-      icon: <ArrowRight className="size-4" />,
     };
   }
   if (status === "pronto") {

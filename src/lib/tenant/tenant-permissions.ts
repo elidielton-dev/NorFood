@@ -24,10 +24,11 @@ export function isTenantManagementRole(role: TenantRole) {
 const ROUTE_ACCESS: Record<string, TenantRole[]> = {
   dashboard: STAFF_ROLES,
   kds: ["owner", "admin", "gerente", "cozinha", "atendente"],
+  "gestao-delivery": ["owner", "admin", "gerente", "atendente"],
+  cozinha: ["owner", "admin", "gerente", "cozinha"],
   pdv: ["owner", "admin", "gerente", "atendente"],
   mesas: ["owner", "admin", "gerente", "atendente"],
   pedidos: ["owner", "admin", "gerente", "atendente"],
-  cozinha: ["owner", "admin", "gerente", "cozinha"],
   delivery: ["owner", "admin", "gerente", "atendente", "entregador"],
   produtos: ["owner", "admin", "gerente"],
   categorias: ["owner", "admin", "gerente"],

@@ -69,7 +69,7 @@ export function getPlanUpgradeLabel(feature: PlanFeatureKey): string {
 
 export function getFeatureLabel(feature: PlanFeatureKey): string {
   const labels: Record<PlanFeatureKey, string> = {
-    kds: "KDS / Gestor delivery",
+    kds: "KDS Cozinha",
     delivery_app: "App entregador",
     relatorios_avancados: "Relatórios avançados",
     whatsapp: "WhatsApp atendimento",
@@ -92,7 +92,8 @@ export function planFeatureForRoute(path: string): PlanFeatureKey | null {
   if (full === "estabelecimento/plano" || full.startsWith("estabelecimento/plano/")) return null;
   if (full === "configuracoes/plano" || full.startsWith("configuracoes/plano/")) return null;
 
-  if (segment === "kds" || segment === "cozinha" || segment === "pedidos") return "kds";
+  if (segment === "cozinha") return "kds";
+  if (segment === "gestao-delivery" || segment === "pedidos") return null;
   if (segment === "delivery" || segment === "entregador") return "delivery_app";
   if (segment === "atendimento") return "whatsapp";
   if (segment === "fiscal") return "fiscal";

@@ -122,7 +122,7 @@ function ConfiguracoesMesasPage() {
       >
         <ConfigSwitchRow
           label="Impressão automática na cozinha"
-          description="Com o KDS aberto, envia o pedido para a impressora da cozinha assim que chegar pelo QR Code."
+          description="Com o KDS Cozinha aberto, envia o pedido para a impressora assim que chegar pelo QR Code."
           checked={mesasSettings.qrAutoPrintKitchen}
           disabled={mesasSettingsMutation.isPending}
           onCheckedChange={(checked) => mesasSettingsMutation.mutate(checked)}

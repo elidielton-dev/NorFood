@@ -103,7 +103,8 @@ export function getTenantSidebarSections(
     {
       title: "Pedidos",
       items: [
-        item(tenantSlug, "kds", "Gestor delivery", ClipboardList),
+        item(tenantSlug, "gestao-delivery", "Gestao delivery", ClipboardList),
+        item(tenantSlug, "cozinha", "KDS Cozinha", ChefHat),
         item(tenantSlug, "pdv", "Balcao", ShoppingCart),
         item(tenantSlug, "mesas", "Mesas", Utensils),
         item(tenantSlug, "delivery", "Entregadores", Bike),

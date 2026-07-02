@@ -110,7 +110,7 @@ export const openMesaOrderServer = createServerFn({ method: "POST" })
         canal: "mesa",
         mesa_id: data.mesaId,
         tenant_id: tenantId,
-        status: "aberto",
+        status: "em_preparo",
         subtotal,
         desconto: 0,
         taxa_entrega: 0,

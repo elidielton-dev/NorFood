@@ -60,7 +60,7 @@ export const createBalcaoOrderServer = createServerFn({ method: "POST" })
       .insert({
         canal: "balcao",
         tenant_id: tenantId,
-        status: "aberto",
+        status: "em_preparo",
         subtotal,
         desconto: 0,
         taxa_entrega: 0,

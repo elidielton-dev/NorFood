@@ -46,7 +46,8 @@ export const sidebarSections: SidebarSection[] = [
   {
     title: "Pedidos",
     items: [
-      { to: "/painel/kds", label: "Gestor delivery", icon: ClipboardList },
+      { to: "/painel/gestao-delivery", label: "Gestao delivery", icon: ClipboardList },
+      { to: "/painel/cozinha", label: "KDS Cozinha", icon: ChefHat },
       { to: "/painel/pdv", label: "Balcao", icon: ShoppingCart },
       { to: "/painel/mesas", label: "Mesas", icon: ChefHat },
       { to: "/painel/delivery", label: "Entregadores", icon: Bike },

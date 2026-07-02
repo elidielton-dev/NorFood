@@ -167,49 +167,83 @@ export const fetchDeliveryPanelDataServer = createServerFn({ method: "GET" })
     };
   });
 
-export const fetchKdsOrdersServer = createServerFn({ method: "GET" })
+async function fetchTenantPanelOrders(tenantId: string): Promise<Pedido[]> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const [pedidosResult, entregasResult] = await Promise.all([
+    supabaseAdmin
+      .from("pedidos")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(100),
+    supabaseAdmin.from("entregas").select("pedido_id, bairro").eq("tenant_id", tenantId),
+  ]);
+
+  if (pedidosResult.error) throw pedidosResult.error;
+  if (entregasResult.error) throw entregasResult.error;
+
+  const bairroByPedidoId = new Map(
+    (entregasResult.data ?? []).map((entrega) => [entrega.pedido_id, entrega.bairro]),
+  );
+
+  return (pedidosResult.data ?? []).map((pedido) => {
+    const entregaBairro = bairroByPedidoId.get(pedido.id) ?? null;
+    const bairro = getOrderNeighborhood(pedido, entregaBairro);
+    return { ...pedido, bairro };
+  });
+}
+
+export const fetchGestaoDeliveryOrdersServer = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((tenantSlug: string) => tenantSlug)
   .handler(async ({ context, data: tenantSlug }): Promise<Pedido[]> => {
-    await assertStaffUserId(context.userId, "Acesso restrito ao KDS.");
+    await assertStaffUserId(context.userId, "Acesso restrito ao Gestao delivery.");
+    const tenantId = await resolveStaffTenantId(context.userId, tenantSlug);
+    return fetchTenantPanelOrders(tenantId);
+  });
+
+/** @deprecated Use fetchGestaoDeliveryOrdersServer or fetchKitchenOrdersServer */
+export const fetchKdsOrdersServer = fetchGestaoDeliveryOrdersServer;
+
+export const fetchKitchenOrdersServer = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((tenantSlug: string) => tenantSlug)
+  .handler(async ({ context, data: tenantSlug }): Promise<Pedido[]> => {
+    await assertStaffUserId(context.userId, "Acesso restrito ao KDS da cozinha.");
     const tenantId = await resolveStaffTenantId(context.userId, tenantSlug);
     const { assertTenantPlanFeature } = await import("@/lib/tenant/tenant-plan.server");
     await assertTenantPlanFeature(tenantId, "kds");
+    return fetchTenantPanelOrders(tenantId);
+  });
+
+export const fetchPanelOrderItemsServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: FetchKdsOrderItemsInput) => input)
+  .handler(async ({ context, data }) => {
+    await assertStaffUserId(context.userId);
+    const tenantId = await resolveStaffTenantId(context.userId, data.tenantSlug);
+    await assertPedidoBelongsToTenant(tenantId, data.orderId);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const [pedidosResult, entregasResult] = await Promise.all([
-      supabaseAdmin
-        .from("pedidos")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .order("created_at", { ascending: false })
-        .limit(100),
-      supabaseAdmin
-        .from("entregas")
-        .select("pedido_id, bairro")
-        .eq("tenant_id", tenantId),
-    ]);
+    const itemsResult = await supabaseAdmin
+      .from("pedido_itens")
+      .select(
+        "id,pedido_id,produto_id,quantidade,preco_unitario,observacao,produtos(nome,imagem_url)",
+      )
+      .eq("pedido_id", data.orderId);
 
-    if (pedidosResult.error) throw pedidosResult.error;
-    if (entregasResult.error) throw entregasResult.error;
+    if (itemsResult.error) throw itemsResult.error;
 
-    const bairroByPedidoId = new Map(
-      (entregasResult.data ?? []).map((entrega) => [entrega.pedido_id, entrega.bairro]),
-    );
-
-    return (pedidosResult.data ?? []).map((pedido) => {
-      const entregaBairro = bairroByPedidoId.get(pedido.id) ?? null;
-      const bairro = getOrderNeighborhood(pedido, entregaBairro);
-      return { ...pedido, bairro };
-    });
+    return itemsResult.data ?? [];
   });
 
 export const fetchKdsOrderItemsServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: FetchKdsOrderItemsInput) => input)
   .handler(async ({ context, data }) => {
-    await assertStaffUserId(context.userId, "Acesso restrito ao KDS.");
+    await assertStaffUserId(context.userId, "Acesso restrito ao KDS da cozinha.");
     const tenantId = await resolveStaffTenantId(context.userId, data.tenantSlug);
     const { assertTenantPlanFeature } = await import("@/lib/tenant/tenant-plan.server");
     await assertTenantPlanFeature(tenantId, "kds");
@@ -229,70 +263,175 @@ export const fetchKdsOrderItemsServer = createServerFn({ method: "POST" })
     return itemsResult.data ?? [];
   });
 
-export const updateKdsOrderStatusServer = createServerFn({ method: "POST" })
+async function applyGestaoDeliveryStatusUpdate(
+  tenantId: string,
+  orderId: string,
+  status: PedidoStatus,
+) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const { error: orderError } = await supabaseAdmin
+    .from("pedidos")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", orderId)
+    .eq("tenant_id", tenantId);
+  if (orderError) throw orderError;
+
+  if (status === "cancelado") {
+    const [deliveryResult, routeResult] = await Promise.all([
+      supabaseAdmin
+        .from("entregas")
+        .update({ status: "cancelado" })
+        .eq("pedido_id", orderId)
+        .eq("tenant_id", tenantId),
+      supabaseAdmin
+        .from("rotas_entrega")
+        .update({ status: "cancelado" })
+        .eq("pedido_id", orderId)
+        .eq("tenant_id", tenantId),
+    ]);
+    if (deliveryResult.error) throw deliveryResult.error;
+    if (routeResult.error) throw routeResult.error;
+  }
+
+  if (status === "entregue") {
+    const deliveredAt = new Date().toISOString();
+    const [deliveryResult, routeResult] = await Promise.all([
+      supabaseAdmin
+        .from("entregas")
+        .update({ status: "entregue", entregue_em: deliveredAt })
+        .eq("pedido_id", orderId)
+        .eq("tenant_id", tenantId),
+      supabaseAdmin
+        .from("rotas_entrega")
+        .update({ status: "entregue" })
+        .eq("pedido_id", orderId)
+        .eq("tenant_id", tenantId),
+    ]);
+    if (deliveryResult.error) throw deliveryResult.error;
+    if (routeResult.error) throw routeResult.error;
+
+    const { data: pedidoRow } = await supabaseAdmin
+      .from("pedidos")
+      .select("canal")
+      .eq("id", orderId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (pedidoRow?.canal) {
+      const { tryAutoEmitNfceForPedido } = await import("@/lib/api/fiscal.server");
+      void tryAutoEmitNfceForPedido(orderId, pedidoRow.canal);
+    }
+  }
+}
+
+export const updateGestaoDeliveryOrderStatusServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: UpdateKdsOrderStatusInput) => input)
   .handler(async ({ context, data }) => {
-    await assertStaffUserId(context.userId, "Acesso restrito ao KDS.");
+    await assertStaffUserId(context.userId, "Acesso restrito ao Gestao delivery.");
+    const tenantId = await resolveStaffTenantId(context.userId, data.tenantSlug);
+    await assertPedidoBelongsToTenant(tenantId, data.orderId);
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { isKitchenOrderChannel } = await import("@/lib/kitchen-stage");
+
+    const { data: current, error: loadError } = await supabaseAdmin
+      .from("pedidos")
+      .select("status,canal")
+      .eq("id", data.orderId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (loadError) throw loadError;
+    if (!current) throw new Error("Pedido nao encontrado.");
+
+    if (
+      data.status === "pronto" &&
+      current.status === "em_preparo" &&
+      isKitchenOrderChannel(current.canal)
+    ) {
+      throw new Error("Marque como pronto no KDS Cozinha.");
+    }
+
+    await applyGestaoDeliveryStatusUpdate(tenantId, data.orderId, data.status);
+    return { ok: true };
+  });
+
+/** @deprecated Use updateGestaoDeliveryOrderStatusServer */
+export const updateKdsOrderStatusServer = updateGestaoDeliveryOrderStatusServer;
+
+export const updateKitchenProductionStageServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(
+    (input: TenantScopedInput & { orderId: string; stage: "aprovado" | "producao" }) => input,
+  )
+  .handler(async ({ context, data }) => {
+    await assertStaffUserId(context.userId, "Acesso restrito ao KDS da cozinha.");
     const tenantId = await resolveStaffTenantId(context.userId, data.tenantSlug);
     const { assertTenantPlanFeature } = await import("@/lib/tenant/tenant-plan.server");
     await assertTenantPlanFeature(tenantId, "kds");
     await assertPedidoBelongsToTenant(tenantId, data.orderId);
 
+    const { withKitchenStage } = await import("@/lib/kitchen-stage");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { error: orderError } = await supabaseAdmin
+    const { data: pedido, error: loadError } = await supabaseAdmin
       .from("pedidos")
-      .update({ status: data.status })
+      .select("id,status,observacoes")
+      .eq("id", data.orderId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (loadError) throw loadError;
+    if (!pedido) throw new Error("Pedido nao encontrado.");
+    if (pedido.status !== "em_preparo") {
+      throw new Error("Somente pedidos aprovados podem entrar em producao.");
+    }
+
+    const { error } = await supabaseAdmin
+      .from("pedidos")
+      .update({
+        observacoes: withKitchenStage(pedido.observacoes, data.stage),
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", data.orderId)
       .eq("tenant_id", tenantId);
-    if (orderError) throw orderError;
+    if (error) throw error;
+    return { ok: true as const };
+  });
 
-    if (data.status === "cancelado") {
-      const [deliveryResult, routeResult] = await Promise.all([
-        supabaseAdmin
-          .from("entregas")
-          .update({ status: "cancelado" })
-          .eq("pedido_id", data.orderId)
-          .eq("tenant_id", tenantId),
-        supabaseAdmin
-          .from("rotas_entrega")
-          .update({ status: "cancelado" })
-          .eq("pedido_id", data.orderId)
-          .eq("tenant_id", tenantId),
-      ]);
-      if (deliveryResult.error) throw deliveryResult.error;
-      if (routeResult.error) throw routeResult.error;
+export const updateKitchenMarkReadyServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: TenantScopedInput & { orderId: string }) => input)
+  .handler(async ({ context, data }) => {
+    await assertStaffUserId(context.userId, "Acesso restrito ao KDS da cozinha.");
+    const tenantId = await resolveStaffTenantId(context.userId, data.tenantSlug);
+    const { assertTenantPlanFeature } = await import("@/lib/tenant/tenant-plan.server");
+    await assertTenantPlanFeature(tenantId, "kds");
+    await assertPedidoBelongsToTenant(tenantId, data.orderId);
+
+    const { withKitchenStage } = await import("@/lib/kitchen-stage");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: pedido, error: loadError } = await supabaseAdmin
+      .from("pedidos")
+      .select("id,status,observacoes")
+      .eq("id", data.orderId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (loadError) throw loadError;
+    if (!pedido) throw new Error("Pedido nao encontrado.");
+    if (pedido.status !== "em_preparo") {
+      throw new Error("Somente pedidos em producao podem ser marcados como prontos.");
     }
 
-    if (data.status === "entregue") {
-      const deliveredAt = new Date().toISOString();
-      const [deliveryResult, routeResult] = await Promise.all([
-        supabaseAdmin
-          .from("entregas")
-          .update({ status: "entregue", entregue_em: deliveredAt })
-          .eq("pedido_id", data.orderId)
-          .eq("tenant_id", tenantId),
-        supabaseAdmin
-          .from("rotas_entrega")
-          .update({ status: "entregue" })
-          .eq("pedido_id", data.orderId)
-          .eq("tenant_id", tenantId),
-      ]);
-      if (deliveryResult.error) throw deliveryResult.error;
-      if (routeResult.error) throw routeResult.error;
-
-      const { data: pedidoRow } = await supabaseAdmin
-        .from("pedidos")
-        .select("canal")
-        .eq("id", data.orderId)
-        .eq("tenant_id", tenantId)
-        .maybeSingle();
-      if (pedidoRow?.canal) {
-        const { tryAutoEmitNfceForPedido } = await import("@/lib/api/fiscal.server");
-        void tryAutoEmitNfceForPedido(data.orderId, pedidoRow.canal);
-      }
-    }
-
-    return { ok: true };
+    const { error } = await supabaseAdmin
+      .from("pedidos")
+      .update({
+        status: "pronto",
+        observacoes: withKitchenStage(pedido.observacoes, "aprovado"),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.orderId)
+      .eq("tenant_id", tenantId);
+    if (error) throw error;
+    return { ok: true as const };
   });

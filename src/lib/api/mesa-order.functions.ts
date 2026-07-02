@@ -148,7 +148,7 @@ export const createMesaQrOrder = createServerFn({ method: "POST" })
         mesa_id: mesa.id,
         tenant_id: mesa.tenant_id ?? null,
         cliente_id: null,
-        status: "aberto",
+        status: "em_preparo",
         subtotal,
         desconto,
         taxa_entrega: 0,
