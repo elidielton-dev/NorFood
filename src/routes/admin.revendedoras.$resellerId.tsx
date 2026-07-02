@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { AdminShell } from "@/components/admin/admin-shell";
+import { AdminPage } from "@/routes/admin";
 import { fetchResellerAdmin } from "@/lib/reseller/client";
 import { listResellerTenantsAdminServer } from "@/lib/api/platform-reseller.functions";
 
@@ -21,14 +21,14 @@ function AdminRevendedoraDetailPage() {
 
   if (isLoading || !reseller) {
     return (
-      <AdminShell title="Revendedora" subtitle="Carregando...">
+      <AdminPage title="Revendedora" subtitle="Carregando...">
         <p className="text-sm text-[#6B7280]">Carregando...</p>
-      </AdminShell>
+      </AdminPage>
     );
   }
 
   return (
-    <AdminShell
+    <AdminPage
       title={reseller.name}
       subtitle={`${reseller.tenant_count ?? 0} / ${reseller.max_tenants} licencas`}
     >
@@ -85,7 +85,7 @@ function AdminRevendedoraDetailPage() {
           </tbody>
         </table>
       </div>
-    </AdminShell>
+    </AdminPage>
   );
 }
 

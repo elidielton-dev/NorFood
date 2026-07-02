@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Building2, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
-import { AdminShell, AdminStatCard } from "@/components/admin/admin-shell";
+import { AdminPage, AdminStatCard } from "@/routes/admin";
 import { fetchResellersAdmin, updateResellerStatusAdmin } from "@/lib/reseller/client";
 
 export const Route = createFileRoute("/admin/revendedoras/")({
@@ -28,7 +28,7 @@ function AdminRevendedorasPage() {
   const active = resellers.filter((r) => r.status === "active").length;
 
   return (
-    <AdminShell
+    <AdminPage
       title="Revendedoras"
       subtitle="Hiperadores e carteiras de restaurantes."
       actions={
@@ -119,6 +119,6 @@ function AdminRevendedorasPage() {
           </table>
         </div>
       )}
-    </AdminShell>
+    </AdminPage>
   );
 }

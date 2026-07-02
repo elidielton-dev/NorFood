@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { AdminShell, AdminStatCard } from "@/components/admin/admin-shell";
+import { AdminPage, AdminStatCard } from "@/routes/admin";
 import {
   createAdminBillingCheckout,
   createAdminBillingPix,
@@ -132,7 +132,7 @@ function AdminFaturamentoPage() {
   }, [invoices]);
 
   return (
-    <AdminShell
+    <AdminPage
       title="Faturamento"
       subtitle="MRR, cobrança por % sobre vendas e faturas mensais por restaurante."
       actions={
@@ -318,6 +318,6 @@ function AdminFaturamentoPage() {
           </div>
         </div>
       )}
-    </AdminShell>
+    </AdminPage>
   );
 }

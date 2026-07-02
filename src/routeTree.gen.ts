@@ -42,10 +42,17 @@ import { Route as CardapioTokenRouteImport } from './routes/cardapio.$token'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ApiSignupClientMetaRouteImport } from './routes/api/signup-client-meta'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as AdminSistemaRouteImport } from './routes/admin.sistema'
 import { Route as AdminRevendedorasRouteImport } from './routes/admin.revendedoras'
+import { Route as AdminPlanosRouteImport } from './routes/admin.planos'
 import { Route as AdminNovaRouteImport } from './routes/admin.nova'
+import { Route as AdminMetricasRouteImport } from './routes/admin.metricas'
 import { Route as AdminFaturamentoRouteImport } from './routes/admin.faturamento'
+import { Route as AdminEmpresasRouteImport } from './routes/admin.empresas'
+import { Route as AdminConfiguracoesRouteImport } from './routes/admin.configuracoes'
 import { Route as AdminAprovacoesRouteImport } from './routes/admin.aprovacoes'
+import { Route as AdminAlertasRouteImport } from './routes/admin.alertas'
+import { Route as AdminAcessosRouteImport } from './routes/admin.acessos'
 import { Route as AdminTenantIdRouteImport } from './routes/admin.$tenantId'
 import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
 import { Route as AuthenticatedMotoboyRouteImport } from './routes/_authenticated/motoboy'
@@ -67,6 +74,7 @@ import { Route as ApiEntregadorExpoGoUrlRouteImport } from './routes/api/entrega
 import { Route as ApiCronAtendimentoHoursRouteImport } from './routes/api/cron/atendimento-hours'
 import { Route as AdminRevendedorasNovaRouteImport } from './routes/admin.revendedoras.nova'
 import { Route as AdminRevendedorasResellerIdRouteImport } from './routes/admin.revendedoras.$resellerId'
+import { Route as AdminFaturamentoRevendedorasRouteImport } from './routes/admin.faturamento.revendedoras'
 import { Route as AuthenticatedPainelWhatsappRouteImport } from './routes/_authenticated/painel.whatsapp'
 import { Route as AuthenticatedPainelRelatoriosRouteImport } from './routes/_authenticated/painel.relatorios'
 import { Route as AuthenticatedPainelProdutosRouteImport } from './routes/_authenticated/painel.produtos'
@@ -297,9 +305,19 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
   path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminSistemaRoute = AdminSistemaRouteImport.update({
+  id: '/sistema',
+  path: '/sistema',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminRevendedorasRoute = AdminRevendedorasRouteImport.update({
   id: '/revendedoras',
   path: '/revendedoras',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPlanosRoute = AdminPlanosRouteImport.update({
+  id: '/planos',
+  path: '/planos',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminNovaRoute = AdminNovaRouteImport.update({
@@ -307,14 +325,39 @@ const AdminNovaRoute = AdminNovaRouteImport.update({
   path: '/nova',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminMetricasRoute = AdminMetricasRouteImport.update({
+  id: '/metricas',
+  path: '/metricas',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminFaturamentoRoute = AdminFaturamentoRouteImport.update({
   id: '/faturamento',
   path: '/faturamento',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminEmpresasRoute = AdminEmpresasRouteImport.update({
+  id: '/empresas',
+  path: '/empresas',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminConfiguracoesRoute = AdminConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminAprovacoesRoute = AdminAprovacoesRouteImport.update({
   id: '/aprovacoes',
   path: '/aprovacoes',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAlertasRoute = AdminAlertasRouteImport.update({
+  id: '/alertas',
+  path: '/alertas',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAcessosRoute = AdminAcessosRouteImport.update({
+  id: '/acessos',
+  path: '/acessos',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminTenantIdRoute = AdminTenantIdRouteImport.update({
@@ -425,6 +468,12 @@ const AdminRevendedorasResellerIdRoute =
     id: '/$resellerId',
     path: '/$resellerId',
     getParentRoute: () => AdminRevendedorasRoute,
+  } as any)
+const AdminFaturamentoRevendedorasRoute =
+  AdminFaturamentoRevendedorasRouteImport.update({
+    id: '/revendedoras',
+    path: '/revendedoras',
+    getParentRoute: () => AdminFaturamentoRoute,
   } as any)
 const AuthenticatedPainelWhatsappRoute =
   AuthenticatedPainelWhatsappRouteImport.update({
@@ -830,10 +879,17 @@ export interface FileRoutesByFullPath {
   '/motoboy': typeof AuthenticatedMotoboyRoute
   '/painel': typeof AuthenticatedPainelRouteWithChildren
   '/admin/$tenantId': typeof AdminTenantIdRoute
+  '/admin/acessos': typeof AdminAcessosRoute
+  '/admin/alertas': typeof AdminAlertasRoute
   '/admin/aprovacoes': typeof AdminAprovacoesRoute
-  '/admin/faturamento': typeof AdminFaturamentoRoute
+  '/admin/configuracoes': typeof AdminConfiguracoesRoute
+  '/admin/empresas': typeof AdminEmpresasRoute
+  '/admin/faturamento': typeof AdminFaturamentoRouteWithChildren
+  '/admin/metricas': typeof AdminMetricasRoute
   '/admin/nova': typeof AdminNovaRoute
+  '/admin/planos': typeof AdminPlanosRoute
   '/admin/revendedoras': typeof AdminRevendedorasRouteWithChildren
+  '/admin/sistema': typeof AdminSistemaRoute
   '/api/health': typeof ApiHealthRoute
   '/api/signup-client-meta': typeof ApiSignupClientMetaRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -873,6 +929,7 @@ export interface FileRoutesByFullPath {
   '/painel/produtos': typeof AuthenticatedPainelProdutosRouteWithChildren
   '/painel/relatorios': typeof AuthenticatedPainelRelatoriosRouteWithChildren
   '/painel/whatsapp': typeof AuthenticatedPainelWhatsappRoute
+  '/admin/faturamento/revendedoras': typeof AdminFaturamentoRevendedorasRoute
   '/admin/revendedoras/$resellerId': typeof AdminRevendedorasResellerIdRoute
   '/admin/revendedoras/nova': typeof AdminRevendedorasNovaRoute
   '/api/cron/atendimento-hours': typeof ApiCronAtendimentoHoursRoute
@@ -951,9 +1008,16 @@ export interface FileRoutesByTo {
   '/mesa': typeof AuthenticatedMesaRoute
   '/motoboy': typeof AuthenticatedMotoboyRoute
   '/admin/$tenantId': typeof AdminTenantIdRoute
+  '/admin/acessos': typeof AdminAcessosRoute
+  '/admin/alertas': typeof AdminAlertasRoute
   '/admin/aprovacoes': typeof AdminAprovacoesRoute
-  '/admin/faturamento': typeof AdminFaturamentoRoute
+  '/admin/configuracoes': typeof AdminConfiguracoesRoute
+  '/admin/empresas': typeof AdminEmpresasRoute
+  '/admin/faturamento': typeof AdminFaturamentoRouteWithChildren
+  '/admin/metricas': typeof AdminMetricasRoute
   '/admin/nova': typeof AdminNovaRoute
+  '/admin/planos': typeof AdminPlanosRoute
+  '/admin/sistema': typeof AdminSistemaRoute
   '/api/health': typeof ApiHealthRoute
   '/api/signup-client-meta': typeof ApiSignupClientMetaRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -986,6 +1050,7 @@ export interface FileRoutesByTo {
   '/painel/pdv': typeof AuthenticatedPainelPdvRoute
   '/painel/produtos': typeof AuthenticatedPainelProdutosRouteWithChildren
   '/painel/whatsapp': typeof AuthenticatedPainelWhatsappRoute
+  '/admin/faturamento/revendedoras': typeof AdminFaturamentoRevendedorasRoute
   '/admin/revendedoras/$resellerId': typeof AdminRevendedorasResellerIdRoute
   '/admin/revendedoras/nova': typeof AdminRevendedorasNovaRoute
   '/api/cron/atendimento-hours': typeof ApiCronAtendimentoHoursRoute
@@ -1069,10 +1134,17 @@ export interface FileRoutesById {
   '/_authenticated/motoboy': typeof AuthenticatedMotoboyRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRouteWithChildren
   '/admin/$tenantId': typeof AdminTenantIdRoute
+  '/admin/acessos': typeof AdminAcessosRoute
+  '/admin/alertas': typeof AdminAlertasRoute
   '/admin/aprovacoes': typeof AdminAprovacoesRoute
-  '/admin/faturamento': typeof AdminFaturamentoRoute
+  '/admin/configuracoes': typeof AdminConfiguracoesRoute
+  '/admin/empresas': typeof AdminEmpresasRoute
+  '/admin/faturamento': typeof AdminFaturamentoRouteWithChildren
+  '/admin/metricas': typeof AdminMetricasRoute
   '/admin/nova': typeof AdminNovaRoute
+  '/admin/planos': typeof AdminPlanosRoute
   '/admin/revendedoras': typeof AdminRevendedorasRouteWithChildren
+  '/admin/sistema': typeof AdminSistemaRoute
   '/api/health': typeof ApiHealthRoute
   '/api/signup-client-meta': typeof ApiSignupClientMetaRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -1112,6 +1184,7 @@ export interface FileRoutesById {
   '/_authenticated/painel/produtos': typeof AuthenticatedPainelProdutosRouteWithChildren
   '/_authenticated/painel/relatorios': typeof AuthenticatedPainelRelatoriosRouteWithChildren
   '/_authenticated/painel/whatsapp': typeof AuthenticatedPainelWhatsappRoute
+  '/admin/faturamento/revendedoras': typeof AdminFaturamentoRevendedorasRoute
   '/admin/revendedoras/$resellerId': typeof AdminRevendedorasResellerIdRoute
   '/admin/revendedoras/nova': typeof AdminRevendedorasNovaRoute
   '/api/cron/atendimento-hours': typeof ApiCronAtendimentoHoursRoute
@@ -1195,10 +1268,17 @@ export interface FileRouteTypes {
     | '/motoboy'
     | '/painel'
     | '/admin/$tenantId'
+    | '/admin/acessos'
+    | '/admin/alertas'
     | '/admin/aprovacoes'
+    | '/admin/configuracoes'
+    | '/admin/empresas'
     | '/admin/faturamento'
+    | '/admin/metricas'
     | '/admin/nova'
+    | '/admin/planos'
     | '/admin/revendedoras'
+    | '/admin/sistema'
     | '/api/health'
     | '/api/signup-client-meta'
     | '/auth/callback'
@@ -1238,6 +1318,7 @@ export interface FileRouteTypes {
     | '/painel/produtos'
     | '/painel/relatorios'
     | '/painel/whatsapp'
+    | '/admin/faturamento/revendedoras'
     | '/admin/revendedoras/$resellerId'
     | '/admin/revendedoras/nova'
     | '/api/cron/atendimento-hours'
@@ -1316,9 +1397,16 @@ export interface FileRouteTypes {
     | '/mesa'
     | '/motoboy'
     | '/admin/$tenantId'
+    | '/admin/acessos'
+    | '/admin/alertas'
     | '/admin/aprovacoes'
+    | '/admin/configuracoes'
+    | '/admin/empresas'
     | '/admin/faturamento'
+    | '/admin/metricas'
     | '/admin/nova'
+    | '/admin/planos'
+    | '/admin/sistema'
     | '/api/health'
     | '/api/signup-client-meta'
     | '/auth/callback'
@@ -1351,6 +1439,7 @@ export interface FileRouteTypes {
     | '/painel/pdv'
     | '/painel/produtos'
     | '/painel/whatsapp'
+    | '/admin/faturamento/revendedoras'
     | '/admin/revendedoras/$resellerId'
     | '/admin/revendedoras/nova'
     | '/api/cron/atendimento-hours'
@@ -1433,10 +1522,17 @@ export interface FileRouteTypes {
     | '/_authenticated/motoboy'
     | '/_authenticated/painel'
     | '/admin/$tenantId'
+    | '/admin/acessos'
+    | '/admin/alertas'
     | '/admin/aprovacoes'
+    | '/admin/configuracoes'
+    | '/admin/empresas'
     | '/admin/faturamento'
+    | '/admin/metricas'
     | '/admin/nova'
+    | '/admin/planos'
     | '/admin/revendedoras'
+    | '/admin/sistema'
     | '/api/health'
     | '/api/signup-client-meta'
     | '/auth/callback'
@@ -1476,6 +1572,7 @@ export interface FileRouteTypes {
     | '/_authenticated/painel/produtos'
     | '/_authenticated/painel/relatorios'
     | '/_authenticated/painel/whatsapp'
+    | '/admin/faturamento/revendedoras'
     | '/admin/revendedoras/$resellerId'
     | '/admin/revendedoras/nova'
     | '/api/cron/atendimento-hours'
@@ -1802,11 +1899,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/sistema': {
+      id: '/admin/sistema'
+      path: '/sistema'
+      fullPath: '/admin/sistema'
+      preLoaderRoute: typeof AdminSistemaRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/revendedoras': {
       id: '/admin/revendedoras'
       path: '/revendedoras'
       fullPath: '/admin/revendedoras'
       preLoaderRoute: typeof AdminRevendedorasRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/planos': {
+      id: '/admin/planos'
+      path: '/planos'
+      fullPath: '/admin/planos'
+      preLoaderRoute: typeof AdminPlanosRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/nova': {
@@ -1816,6 +1927,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminNovaRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/metricas': {
+      id: '/admin/metricas'
+      path: '/metricas'
+      fullPath: '/admin/metricas'
+      preLoaderRoute: typeof AdminMetricasRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/faturamento': {
       id: '/admin/faturamento'
       path: '/faturamento'
@@ -1823,11 +1941,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminFaturamentoRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/empresas': {
+      id: '/admin/empresas'
+      path: '/empresas'
+      fullPath: '/admin/empresas'
+      preLoaderRoute: typeof AdminEmpresasRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/configuracoes': {
+      id: '/admin/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/admin/configuracoes'
+      preLoaderRoute: typeof AdminConfiguracoesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/aprovacoes': {
       id: '/admin/aprovacoes'
       path: '/aprovacoes'
       fullPath: '/admin/aprovacoes'
       preLoaderRoute: typeof AdminAprovacoesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/alertas': {
+      id: '/admin/alertas'
+      path: '/alertas'
+      fullPath: '/admin/alertas'
+      preLoaderRoute: typeof AdminAlertasRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/acessos': {
+      id: '/admin/acessos'
+      path: '/acessos'
+      fullPath: '/admin/acessos'
+      preLoaderRoute: typeof AdminAcessosRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/$tenantId': {
@@ -1976,6 +2122,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/revendedoras/$resellerId'
       preLoaderRoute: typeof AdminRevendedorasResellerIdRouteImport
       parentRoute: typeof AdminRevendedorasRoute
+    }
+    '/admin/faturamento/revendedoras': {
+      id: '/admin/faturamento/revendedoras'
+      path: '/revendedoras'
+      fullPath: '/admin/faturamento/revendedoras'
+      preLoaderRoute: typeof AdminFaturamentoRevendedorasRouteImport
+      parentRoute: typeof AdminFaturamentoRoute
     }
     '/_authenticated/painel/whatsapp': {
       id: '/_authenticated/painel/whatsapp'
@@ -2740,6 +2893,17 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface AdminFaturamentoRouteChildren {
+  AdminFaturamentoRevendedorasRoute: typeof AdminFaturamentoRevendedorasRoute
+}
+
+const AdminFaturamentoRouteChildren: AdminFaturamentoRouteChildren = {
+  AdminFaturamentoRevendedorasRoute: AdminFaturamentoRevendedorasRoute,
+}
+
+const AdminFaturamentoRouteWithChildren =
+  AdminFaturamentoRoute._addFileChildren(AdminFaturamentoRouteChildren)
+
 interface AdminRevendedorasRouteChildren {
   AdminRevendedorasResellerIdRoute: typeof AdminRevendedorasResellerIdRoute
   AdminRevendedorasNovaRoute: typeof AdminRevendedorasNovaRoute
@@ -2757,19 +2921,33 @@ const AdminRevendedorasRouteWithChildren =
 
 interface AdminRouteChildren {
   AdminTenantIdRoute: typeof AdminTenantIdRoute
+  AdminAcessosRoute: typeof AdminAcessosRoute
+  AdminAlertasRoute: typeof AdminAlertasRoute
   AdminAprovacoesRoute: typeof AdminAprovacoesRoute
-  AdminFaturamentoRoute: typeof AdminFaturamentoRoute
+  AdminConfiguracoesRoute: typeof AdminConfiguracoesRoute
+  AdminEmpresasRoute: typeof AdminEmpresasRoute
+  AdminFaturamentoRoute: typeof AdminFaturamentoRouteWithChildren
+  AdminMetricasRoute: typeof AdminMetricasRoute
   AdminNovaRoute: typeof AdminNovaRoute
+  AdminPlanosRoute: typeof AdminPlanosRoute
   AdminRevendedorasRoute: typeof AdminRevendedorasRouteWithChildren
+  AdminSistemaRoute: typeof AdminSistemaRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminTenantIdRoute: AdminTenantIdRoute,
+  AdminAcessosRoute: AdminAcessosRoute,
+  AdminAlertasRoute: AdminAlertasRoute,
   AdminAprovacoesRoute: AdminAprovacoesRoute,
-  AdminFaturamentoRoute: AdminFaturamentoRoute,
+  AdminConfiguracoesRoute: AdminConfiguracoesRoute,
+  AdminEmpresasRoute: AdminEmpresasRoute,
+  AdminFaturamentoRoute: AdminFaturamentoRouteWithChildren,
+  AdminMetricasRoute: AdminMetricasRoute,
   AdminNovaRoute: AdminNovaRoute,
+  AdminPlanosRoute: AdminPlanosRoute,
   AdminRevendedorasRoute: AdminRevendedorasRouteWithChildren,
+  AdminSistemaRoute: AdminSistemaRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 

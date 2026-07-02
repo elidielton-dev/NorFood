@@ -1,310 +1,267 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, Clock3, ExternalLink, Plus, Power, PowerOff, Search } from "lucide-react";
-import { useMemo, useState } from "react";
-import { toast } from "sonner";
-import { AdminShell, AdminStatCard } from "@/components/admin/admin-shell";
+import { useQuery } from "@tanstack/react-query";
 import {
-  deactivateAdminTenant,
-  fetchAdminTenants,
-  fetchPlatformCapacity,
-  reactivateAdminTenant,
-  useAdminTenantsSource,
-} from "@/lib/platform-admin/client";
-import { NORFOOD_DEMO_TENANT_ID } from "@/lib/tenant/constants";
-import { lojaPath, tenantPath } from "@/lib/tenant/painel-routes";
-import type { TenantStatus } from "@/lib/tenant/types";
-import { isBrowserDemoEnabled } from "@/lib/runtime";
+  AlertTriangle,
+  ArrowUpRight,
+  Building2,
+  Plus,
+  Server,
+  Users,
+  Wallet,
+} from "lucide-react";
+import { AdminCard, AdminPage, AdminStatCard } from "@/routes/admin";
+import { getAdminDashboardServer } from "@/lib/api/platform-admin.functions";
+import { formatPlanPrice } from "@/lib/platform/billing-plans";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/")({
-  component: AdminEmpresasPage,
+  component: AdminDashboardPage,
 });
 
-const STATUS_LABEL: Record<TenantStatus, string> = {
-  active: "Ativa",
-  trial: "Trial",
-  pending: "Pendente",
-  suspended: "Suspensa",
-};
-
-const STATUS_TONE: Record<TenantStatus, string> = {
-  active: "bg-emerald-500/15 text-emerald-700",
-  trial: "bg-amber-500/15 text-amber-700",
-  pending: "bg-sky-500/15 text-sky-700",
-  suspended: "bg-rose-500/15 text-rose-700",
-};
-
-function AdminEmpresasPage() {
-  const demo = useAdminTenantsSource();
-  const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
-
-  const { data: tenants = [], isLoading } = useQuery({
-    queryKey: ["admin-tenants", demo],
-    queryFn: fetchAdminTenants,
+function AdminDashboardPage() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-dashboard"],
+    queryFn: () => getAdminDashboardServer(),
+    staleTime: 60_000,
   });
 
-  const statusMutation = useMutation({
-    mutationFn: async (input: { tenantId: string; action: "deactivate" | "reactivate" }) => {
-      if (input.action === "deactivate") {
-        return deactivateAdminTenant(input.tenantId);
-      }
-      return reactivateAdminTenant(input.tenantId, "trial");
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["admin-tenants"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-tenant", variables.tenantId] });
-      toast.success(
-        variables.action === "deactivate" ? "Empresa desativada." : "Empresa reativada em trial.",
-      );
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
-
-  function handleToggleStatus(tenantId: string, currentStatus: TenantStatus, tenantName: string) {
-    if (tenantId === NORFOOD_DEMO_TENANT_ID) {
-      toast.error("A conta Norfood (demonstração) não pode ser desativada.");
-      return;
-    }
-
-    if (currentStatus === "suspended") {
-      if (
-        !window.confirm(
-          `Reativar "${tenantName}"?\n\nO restaurante voltará em trial e poderá acessar painel e loja.`,
-        )
-      ) {
-        return;
-      }
-      statusMutation.mutate({ tenantId, action: "reactivate" });
-      return;
-    }
-
-    if (
-      !window.confirm(
-        `Desativar "${tenantName}"?\n\nPainel e loja ficarão bloqueados até você reativar.`,
-      )
-    ) {
-      return;
-    }
-    statusMutation.mutate({ tenantId, action: "deactivate" });
+  if (isLoading) {
+    return (
+      <AdminPage title="Dashboard" subtitle="Carregando visão geral da plataforma...">
+        <div className="flex justify-center py-20">
+          <div className="size-8 animate-spin rounded-full border-2 border-[#FF9100] border-t-transparent" />
+        </div>
+      </AdminPage>
+    );
   }
 
-  const { data: capacity } = useQuery({
-    queryKey: ["platform-capacity", demo],
-    queryFn: fetchPlatformCapacity,
-    staleTime: 30_000,
-  });
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return tenants;
-    return tenants.filter(
-      (t) =>
-        t.name.toLowerCase().includes(q) ||
-        t.slug.toLowerCase().includes(q) ||
-        (t.owner_email?.toLowerCase().includes(q) ?? false),
-    );
-  }, [tenants, search]);
-
-  const stats = useMemo(() => {
-    return {
-      total: tenants.length,
-      active: tenants.filter((t) => t.status === "active").length,
-      trial: tenants.filter((t) => t.status === "trial").length,
-      pending: tenants.filter((t) => t.status === "pending").length,
-      suspended: tenants.filter((t) => t.status === "suspended").length,
-    };
-  }, [tenants]);
+  const tenants = data?.tenants;
+  const capacity = data?.capacity;
+  const billing = data?.billing;
 
   return (
-    <AdminShell
-      title="Empresas"
-      subtitle="Gerencie restaurantes cadastrados na plataforma Norfood."
+    <AdminPage
+      title="Dashboard"
+      subtitle="Command center da plataforma NorFood — tenants, parceiros, faturamento e saúde operacional."
       actions={
-        <div className="flex flex-wrap items-center gap-2">
-          {stats.pending > 0 ? (
-            <Link
-              to="/admin/aprovacoes"
-              className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-100"
-            >
-              <Clock3 className="size-4" />
-              {stats.pending} aguardando aprovação
-            </Link>
-          ) : null}
-          {capacity?.atLimit ? (
-          <span className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-800">
-            Limite atingido ({capacity.currentTenants}/{capacity.maxTenants})
-          </span>
-        ) : (
+        <div className="flex flex-wrap gap-2">
           <Link
             to="/admin/nova"
-            className="inline-flex items-center gap-2 rounded-xl bg-[#FF9100] px-4 py-2 text-sm font-semibold text-white hover:bg-[#e66e00]"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#111111] px-4 py-2.5 text-sm font-medium text-white"
           >
             <Plus className="size-4" />
             Nova empresa
           </Link>
-        )}
+          <Link
+            to="/admin/revendedoras/nova"
+            className="inline-flex items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-4 py-2.5 text-sm font-medium"
+          >
+            <Users className="size-4" />
+            Nova revendedora
+          </Link>
         </div>
       }
     >
-      {demo && isBrowserDemoEnabled() ? (
-        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <strong>Modo demo:</strong> empresas criadas aqui ficam salvas no navegador (localStorage).
-          Com Supabase configurado, os dados vão para o banco de produção.
+      <div className="space-y-6">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <AdminStatCard
+            label="Empresas"
+            value={tenants?.total ?? 0}
+            hint={`${tenants?.active ?? 0} ativas · ${tenants?.trial ?? 0} trial`}
+            icon={<Building2 className="size-4 text-[#FF9100]" />}
+          />
+          <AdminStatCard
+            label="Revendedoras"
+            value={data?.resellers.active ?? 0}
+            hint={`${data?.resellers.total ?? 0} cadastradas`}
+            icon={<Users className="size-4 text-[#FF9100]" />}
+          />
+          <AdminStatCard
+            label="MRR estimado"
+            value={formatPlanPrice(billing?.estimatedMrr ?? 0)}
+            hint={`${billing?.paidCount ?? 0} faturas pagas`}
+            icon={<Wallet className="size-4 text-[#FF9100]" />}
+          />
+          <AdminStatCard
+            label="Capacidade VPS"
+            value={`${capacity?.currentTenants ?? 0}/${capacity?.maxTenants ?? "—"}`}
+            hint={capacity?.label}
+            icon={<Server className="size-4 text-[#FF9100]" />}
+          />
         </div>
-      ) : null}
 
-      {capacity && !demo ? (
-        <div className="mb-6 rounded-xl border border-[#E5E7EB] bg-white px-4 py-3 text-sm text-[#5C4A3A]">
-          <strong className="text-[#1A1A1A]">Capacidade da VPS:</strong> {capacity.currentTenants} de{" "}
-          {capacity.maxTenants} empresas ({capacity.label}). Restam{" "}
-          <strong>{capacity.remaining}</strong> vagas · {capacity.pm2Instances} workers Node.
-          {capacity.evolutionOnSameHost ? (
-            <span className="ml-1 text-amber-700">
-              (Evolution na mesma VPS — limite reduzido.)
-            </span>
-          ) : null}
-        </div>
-      ) : null}
-
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <AdminStatCard label="Total" value={stats.total} icon={<Building2 className="size-4 text-[#6B7280]" />} />
-        <AdminStatCard label="Ativas" value={stats.active} />
-        <AdminStatCard label="Em trial" value={stats.trial} />
-        <AdminStatCard label="Pendentes" value={stats.pending} />
-        <AdminStatCard label="Suspensas" value={stats.suspended} />
-      </div>
-
-      <div className="mb-4 relative max-w-md">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#6B7280]" />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por nome, slug ou e-mail do dono..."
-          className="h-10 w-full rounded-xl border border-[#E5E7EB] bg-white pl-10 pr-3 text-sm outline-none focus:border-[#FF7A00] focus:ring-2 focus:ring-[#FF7A00]/15"
-        />
-      </div>
-
-      {isLoading ? (
-        <div className="flex justify-center py-16">
-          <div className="size-8 animate-spin rounded-full border-2 border-[#FF7A00] border-t-transparent" />
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[#E5E7EB] bg-white px-6 py-16 text-center">
-          <p className="text-lg font-semibold text-[#111111]">Nenhuma empresa encontrada</p>
-          <p className="mt-2 text-sm text-[#6B7280]">
-            Cadastre o primeiro restaurante para começar.
-          </p>
-          <Link
-            to="/admin/nova"
-            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#111111] px-4 py-2 text-sm font-semibold text-white"
-          >
-            <Plus className="size-4" />
-            Nova empresa
-          </Link>
-        </div>
-      ) : (
-        <div className="overflow-hidden rounded-xl border border-[#E5E7EB] bg-white">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
-              <thead className="border-b border-[#E5E7EB] bg-[#F6F7F9] text-left text-xs uppercase tracking-wide text-[#6B7280]">
-                <tr>
-                  <th className="px-4 py-3">Empresa</th>
-                  <th className="px-4 py-3">Slug</th>
-                  <th className="px-4 py-3">Dono</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((tenant) => (
-                  <tr key={tenant.id} className="border-b border-[#E5E7EB] last:border-0">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="grid size-10 shrink-0 place-items-center rounded-xl text-sm font-bold text-white"
-                          style={{ backgroundColor: tenant.primary_color }}
-                        >
-                          {tenant.name.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-[#111111]">{tenant.name}</p>
-                          {tenant.subtitle ? (
-                            <p className="text-xs text-[#6B7280]">{tenant.subtitle}</p>
-                          ) : null}
-                        </div>
+        {(data?.alerts.length ?? 0) > 0 ? (
+          <AdminCard title="Alertas operacionais">
+            <ul className="space-y-2">
+              {data?.alerts.map((alert) => (
+                <li key={alert.id}>
+                  {alert.href ? (
+                    <Link
+                      to={alert.href}
+                      className={cn(
+                        "flex items-start gap-3 rounded-xl border px-4 py-3 transition hover:bg-[#F6F7F9]",
+                        alert.level === "critical" && "border-rose-200 bg-rose-50/50",
+                        alert.level === "warning" && "border-amber-200 bg-amber-50/50",
+                        alert.level === "info" && "border-[#E5E7EB] bg-white",
+                      )}
+                    >
+                      <AlertTriangle
+                        className={cn(
+                          "mt-0.5 size-4 shrink-0",
+                          alert.level === "critical" && "text-rose-600",
+                          alert.level === "warning" && "text-amber-600",
+                          alert.level === "info" && "text-[#FF9100]",
+                        )}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-[#111111]">{alert.title}</p>
+                        <p className="text-xs text-[#6B7280]">{alert.description}</p>
                       </div>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-[#6B7280]">{tenant.slug}</td>
-                    <td className="px-4 py-3 text-[#6B7280]">
-                      {tenant.owner_email ?? "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${STATUS_TONE[tenant.status]}`}
-                      >
-                        {STATUS_LABEL[tenant.status]}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        {tenant.id !== NORFOOD_DEMO_TENANT_ID ? (
-                          tenant.status === "suspended" ? (
-                            <button
-                              type="button"
-                              disabled={statusMutation.isPending}
-                              onClick={() =>
-                                handleToggleStatus(tenant.id, tenant.status, tenant.name)
-                              }
-                              className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800 hover:bg-emerald-100 disabled:opacity-60"
-                            >
-                              <Power className="size-3" />
-                              Reativar
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled={statusMutation.isPending}
-                              onClick={() =>
-                                handleToggleStatus(tenant.id, tenant.status, tenant.name)
-                              }
-                              className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-800 hover:bg-rose-100 disabled:opacity-60"
-                            >
-                              <PowerOff className="size-3" />
-                              Desativar
-                            </button>
-                          )
-                        ) : null}
+                      <ArrowUpRight className="size-4 shrink-0 text-[#9CA3AF]" />
+                    </Link>
+                  ) : (
+                    <div className="rounded-xl border border-[#E5E7EB] px-4 py-3">{alert.title}</div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </AdminCard>
+        ) : null}
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <AdminCard title="Distribuição de empresas">
+            <div className="space-y-3">
+              <BarRow label="Ativas" count={tenants?.active ?? 0} total={tenants?.total ?? 0} tone="emerald" />
+              <BarRow label="Trial" count={tenants?.trial ?? 0} total={tenants?.total ?? 0} tone="amber" />
+              <BarRow label="Pendentes" count={tenants?.pending ?? 0} total={tenants?.total ?? 0} tone="sky" />
+              <BarRow label="Suspensas" count={tenants?.suspended ?? 0} total={tenants?.total ?? 0} tone="rose" />
+            </div>
+            <Link
+              to="/admin/empresas"
+              className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[#FF9100] hover:underline"
+            >
+              Ver todas as empresas
+              <ArrowUpRight className="size-3.5" />
+            </Link>
+          </AdminCard>
+
+          <AdminCard title="Ecossistema de parceiros">
+            <dl className="grid gap-4 sm:grid-cols-2">
+              <MiniStat label="Revendedoras ativas" value={String(data?.resellers.active ?? 0)} />
+              <MiniStat label="Total parceiros" value={String(data?.resellers.total ?? 0)} />
+              <MiniStat
+                label="Restaurantes via parceiro"
+                value={String(data?.resellers.tenantsViaResellers ?? 0)}
+              />
+              <MiniStat label="Workers PM2" value={String(capacity?.pm2Instances ?? "—")} />
+            </dl>
+            <Link
+              to="/admin/revendedoras"
+              className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[#FF9100] hover:underline"
+            >
+              Gerenciar revendedoras
+              <ArrowUpRight className="size-3.5" />
+            </Link>
+          </AdminCard>
+        </div>
+
+        <AdminCard title="Empresas recentes">
+          {(data?.recentTenants.length ?? 0) === 0 ? (
+            <p className="text-sm text-[#6B7280]">Nenhuma empresa cadastrada.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[520px] text-sm">
+                <thead className="text-left text-xs uppercase text-[#6B7280]">
+                  <tr>
+                    <th className="pb-2">Empresa</th>
+                    <th className="pb-2">Status</th>
+                    <th className="pb-2">Dono</th>
+                    <th className="pb-2 text-right">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#F3F4F6]">
+                  {data?.recentTenants.map((t) => (
+                    <tr key={t.id}>
+                      <td className="py-3 font-medium">{t.name}</td>
+                      <td className="py-3 capitalize text-[#6B7280]">{t.status}</td>
+                      <td className="py-3 text-[#6B7280]">{t.owner_email ?? "—"}</td>
+                      <td className="py-3 text-right">
                         <Link
                           to="/admin/$tenantId"
-                          params={{ tenantId: tenant.id }}
-                          className="rounded-lg border border-[#E5E7EB] px-2.5 py-1 text-xs font-medium hover:bg-[#F6F7F9]"
+                          params={{ tenantId: t.id }}
+                          className="text-xs font-medium text-[#FF9100] hover:underline"
                         >
-                          Editar
+                          Abrir
                         </Link>
-                        <a
-                          href={tenantPath(tenant.slug, "dashboard")}
-                          className="inline-flex items-center gap-1 rounded-lg border border-[#E5E7EB] px-2.5 py-1 text-xs font-medium hover:bg-[#F6F7F9]"
-                        >
-                          Painel
-                          <ExternalLink className="size-3" />
-                        </a>
-                        <a
-                          href={lojaPath(tenant.slug)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-[#E5E7EB] px-2.5 py-1 text-xs font-medium hover:bg-[#F6F7F9]"
-                        >
-                          Loja
-                          <ExternalLink className="size-3" />
-                        </a>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </AdminCard>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <QuickLink to="/admin/faturamento" label="Faturamento" />
+          <QuickLink to="/admin/metricas" label="Métricas" />
+          <QuickLink to="/admin/sistema" label="Capacidade VPS" />
+          <QuickLink to="/admin/configuracoes" label="Configurações" />
         </div>
-      )}
-    </AdminShell>
+      </div>
+    </AdminPage>
+  );
+}
+
+function BarRow({
+  label,
+  count,
+  total,
+  tone,
+}: {
+  label: string;
+  count: number;
+  total: number;
+  tone: "emerald" | "amber" | "sky" | "rose";
+}) {
+  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+  const colors = {
+    emerald: "bg-emerald-500",
+    amber: "bg-amber-500",
+    sky: "bg-sky-500",
+    rose: "bg-rose-500",
+  };
+  return (
+    <div>
+      <div className="mb-1 flex justify-between text-sm">
+        <span>{label}</span>
+        <span className="text-[#6B7280]">
+          {count} ({pct}%)
+        </span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-[#F3F4F6]">
+        <div className={cn("h-full rounded-full", colors[tone])} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-[#F6F7F9] p-3">
+      <p className="text-[10px] uppercase tracking-wide text-[#6B7280]">{label}</p>
+      <p className="text-lg font-bold text-[#111111]">{value}</p>
+    </div>
+  );
+}
+
+function QuickLink({ to, label }: { to: string; label: string }) {
+  return (
+    <Link
+      to={to}
+      className="rounded-xl border border-[#E5E7EB] bg-white px-4 py-3 text-sm font-medium text-[#111111] hover:border-[#FF9100]/40 hover:bg-[#FF9100]/5"
+    >
+      {label}
+    </Link>
   );
 }

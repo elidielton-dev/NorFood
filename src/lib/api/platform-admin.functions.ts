@@ -679,3 +679,165 @@ async function resolveAuthContextForCheck() {
   const session = await resolvePlatformAdminFromBearerToken(request?.headers?.get("authorization") ?? null);
   if (!session.userId || !session.allowed) throw new Error("not admin");
 }
+
+export type AdminDashboardAlert = {
+  id: string;
+  level: "info" | "warning" | "critical";
+  title: string;
+  description: string;
+  href?: string;
+};
+
+export type AdminDashboardData = {
+  tenants: {
+    total: number;
+    active: number;
+    trial: number;
+    pending: number;
+    suspended: number;
+  };
+  resellers: {
+    total: number;
+    active: number;
+    tenantsViaResellers: number;
+  };
+  capacity: {
+    currentTenants: number;
+    maxTenants: number;
+    remaining: number;
+    atLimit: boolean;
+    label: string;
+    pm2Instances: number;
+  };
+  billing: {
+    estimatedMrr: number;
+    pendingCount: number;
+    paidCount: number;
+  };
+  recentTenants: AdminTenantRow[];
+  alerts: AdminDashboardAlert[];
+};
+
+export const getAdminDashboardServer = createServerFn({ method: "GET" })
+  .middleware([requirePlatformAdmin])
+  .handler(async (): Promise<AdminDashboardData> => {
+    const tenants = await listTenantsAdminServer();
+    const stats = {
+      total: tenants.length,
+      active: tenants.filter((t) => t.status === "active").length,
+      trial: tenants.filter((t) => t.status === "trial").length,
+      pending: tenants.filter((t) => t.status === "pending").length,
+      suspended: tenants.filter((t) => t.status === "suspended").length,
+    };
+
+    let resellers = { total: 0, active: 0, tenantsViaResellers: 0 };
+    if (!isDemoBackend()) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: resellerRows } = await supabaseAdmin.from("resellers").select("id, status");
+      const list = resellerRows ?? [];
+      resellers.total = list.length;
+      resellers.active = list.filter((r) => r.status === "active").length;
+      const { count } = await supabaseAdmin
+        .from("tenants")
+        .select("id", { count: "exact", head: true })
+        .not("reseller_id", "is", null);
+      resellers.tenantsViaResellers = count ?? 0;
+    }
+
+    const { getEffectiveMaxTenants, getPlatformCapacityConfig } = await import(
+      "@/lib/platform/platform-limits"
+    );
+    const config = getPlatformCapacityConfig();
+    const maxTenants = getEffectiveMaxTenants();
+    const currentTenants = stats.total;
+
+    let billing = { estimatedMrr: 0, pendingCount: 0, paidCount: 0 };
+    if (!isDemoBackend()) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: billingRows } = await supabaseAdmin
+        .from("tenant_billing")
+        .select("monthly_price, plan")
+        .in(
+          "tenant_id",
+          tenants.filter((t) => t.status === "active" || t.status === "trial").map((t) => t.id),
+        );
+      billing.estimatedMrr = (billingRows ?? []).reduce(
+        (sum, row) => sum + Number(row.monthly_price ?? 0),
+        0,
+      );
+
+      const now = new Date();
+      const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+      const { data: invoices } = await supabaseAdmin
+        .from("tenant_billing_invoices")
+        .select("status")
+        .gte("period_start", periodStart);
+      billing.pendingCount = (invoices ?? []).filter((i) =>
+        ["draft", "pending", "open"].includes(String(i.status)),
+      ).length;
+      billing.paidCount = (invoices ?? []).filter((i) => String(i.status) === "paid").length;
+    } else {
+      billing.estimatedMrr = stats.active * 149.9;
+    }
+
+    const alerts: AdminDashboardAlert[] = [];
+    if (stats.pending > 0) {
+      alerts.push({
+        id: "pending-tenants",
+        level: "warning",
+        title: `${stats.pending} empresa(s) aguardando aprovação`,
+        description: "Revise cadastros pendentes para liberar acesso.",
+        href: "/admin/aprovacoes",
+      });
+    }
+    if (currentTenants >= maxTenants) {
+      alerts.push({
+        id: "capacity-full",
+        level: "critical",
+        title: "Capacidade VPS no limite",
+        description: `${currentTenants}/${maxTenants} empresas — considere upgrade ou limpeza.`,
+        href: "/admin/sistema",
+      });
+    } else if (currentTenants >= maxTenants * 0.85) {
+      alerts.push({
+        id: "capacity-high",
+        level: "warning",
+        title: "Capacidade VPS alta",
+        description: `${currentTenants}/${maxTenants} empresas utilizadas.`,
+        href: "/admin/sistema",
+      });
+    }
+    if (billing.pendingCount > 0) {
+      alerts.push({
+        id: "pending-invoices",
+        level: "info",
+        title: `${billing.pendingCount} fatura(s) pendentes`,
+        description: "Cobranças do mês aguardando pagamento.",
+        href: "/admin/faturamento",
+      });
+    }
+
+    const recentTenants = [...tenants]
+      .sort((a, b) => {
+        const da = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const db = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return db - da;
+      })
+      .slice(0, 8);
+
+    return {
+      tenants: stats,
+      resellers,
+      capacity: {
+        currentTenants,
+        maxTenants,
+        remaining: Math.max(0, maxTenants - currentTenants),
+        atLimit: currentTenants >= maxTenants,
+        label: config.label,
+        pm2Instances: config.pm2Instances,
+      },
+      billing,
+      recentTenants,
+      alerts,
+    };
+  });

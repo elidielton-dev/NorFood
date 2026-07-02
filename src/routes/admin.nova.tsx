@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { AdminShell } from "@/components/admin/admin-shell";
+import { AdminPage } from "@/routes/admin";
 import { PlanPicker } from "@/components/billing/plan-picker";
 import { createAdminTenant } from "@/lib/platform-admin/client";
 import type { BillingModel, BillingPlanId } from "@/lib/platform/billing-plans";
@@ -67,7 +67,7 @@ function AdminNovaEmpresaPage() {
   });
 
   return (
-    <AdminShell
+    <AdminPage
       title="Nova empresa"
       subtitle="Cadastre um restaurante na plataforma e vincule o dono."
     >
@@ -203,7 +203,7 @@ function AdminNovaEmpresaPage() {
           </button>
         </div>
       </form>
-    </AdminShell>
+    </AdminPage>
   );
 }
 

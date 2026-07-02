@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { AdminShell } from "@/components/admin/admin-shell";
+import { AdminPage } from "@/routes/admin";
 import { createResellerAdmin, suggestResellerSlug } from "@/lib/reseller/client";
 import type { BillingPlanId } from "@/lib/platform/billing-plans";
 
@@ -42,7 +42,7 @@ function AdminNovaRevendedoraPage() {
   }
 
   return (
-    <AdminShell title="Nova revendedora" subtitle="Cadastro de hiperador.">
+    <AdminPage title="Nova revendedora" subtitle="Cadastro de hiperador.">
       <form
         className="max-w-2xl space-y-4 rounded-2xl border border-[#E5E7EB] bg-white p-6"
         onSubmit={(e) => {
@@ -145,7 +145,7 @@ function AdminNovaRevendedoraPage() {
           </Link>
         </div>
       </form>
-    </AdminShell>
+    </AdminPage>
   );
 }
 

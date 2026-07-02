@@ -3,6 +3,7 @@ import { isSupabaseConfigured } from "@/integrations/supabase/client";
 import { getAuthenticatedUser } from "@/lib/auth-session";
 import { isBrowserDemoEnabled } from "@/lib/runtime";
 import { checkCurrentUserPlatformAdmin } from "@/lib/platform-admin/client";
+import { AdminLayoutShell, AdminPage, AdminCard, AdminStatCard } from "@/components/admin/admin-layout-shell";
 
 export const Route = createFileRoute("/admin")({
   ssr: false,
@@ -26,5 +27,15 @@ export const Route = createFileRoute("/admin")({
 
     return { demo: false, user };
   },
-  component: () => <Outlet />,
+  component: AdminLayoutRoute,
 });
+
+function AdminLayoutRoute() {
+  return (
+    <AdminLayoutShell>
+      <Outlet />
+    </AdminLayoutShell>
+  );
+}
+
+export { AdminPage, AdminCard, AdminStatCard };

@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { AdminShell } from "@/components/admin/admin-shell";
+import { AdminPage } from "@/routes/admin";
 import {
   deleteAdminTenant,
   fetchAdminTenant,
@@ -116,26 +116,26 @@ function AdminEditarEmpresaPage() {
 
   if (isLoading) {
     return (
-      <AdminShell title="Carregando...">
+      <AdminPage title="Carregando...">
         <div className="flex justify-center py-16">
           <div className="size-8 animate-spin rounded-full border-2 border-[#FF7A00] border-t-transparent" />
         </div>
-      </AdminShell>
+      </AdminPage>
     );
   }
 
   if (!tenant) {
     return (
-      <AdminShell title="Empresa não encontrada">
+      <AdminPage title="Empresa não encontrada">
         <Link to="/admin" className="text-sm text-[#FF7A00] hover:underline">
           ← Voltar para empresas
         </Link>
-      </AdminShell>
+      </AdminPage>
     );
   }
 
   return (
-    <AdminShell
+    <AdminPage
       title={tenant.name}
       subtitle={`ID: ${tenant.id}`}
       actions={
@@ -397,7 +397,7 @@ function AdminEditarEmpresaPage() {
           </Link>
         </aside>
       </div>
-    </AdminShell>
+    </AdminPage>
   );
 }
 
