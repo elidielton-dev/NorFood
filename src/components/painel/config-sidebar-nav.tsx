@@ -84,7 +84,8 @@ export function ConfigSidebarNav({
           onClick={onNavigate}
           title="Configurações"
           className={cn(
-            "mx-2 flex items-center justify-center rounded-lg py-2.5 transition",
+            "mx-2 flex items-center justify-center py-2.5 transition",
+            onConfigArea && "rounded-lg",
             onConfigArea
               ? "bg-[var(--tenant-primary,#FF7A00)]/10 text-[var(--tenant-primary,#FF7A00)]"
               : "text-[#6B7280] hover:bg-[#F6F7F9] hover:text-[#111111]",
@@ -102,24 +103,25 @@ export function ConfigSidebarNav({
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "mx-2 flex w-[calc(100%-1rem)] items-center justify-between px-3 py-2.5 text-left transition",
+          "mx-2 flex w-[calc(100%-1rem)] items-center justify-between gap-3 px-3 py-2 text-left text-sm transition",
+          (onConfigArea || open) && "rounded-lg",
           onConfigArea
             ? "bg-[var(--tenant-primary,#FF7A00)] font-medium text-white"
             : "text-[#6B7280] hover:bg-[#F6F7F9] hover:text-[#111111]",
         )}
       >
-        <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em]">
-          <Settings2 className="size-3.5 shrink-0" />
-          Configurações
+        <span className="flex min-w-0 items-center gap-3 font-medium">
+          <Settings2 className="size-4 shrink-0" />
+          <span className="truncate">Configurações</span>
         </span>
-        {open ? <ChevronUp className="size-3.5 opacity-80" /> : <ChevronDown className="size-3.5 opacity-80" />}
+        {open ? <ChevronUp className="size-4 shrink-0 opacity-80" /> : <ChevronDown className="size-4 shrink-0 opacity-80" />}
       </button>
 
       {open ? (
         <div className="mt-1">
           {groups.map((group) => (
             <div key={group.key}>
-              <p className="px-4 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[#6B7280]">
+              <p className="mb-1 px-4 pt-2.5 text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">
                 {group.title}
               </p>
               <ul className="pb-1">
@@ -132,7 +134,7 @@ export function ConfigSidebarNav({
                         to={href}
                         onClick={onNavigate}
                         className={cn(
-                          "mx-2 flex items-center justify-between gap-2 rounded-lg py-2 pl-7 pr-3 text-[12px] transition",
+                          "mx-2 flex items-center justify-between gap-2 py-2 pl-9 pr-3 text-sm transition",
                           active
                             ? "bg-[var(--tenant-primary,#FF7A00)]/10 font-medium text-[var(--tenant-primary,#FF7A00)]"
                             : "text-[#6B7280] hover:bg-[#F6F7F9] hover:text-[#111111]",
