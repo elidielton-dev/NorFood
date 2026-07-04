@@ -1,10 +1,25 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/parceiro/sem-acesso")({
   ssr: false,
   component: ParceiroSemAcessoPage,
 });
+
+function ParceiroSemAcessoEmailHint() {
+  const [email, setEmail] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+    void supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
+  }, []);
+  if (!email) return null;
+  return (
+    <p className="mt-2 text-xs text-[#9CA3AF]">
+      Conta atual: <span className="font-medium text-[#6B7280]">{email}</span>
+    </p>
+  );
+}
 
 function ParceiroSemAcessoPage() {
   async function trocarConta() {
@@ -23,6 +38,7 @@ function ParceiroSemAcessoPage() {
           Esta area e exclusiva para usuarios vinculados a uma revendedora. Faca login com o e-mail
           owner cadastrado no admin ou peça ao administrador Norfood para liberar seu acesso.
         </p>
+        <ParceiroSemAcessoEmailHint />
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
           <button
             type="button"

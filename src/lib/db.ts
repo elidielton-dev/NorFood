@@ -337,6 +337,21 @@ export async function listarMesas(): Promise<Mesa[]> {
   return data as Mesa[];
 }
 
+export type MesaVinculo = {
+  id: string;
+  mesa_id: string;
+  pedido_id: string;
+};
+
+export async function listarMesaVinculos(): Promise<MesaVinculo[]> {
+  if (isDemo()) return [];
+  const { data, error } = await withTenantId(
+    supabase.from("mesa_vinculos").select("id, mesa_id, pedido_id"),
+  );
+  if (error) throw error;
+  return (data ?? []) as MesaVinculo[];
+}
+
 export async function listarPedidos(): Promise<Pedido[]> {
   if (isDemo()) {
     try {
@@ -801,6 +816,12 @@ export async function mudarStatusPedido(id: string, status: PedidoStatus) {
       return await demoStore.updatePedidoStatus(id, status);
     }
   }
-  const { error } = await supabase.from("pedidos").update({ status }).eq("id", id);
+  let query = supabase.from("pedidos").update({ status }).eq("id", id);
+  try {
+    query = withTenantId(query);
+  } catch {
+    // Cliente/motoboy sem contexto de tenant: RLS limita ao próprio pedido/entrega.
+  }
+  const { error } = await query;
   if (error) throw error;
 }

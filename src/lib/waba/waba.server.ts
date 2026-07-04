@@ -25,6 +25,7 @@ import {
 } from "@/lib/waba/phone-utils";
 import { normalizeWhatsAppPhone, phonesMatchLoosely } from "@/lib/whatsapp";
 import { runWabaAutomations } from "@/lib/waba/automations-engine.server";
+import { DEFAULT_WABA_VERIFY_TOKEN, META_DEVELOPER_APP } from "@/lib/meta/developer-app";
 import {
   WABA_WORKSPACE_ID,
   type WabaAutomation,
@@ -43,7 +44,7 @@ function db(): Db {
 
 const DEFAULT_WABA_PHONE_NUMBER_ID = "1177941225399615";
 const DEFAULT_WABA_ID = "1323860869938811";
-const DEFAULT_VERIFY_TOKEN = "abelha-mel-2026";
+const DEFAULT_VERIFY_TOKEN = DEFAULT_WABA_VERIFY_TOKEN;
 
 function formVerifyTokenFromRow(verifyTokenEncrypted: string | null | undefined): string {
   if (!verifyTokenEncrypted) return DEFAULT_VERIFY_TOKEN;
@@ -141,8 +142,7 @@ export async function saveWabaConfig(input: {
 
   const appId = process.env.META_APP_ID;
   const appSecret = process.env.META_APP_SECRET;
-  const webhookUrl =
-    process.env.WABA_WEBHOOK_URL ?? "https://abelhaemel.vercel.app/api/waba/webhook";
+  const webhookUrl = process.env.WABA_WEBHOOK_URL ?? META_DEVELOPER_APP.webhookUrl;
   const webhookFields = coexistenceMode
     ? WABA_COEXISTENCE_WEBHOOK_FIELDS
     : (process.env.WABA_WEBHOOK_FIELDS ?? "messages");
@@ -938,16 +938,23 @@ export async function listWabaAutomationLogs(limit = 50) {
 
 /** Usado pelo webhook Meta — resolve verify_token em texto plano */
 export async function findWabaVerifyTokenMatch(plainToken: string): Promise<boolean> {
+  const envToken = process.env.WABA_VERIFY_TOKEN?.trim();
+  if (envToken && envToken === plainToken) return true;
+
   const { data } = await db()
     .from("waba_config")
     .select("verify_token")
     .eq("workspace_id", WABA_WORKSPACE_ID)
     .maybeSingle();
-  if (!data?.verify_token) return false;
+
+  if (!data?.verify_token) {
+    return plainToken === DEFAULT_VERIFY_TOKEN;
+  }
+
   try {
     return decrypt(data.verify_token) === plainToken;
   } catch {
-    return false;
+    return plainToken === DEFAULT_VERIFY_TOKEN;
   }
 }
 

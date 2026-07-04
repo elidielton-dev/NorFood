@@ -347,10 +347,15 @@ export const saveAtendimentoConversationContactServer = createServerFn({ method:
 
 export const fetchAtendimentoContactCrmServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { phone?: string | null }) => input)
+  .validator((input: { phone?: string | null; tenantSlug?: string | null }) => input)
   .handler(async ({ context, data }) => {
     await staffOnly(context.userId);
-    return fetchAtendimentoContactCrm(data.phone);
+    let tenantId: string | null = null;
+    if (data.tenantSlug) {
+      const { resolveStaffTenantId } = await import("@/lib/api/auth-helpers.server");
+      tenantId = await resolveStaffTenantId(context.userId, data.tenantSlug);
+    }
+    return fetchAtendimentoContactCrm(data.phone, tenantId);
   });
 
 export const fetchAtendimentoStatsServer = createServerFn({ method: "GET" })

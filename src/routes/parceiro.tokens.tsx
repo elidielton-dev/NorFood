@@ -3,13 +3,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ParceiroPage } from "@/routes/parceiro";
+import { ParceiroDataTable, type ParceiroTableColumn } from "@/components/parceiro/parceiro-data-table";
+import { ParceiroCard, ParceiroPage } from "@/routes/parceiro";
 import {
   createActivationToken,
   fetchActivationTokens,
   fetchResellerDashboard,
   revokeActivationToken,
 } from "@/lib/reseller/client";
+import type { ActivationTokenRow } from "@/lib/reseller/types";
 import type { BillingPlanId } from "@/lib/platform/billing-plans";
 import { BILLING_PLANS } from "@/lib/platform/billing-plans";
 
@@ -60,104 +62,136 @@ function ParceiroTokensPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  return (
-    <ParceiroPage title="Tokens de ativacao" subtitle="Links para novos restaurantes se cadastrarem.">
-      <div className="mb-6 grid gap-3 rounded-2xl border border-[#E5E7EB] bg-white p-4 sm:grid-cols-4">
-        <label className="text-sm">
-          <span className="mb-1 block font-medium">Plano</span>
-          <select
-            className="w-full rounded-lg border px-3 py-2"
-            value={plan}
-            onChange={(e) => setPlan(e.target.value as BillingPlanId)}
-          >
-            {allowedPlans.map((p) => (
-              <option key={p} value={p}>
-                {BILLING_PLANS[p].name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm">
-          <span className="mb-1 block font-medium">Usos</span>
-          <input
-            type="number"
-            min={1}
-            className="w-full rounded-lg border px-3 py-2"
-            value={maxUses}
-            onChange={(e) => setMaxUses(Number(e.target.value))}
-          />
-        </label>
-        <label className="text-sm">
-          <span className="mb-1 block font-medium">Validade (dias)</span>
-          <input
-            type="number"
-            min={1}
-            className="w-full rounded-lg border px-3 py-2"
-            value={expiresInDays}
-            onChange={(e) => setExpiresInDays(Number(e.target.value))}
-          />
-        </label>
-        <div className="flex items-end">
+  const columns: ParceiroTableColumn<ActivationTokenRow>[] = [
+    {
+      id: "token",
+      header: "Token",
+      sortable: true,
+      sortValue: (t) => t.token_prefix,
+      cell: (t) => <span className="font-mono text-xs">{t.token_prefix}…</span>,
+    },
+    {
+      id: "plan",
+      header: "Plano",
+      sortable: true,
+      sortValue: (t) => t.plan,
+      cell: (t) => BILLING_PLANS[t.plan]?.name ?? t.plan,
+    },
+    {
+      id: "uses",
+      header: "Usos",
+      sortable: true,
+      sortValue: (t) => t.uses_count,
+      cell: (t) => `${t.uses_count}/${t.max_uses}`,
+    },
+    {
+      id: "status",
+      header: "Status",
+      sortable: true,
+      sortValue: (t) => t.status,
+      cell: (t) => <span className="capitalize">{t.status}</span>,
+    },
+    {
+      id: "expires",
+      header: "Expira",
+      sortable: true,
+      sortValue: (t) => t.expires_at ?? "",
+      cell: (t) =>
+        t.expires_at ? new Date(t.expires_at).toLocaleDateString("pt-BR") : "—",
+    },
+    {
+      id: "action",
+      header: "",
+      className: "text-right",
+      cell: (t) =>
+        t.status === "active" ? (
           <button
             type="button"
-            onClick={() => createMutation.mutate()}
-            disabled={createMutation.isPending}
-            className="w-full rounded-xl bg-[#111111] px-4 py-2.5 text-sm font-medium text-white"
+            onClick={() => revokeMutation.mutate(t.id)}
+            className="inline-flex items-center gap-1 text-xs text-rose-600 hover:underline"
           >
-            Gerar link
+            <Trash2 className="size-3.5" />
+            Revogar
           </button>
-        </div>
-      </div>
+        ) : (
+          <span className="text-xs text-[#9CA3AF]">—</span>
+        ),
+    },
+  ];
 
-      {isLoading ? (
-        <p className="text-sm text-[#6B7280]">Carregando...</p>
-      ) : (
-        <div className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
-          <table className="w-full text-sm">
-            <thead className="bg-[#F6F7F9] text-left text-xs uppercase text-[#6B7280]">
-              <tr>
-                <th className="px-4 py-3">Token</th>
-                <th className="px-4 py-3">Plano</th>
-                <th className="px-4 py-3">Usos</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Expira</th>
-                <th className="px-4 py-3 text-right">Acoes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tokens.map((token) => (
-                <tr key={token.id} className="border-t border-[#E5E7EB]">
-                  <td className="px-4 py-3 font-mono text-xs">{token.token_prefix}…</td>
-                  <td className="px-4 py-3 capitalize">{token.plan}</td>
-                  <td className="px-4 py-3">
-                    {token.uses_count}/{token.max_uses}
-                  </td>
-                  <td className="px-4 py-3 capitalize">{token.status}</td>
-                  <td className="px-4 py-3">
-                    {token.expires_at
-                      ? new Date(token.expires_at).toLocaleDateString("pt-BR")
-                      : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {token.status === "active" ? (
-                      <button
-                        type="button"
-                        onClick={() => revokeMutation.mutate(token.id)}
-                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-rose-600 hover:bg-rose-50"
-                      >
-                        <Trash2 className="size-3.5" />
-                        Revogar
-                      </button>
-                    ) : (
-                      <span className="text-xs text-[#6B7280]">—</span>
-                    )}
-                  </td>
-                </tr>
+  return (
+    <ParceiroPage title="Tokens de ativacao" subtitle="Links para novos restaurantes se cadastrarem.">
+      <ParceiroCard title="Gerar novo link" className="mb-6">
+        <div className="grid gap-3 sm:grid-cols-4">
+          <label className="text-sm">
+            <span className="mb-1 block font-medium">Plano</span>
+            <select
+              className="w-full rounded-lg border px-3 py-2"
+              value={plan}
+              onChange={(e) => setPlan(e.target.value as BillingPlanId)}
+            >
+              {allowedPlans.map((p) => (
+                <option key={p} value={p}>
+                  {BILLING_PLANS[p].name}
+                </option>
               ))}
-            </tbody>
-          </table>
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block font-medium">Usos</span>
+            <input
+              type="number"
+              min={1}
+              className="w-full rounded-lg border px-3 py-2"
+              value={maxUses}
+              onChange={(e) => setMaxUses(Number(e.target.value))}
+            />
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block font-medium">Validade (dias)</span>
+            <input
+              type="number"
+              min={1}
+              className="w-full rounded-lg border px-3 py-2"
+              value={expiresInDays}
+              onChange={(e) => setExpiresInDays(Number(e.target.value))}
+            />
+          </label>
+          <div className="flex items-end">
+            <button
+              type="button"
+              onClick={() => createMutation.mutate()}
+              disabled={createMutation.isPending}
+              className="w-full rounded-lg bg-[#111111] px-4 py-2.5 text-sm font-medium text-white"
+            >
+              Gerar link
+            </button>
+          </div>
         </div>
-      )}
+      </ParceiroCard>
+
+      <ParceiroDataTable
+        columns={columns}
+        data={tokens}
+        rowKey={(t) => t.id}
+        isLoading={isLoading}
+        searchPlaceholder="Pesquisa rapida..."
+        searchMatch={(t, q) => `${t.token_prefix} ${t.plan} ${t.status}`.toLowerCase().includes(q)}
+        filters={[
+          {
+            id: "status",
+            label: "Status",
+            options: [
+              { value: "active", label: "Ativo" },
+              { value: "consumed", label: "Consumido" },
+              { value: "expired", label: "Expirado" },
+              { value: "revoked", label: "Revogado" },
+            ],
+            match: (t, v) => t.status === v,
+          },
+        ]}
+        emptyMessage="Nenhum token gerado."
+      />
     </ParceiroPage>
   );
 }

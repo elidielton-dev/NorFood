@@ -257,9 +257,23 @@ export async function ensureOperationalOrderRecords(
     "id" | "numero" | "endereco" | "taxa_entrega" | "total" | "forma_pagamento"
   > & {
     bairro: string;
+    tenant_id?: string | null;
     createFinanceEntry?: boolean;
   },
 ) {
+  let tenantId = order.tenant_id ?? null;
+  if (!tenantId) {
+    const { data: pedidoTenant } = await supabaseAdmin
+      .from("pedidos")
+      .select("tenant_id")
+      .eq("id", order.id)
+      .maybeSingle();
+    tenantId = (pedidoTenant as { tenant_id?: string | null } | null)?.tenant_id ?? null;
+  }
+  if (!tenantId) {
+    throw new Error("Pedido sem tenant_id — nao e possivel criar entrega operacional.");
+  }
+
   const { data: existingDelivery, error: deliverySelectError } = await supabaseAdmin
     .from("entregas")
     .select("id")
@@ -274,6 +288,7 @@ export async function ensureOperationalOrderRecords(
       bairro: order.bairro,
       taxa: order.taxa_entrega,
       status: "pendente",
+      tenant_id: tenantId,
     });
     if (deliveryInsertError) throw deliveryInsertError;
   }
@@ -300,7 +315,8 @@ export async function ensureOperationalOrderRecords(
         valor: order.total,
         forma: order.forma_pagamento as FormaPagamento,
         pedido_id: order.id,
-      });
+        tenant_id: tenantId,
+      } as never);
     if (financeInsertError) throw financeInsertError;
   }
 }
@@ -390,6 +406,7 @@ export async function syncMercadoPagoPaymentToOrder(paymentId: string) {
       total: updatedOrder.total,
       forma_pagamento: updatedOrder.forma_pagamento,
       bairro,
+      tenant_id: (updatedOrder as { tenant_id?: string | null }).tenant_id ?? null,
       createFinanceEntry: true,
     });
   }

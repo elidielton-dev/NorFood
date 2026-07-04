@@ -19,6 +19,12 @@ import {
   listResellerTeamServer,
   getResellerProfileServer,
   listResellerInvoicesServer,
+  getResellerPortalCountsServer,
+  listResellerPendenciasServer,
+  listResellerLeadsServer,
+  getResellerLeadStatsServer,
+  createResellerLeadServer,
+  updateResellerLeadStatusServer,
 } from "@/lib/api/platform-reseller.functions";
 
 export async function checkResellerAccess() {
@@ -88,6 +94,34 @@ export async function fetchResellerProfile() {
 
 export async function fetchResellerInvoices() {
   return listResellerInvoicesServer();
+}
+
+export async function fetchResellerPortalCounts() {
+  return getResellerPortalCountsServer();
+}
+
+export async function fetchResellerPendencias() {
+  return listResellerPendenciasServer();
+}
+
+export async function fetchResellerLeads() {
+  return listResellerLeadsServer();
+}
+
+export async function fetchResellerLeadStats() {
+  return getResellerLeadStatsServer();
+}
+
+export async function createResellerLead(
+  input: Parameters<typeof createResellerLeadServer>[0]["data"],
+) {
+  return createResellerLeadServer({ data: input });
+}
+
+export async function updateResellerLeadStatus(
+  input: Parameters<typeof updateResellerLeadStatusServer>[0]["data"],
+) {
+  return updateResellerLeadStatusServer({ data: input });
 }
 
 export async function impersonateResellerTenant(tenantId: string) {

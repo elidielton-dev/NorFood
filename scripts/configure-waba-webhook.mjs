@@ -38,8 +38,8 @@ loadDotEnv();
 const APP_ID = process.env.META_APP_ID;
 const APP_SECRET = process.env.META_APP_SECRET;
 const CALLBACK =
-  process.env.WABA_WEBHOOK_URL ?? "https://abelhaemel.vercel.app/api/waba/webhook";
-const VERIFY = process.env.WABA_VERIFY_TOKEN ?? "abelha-mel-2026";
+  process.env.WABA_WEBHOOK_URL ?? "https://norfood.com.br/api/waba/webhook";
+const VERIFY = process.env.WABA_VERIFY_TOKEN ?? "norfood-waba-2026";
 const FIELDS =
   process.env.WABA_WEBHOOK_FIELDS ??
   "messages,history,smb_app_state_sync,smb_message_echoes";

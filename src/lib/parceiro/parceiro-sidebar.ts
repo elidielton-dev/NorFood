@@ -1,15 +1,16 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  AlertCircle,
   Award,
   BarChart3,
-  BookOpen,
   Building2,
   GraduationCap,
   HelpCircle,
+  Home,
   KeyRound,
-  LayoutDashboard,
   Megaphone,
   Settings,
+  Target,
   Users,
   Wallet,
 } from "lucide-react";
@@ -19,35 +20,61 @@ export type ParceiroSidebarItem = {
   label: string;
   to: string;
   icon: LucideIcon;
+  exact?: boolean;
+  /** Chave para badge dinâmico (pendencias | crm) */
+  badgeKey?: "pendencias" | "crm";
   badge?: string;
 };
 
 export type ParceiroSidebarSection = {
   id: string;
-  label: string;
+  title: string;
   items: ParceiroSidebarItem[];
 };
+
+export const parceiroSidebarHomeItem: ParceiroSidebarItem = {
+  id: "home",
+  label: "Pagina inicial",
+  to: "/parceiro",
+  icon: Home,
+  exact: true,
+};
+
+/** Itens prioritários com badge (estilo Hiperador) */
+export const PARCEIRO_SIDEBAR_PRIORITY_ITEMS: ParceiroSidebarItem[] = [
+  {
+    id: "pendencias",
+    label: "Pendencias",
+    to: "/parceiro/pendencias",
+    icon: AlertCircle,
+    badgeKey: "pendencias",
+  },
+  {
+    id: "crm",
+    label: "CRM",
+    to: "/parceiro/crm",
+    icon: Target,
+    badgeKey: "crm",
+  },
+];
 
 export const PARCEIRO_SIDEBAR_SECTIONS: ParceiroSidebarSection[] = [
   {
     id: "visao",
-    label: "Visão geral",
-    items: [
-      { id: "dashboard", label: "Início", to: "/parceiro", icon: LayoutDashboard },
-      { id: "relatorios", label: "Relatórios", to: "/parceiro/relatorios", icon: BarChart3 },
-    ],
+    title: "Visao geral",
+    items: [{ id: "relatorios", label: "Relatorios", to: "/parceiro/relatorios", icon: BarChart3 }],
   },
   {
     id: "carteira",
-    label: "Carteira",
+    title: "Carteira",
     items: [
       { id: "restaurantes", label: "Restaurantes", to: "/parceiro/restaurantes", icon: Building2 },
-      { id: "tokens", label: "Tokens", to: "/parceiro/tokens", icon: KeyRound },
+      { id: "tokens", label: "Tokens de ativacao", to: "/parceiro/tokens", icon: KeyRound },
     ],
   },
   {
     id: "crescimento",
-    label: "Crescimento",
+    title: "Crescimento",
     items: [
       { id: "marketing", label: "Marketing", to: "/parceiro/marketing", icon: Megaphone },
       { id: "academia", label: "Academia", to: "/parceiro/academia", icon: GraduationCap },
@@ -56,7 +83,7 @@ export const PARCEIRO_SIDEBAR_SECTIONS: ParceiroSidebarSection[] = [
   },
   {
     id: "operacao",
-    label: "Operação",
+    title: "Operacao",
     items: [
       { id: "financeiro", label: "Financeiro", to: "/parceiro/financeiro", icon: Wallet },
       { id: "equipe", label: "Equipe", to: "/parceiro/equipe", icon: Users },
@@ -64,23 +91,54 @@ export const PARCEIRO_SIDEBAR_SECTIONS: ParceiroSidebarSection[] = [
   },
   {
     id: "suporte",
-    label: "Suporte",
+    title: "Suporte",
     items: [
       { id: "ajuda", label: "Central de ajuda", to: "/parceiro/ajuda", icon: HelpCircle },
-      { id: "configuracoes", label: "Configurações", to: "/parceiro/configuracoes", icon: Settings },
+      { id: "configuracoes", label: "Configuracoes", to: "/parceiro/configuracoes", icon: Settings },
     ],
   },
 ];
 
-export function getAllParceiroSidebarItems() {
-  return PARCEIRO_SIDEBAR_SECTIONS.flatMap((s) => s.items);
+export function getAllParceiroSidebarItems(): ParceiroSidebarItem[] {
+  return [
+    parceiroSidebarHomeItem,
+    ...PARCEIRO_SIDEBAR_PRIORITY_ITEMS,
+    ...PARCEIRO_SIDEBAR_SECTIONS.flatMap((s) => s.items),
+  ];
 }
 
-export function isParceiroSidebarItemActive(pathname: string, itemTo: string) {
+export function resolveParceiroSidebarBadge(
+  item: ParceiroSidebarItem,
+  counts: { pendencias: number; crmLeadsOpen: number },
+): string | undefined {
+  if (item.badgeKey === "pendencias" && counts.pendencias > 0) return String(counts.pendencias);
+  if (item.badgeKey === "crm" && counts.crmLeadsOpen > 0) return String(counts.crmLeadsOpen);
+  return item.badge;
+}
+
+/** Evita marcar item pai quando uma rota filha mais especifica esta ativa. */
+export function isParceiroSidebarItemActive(
+  pathname: string,
+  item: ParceiroSidebarItem,
+  allItems: ParceiroSidebarItem[],
+) {
   const normalized = pathname.replace(/\/$/, "") || "/";
-  const target = itemTo.replace(/\/$/, "") || "/";
-  if (target === "/parceiro") {
-    return normalized === "/parceiro" || normalized === "/parceiro/";
+  const target = item.to.replace(/\/$/, "") || "/";
+
+  if (item.exact) {
+    return normalized === target || (target === "/parceiro" && normalized === "/parceiro");
   }
-  return normalized === target || normalized.startsWith(`${target}/`);
+  if (normalized === target) return true;
+  if (!normalized.startsWith(`${target}/`)) return false;
+
+  const childMatch = allItems.some(
+    (other) =>
+      other.to !== item.to &&
+      other.to.length > item.to.length &&
+      other.to.startsWith(`${target}/`) &&
+      (normalized === other.to.replace(/\/$/, "") ||
+        normalized.startsWith(`${other.to.replace(/\/$/, "")}/`)),
+  );
+
+  return !childMatch;
 }

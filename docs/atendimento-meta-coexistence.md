@@ -7,14 +7,14 @@ Permite usar o **WhatsApp Business no celular** da loja e, ao mesmo tempo, receb
 - WhatsApp **Business** no celular (versão **2.24.17+**)
 - Número real da loja (não sandbox de teste)
 - Meta Business verificado
-- App Meta com webhook em `https://abelhaemel.vercel.app/api/waba/webhook`
+- App Meta NorFood com webhook em `https://norfood.com.br/api/waba/webhook`
 - Migration `20260620120000_waba_coexistence.sql` aplicada no Supabase
 
 ## Passo a passo — Abelha & Mel
 
 ### 1. Meta for Developers
 
-1. Abra o app Meta (ID `1478691093569068`)
+1. Abra o app **NorFood** no [Meta for Developers](https://developers.facebook.com)
 2. WhatsApp → **API Setup** ou fluxo **Conectar seu app WhatsApp Business existente**
 3. Escolha **conectar conta existente do WhatsApp Business** (Coexistence)
 4. Escaneie o QR Code **no celular da loja** (mantenha o app instalado)

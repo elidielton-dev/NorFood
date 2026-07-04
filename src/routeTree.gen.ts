@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SelecionarEmpresaRouteImport } from './routes/selecionar-empresa'
 import { Route as RecuperarSenhaRouteImport } from './routes/recuperar-senha'
+import { Route as ParceirosRouteImport } from './routes/parceiros'
 import { Route as ParceiroRouteImport } from './routes/parceiro'
 import { Route as LojaRouteImport } from './routes/loja'
 import { Route as LoginRouteImport } from './routes/login'
@@ -27,9 +28,11 @@ import { Route as ParceiroTokensRouteImport } from './routes/parceiro.tokens'
 import { Route as ParceiroSemAcessoRouteImport } from './routes/parceiro.sem-acesso'
 import { Route as ParceiroRestaurantesRouteImport } from './routes/parceiro.restaurantes'
 import { Route as ParceiroRelatoriosRouteImport } from './routes/parceiro.relatorios'
+import { Route as ParceiroPendenciasRouteImport } from './routes/parceiro.pendencias'
 import { Route as ParceiroMarketingRouteImport } from './routes/parceiro.marketing'
 import { Route as ParceiroFinanceiroRouteImport } from './routes/parceiro.financeiro'
 import { Route as ParceiroEquipeRouteImport } from './routes/parceiro.equipe'
+import { Route as ParceiroCrmRouteImport } from './routes/parceiro.crm'
 import { Route as ParceiroConquistasRouteImport } from './routes/parceiro.conquistas'
 import { Route as ParceiroConfiguracoesRouteImport } from './routes/parceiro.configuracoes'
 import { Route as ParceiroAjudaRouteImport } from './routes/parceiro.ajuda'
@@ -150,6 +153,11 @@ const RecuperarSenhaRoute = RecuperarSenhaRouteImport.update({
   path: '/recuperar-senha',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ParceirosRoute = ParceirosRouteImport.update({
+  id: '/parceiros',
+  path: '/parceiros',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ParceiroRoute = ParceiroRouteImport.update({
   id: '/parceiro',
   path: '/parceiro',
@@ -229,6 +237,11 @@ const ParceiroRelatoriosRoute = ParceiroRelatoriosRouteImport.update({
   path: '/relatorios',
   getParentRoute: () => ParceiroRoute,
 } as any)
+const ParceiroPendenciasRoute = ParceiroPendenciasRouteImport.update({
+  id: '/pendencias',
+  path: '/pendencias',
+  getParentRoute: () => ParceiroRoute,
+} as any)
 const ParceiroMarketingRoute = ParceiroMarketingRouteImport.update({
   id: '/marketing',
   path: '/marketing',
@@ -242,6 +255,11 @@ const ParceiroFinanceiroRoute = ParceiroFinanceiroRouteImport.update({
 const ParceiroEquipeRoute = ParceiroEquipeRouteImport.update({
   id: '/equipe',
   path: '/equipe',
+  getParentRoute: () => ParceiroRoute,
+} as any)
+const ParceiroCrmRoute = ParceiroCrmRouteImport.update({
+  id: '/crm',
+  path: '/crm',
   getParentRoute: () => ParceiroRoute,
 } as any)
 const ParceiroConquistasRoute = ParceiroConquistasRouteImport.update({
@@ -867,6 +885,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/loja': typeof LojaRouteWithChildren
   '/parceiro': typeof ParceiroRouteWithChildren
+  '/parceiros': typeof ParceirosRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/selecionar-empresa': typeof SelecionarEmpresaRoute
   '/mesa': typeof AuthenticatedMesaRoute
@@ -895,9 +914,11 @@ export interface FileRoutesByFullPath {
   '/parceiro/ajuda': typeof ParceiroAjudaRoute
   '/parceiro/configuracoes': typeof ParceiroConfiguracoesRoute
   '/parceiro/conquistas': typeof ParceiroConquistasRoute
+  '/parceiro/crm': typeof ParceiroCrmRoute
   '/parceiro/equipe': typeof ParceiroEquipeRoute
   '/parceiro/financeiro': typeof ParceiroFinanceiroRoute
   '/parceiro/marketing': typeof ParceiroMarketingRoute
+  '/parceiro/pendencias': typeof ParceiroPendenciasRoute
   '/parceiro/relatorios': typeof ParceiroRelatoriosRoute
   '/parceiro/restaurantes': typeof ParceiroRestaurantesRouteWithChildren
   '/parceiro/sem-acesso': typeof ParceiroSemAcessoRoute
@@ -996,6 +1017,7 @@ export interface FileRoutesByTo {
   '/entregador': typeof EntregadorRouteWithChildren
   '/login': typeof LoginRoute
   '/loja': typeof LojaRouteWithChildren
+  '/parceiros': typeof ParceirosRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/selecionar-empresa': typeof SelecionarEmpresaRoute
   '/mesa': typeof AuthenticatedMesaRoute
@@ -1022,9 +1044,11 @@ export interface FileRoutesByTo {
   '/parceiro/ajuda': typeof ParceiroAjudaRoute
   '/parceiro/configuracoes': typeof ParceiroConfiguracoesRoute
   '/parceiro/conquistas': typeof ParceiroConquistasRoute
+  '/parceiro/crm': typeof ParceiroCrmRoute
   '/parceiro/equipe': typeof ParceiroEquipeRoute
   '/parceiro/financeiro': typeof ParceiroFinanceiroRoute
   '/parceiro/marketing': typeof ParceiroMarketingRoute
+  '/parceiro/pendencias': typeof ParceiroPendenciasRoute
   '/parceiro/relatorios': typeof ParceiroRelatoriosRoute
   '/parceiro/sem-acesso': typeof ParceiroSemAcessoRoute
   '/parceiro/tokens': typeof ParceiroTokensRoute
@@ -1120,6 +1144,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/loja': typeof LojaRouteWithChildren
   '/parceiro': typeof ParceiroRouteWithChildren
+  '/parceiros': typeof ParceirosRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/selecionar-empresa': typeof SelecionarEmpresaRoute
   '/_authenticated/mesa': typeof AuthenticatedMesaRoute
@@ -1148,9 +1173,11 @@ export interface FileRoutesById {
   '/parceiro/ajuda': typeof ParceiroAjudaRoute
   '/parceiro/configuracoes': typeof ParceiroConfiguracoesRoute
   '/parceiro/conquistas': typeof ParceiroConquistasRoute
+  '/parceiro/crm': typeof ParceiroCrmRoute
   '/parceiro/equipe': typeof ParceiroEquipeRoute
   '/parceiro/financeiro': typeof ParceiroFinanceiroRoute
   '/parceiro/marketing': typeof ParceiroMarketingRoute
+  '/parceiro/pendencias': typeof ParceiroPendenciasRoute
   '/parceiro/relatorios': typeof ParceiroRelatoriosRoute
   '/parceiro/restaurantes': typeof ParceiroRestaurantesRouteWithChildren
   '/parceiro/sem-acesso': typeof ParceiroSemAcessoRoute
@@ -1253,6 +1280,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/loja'
     | '/parceiro'
+    | '/parceiros'
     | '/recuperar-senha'
     | '/selecionar-empresa'
     | '/mesa'
@@ -1281,9 +1309,11 @@ export interface FileRouteTypes {
     | '/parceiro/ajuda'
     | '/parceiro/configuracoes'
     | '/parceiro/conquistas'
+    | '/parceiro/crm'
     | '/parceiro/equipe'
     | '/parceiro/financeiro'
     | '/parceiro/marketing'
+    | '/parceiro/pendencias'
     | '/parceiro/relatorios'
     | '/parceiro/restaurantes'
     | '/parceiro/sem-acesso'
@@ -1382,6 +1412,7 @@ export interface FileRouteTypes {
     | '/entregador'
     | '/login'
     | '/loja'
+    | '/parceiros'
     | '/recuperar-senha'
     | '/selecionar-empresa'
     | '/mesa'
@@ -1408,9 +1439,11 @@ export interface FileRouteTypes {
     | '/parceiro/ajuda'
     | '/parceiro/configuracoes'
     | '/parceiro/conquistas'
+    | '/parceiro/crm'
     | '/parceiro/equipe'
     | '/parceiro/financeiro'
     | '/parceiro/marketing'
+    | '/parceiro/pendencias'
     | '/parceiro/relatorios'
     | '/parceiro/sem-acesso'
     | '/parceiro/tokens'
@@ -1505,6 +1538,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/loja'
     | '/parceiro'
+    | '/parceiros'
     | '/recuperar-senha'
     | '/selecionar-empresa'
     | '/_authenticated/mesa'
@@ -1533,9 +1567,11 @@ export interface FileRouteTypes {
     | '/parceiro/ajuda'
     | '/parceiro/configuracoes'
     | '/parceiro/conquistas'
+    | '/parceiro/crm'
     | '/parceiro/equipe'
     | '/parceiro/financeiro'
     | '/parceiro/marketing'
+    | '/parceiro/pendencias'
     | '/parceiro/relatorios'
     | '/parceiro/restaurantes'
     | '/parceiro/sem-acesso'
@@ -1638,6 +1674,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   LojaRoute: typeof LojaRouteWithChildren
   ParceiroRoute: typeof ParceiroRouteWithChildren
+  ParceirosRoute: typeof ParceirosRoute
   RecuperarSenhaRoute: typeof RecuperarSenhaRoute
   SelecionarEmpresaRoute: typeof SelecionarEmpresaRoute
   ApiHealthRoute: typeof ApiHealthRoute
@@ -1668,6 +1705,13 @@ declare module '@tanstack/react-router' {
       path: '/recuperar-senha'
       fullPath: '/recuperar-senha'
       preLoaderRoute: typeof RecuperarSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parceiros': {
+      id: '/parceiros'
+      path: '/parceiros'
+      fullPath: '/parceiros'
+      preLoaderRoute: typeof ParceirosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/parceiro': {
@@ -1782,6 +1826,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ParceiroRelatoriosRouteImport
       parentRoute: typeof ParceiroRoute
     }
+    '/parceiro/pendencias': {
+      id: '/parceiro/pendencias'
+      path: '/pendencias'
+      fullPath: '/parceiro/pendencias'
+      preLoaderRoute: typeof ParceiroPendenciasRouteImport
+      parentRoute: typeof ParceiroRoute
+    }
     '/parceiro/marketing': {
       id: '/parceiro/marketing'
       path: '/marketing'
@@ -1801,6 +1852,13 @@ declare module '@tanstack/react-router' {
       path: '/equipe'
       fullPath: '/parceiro/equipe'
       preLoaderRoute: typeof ParceiroEquipeRouteImport
+      parentRoute: typeof ParceiroRoute
+    }
+    '/parceiro/crm': {
+      id: '/parceiro/crm'
+      path: '/crm'
+      fullPath: '/parceiro/crm'
+      preLoaderRoute: typeof ParceiroCrmRouteImport
       parentRoute: typeof ParceiroRoute
     }
     '/parceiro/conquistas': {
@@ -2996,9 +3054,11 @@ interface ParceiroRouteChildren {
   ParceiroAjudaRoute: typeof ParceiroAjudaRoute
   ParceiroConfiguracoesRoute: typeof ParceiroConfiguracoesRoute
   ParceiroConquistasRoute: typeof ParceiroConquistasRoute
+  ParceiroCrmRoute: typeof ParceiroCrmRoute
   ParceiroEquipeRoute: typeof ParceiroEquipeRoute
   ParceiroFinanceiroRoute: typeof ParceiroFinanceiroRoute
   ParceiroMarketingRoute: typeof ParceiroMarketingRoute
+  ParceiroPendenciasRoute: typeof ParceiroPendenciasRoute
   ParceiroRelatoriosRoute: typeof ParceiroRelatoriosRoute
   ParceiroRestaurantesRoute: typeof ParceiroRestaurantesRouteWithChildren
   ParceiroSemAcessoRoute: typeof ParceiroSemAcessoRoute
@@ -3011,9 +3071,11 @@ const ParceiroRouteChildren: ParceiroRouteChildren = {
   ParceiroAjudaRoute: ParceiroAjudaRoute,
   ParceiroConfiguracoesRoute: ParceiroConfiguracoesRoute,
   ParceiroConquistasRoute: ParceiroConquistasRoute,
+  ParceiroCrmRoute: ParceiroCrmRoute,
   ParceiroEquipeRoute: ParceiroEquipeRoute,
   ParceiroFinanceiroRoute: ParceiroFinanceiroRoute,
   ParceiroMarketingRoute: ParceiroMarketingRoute,
+  ParceiroPendenciasRoute: ParceiroPendenciasRoute,
   ParceiroRelatoriosRoute: ParceiroRelatoriosRoute,
   ParceiroRestaurantesRoute: ParceiroRestaurantesRouteWithChildren,
   ParceiroSemAcessoRoute: ParceiroSemAcessoRoute,
@@ -3051,6 +3113,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   LojaRoute: LojaRouteWithChildren,
   ParceiroRoute: ParceiroRouteWithChildren,
+  ParceirosRoute: ParceirosRoute,
   RecuperarSenhaRoute: RecuperarSenhaRoute,
   SelecionarEmpresaRoute: SelecionarEmpresaRoute,
   ApiHealthRoute: ApiHealthRoute,

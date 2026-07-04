@@ -1,4 +1,4 @@
-import { createServerFn } from "@tanstack/react-start";
+﻿import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requirePlatformAdmin } from "@/lib/platform-admin/auth.server";
 import { isValidTenantSlug, slugifyTenantName } from "@/lib/platform-admin/slug";
@@ -635,7 +635,11 @@ export const checkResellerAccessServer = createServerFn({ method: "GET" })
       .limit(1)
       .maybeSingle();
     if (!data) return { allowed: false as const };
-    const reseller = data.resellers as { slug: string; name: string; status: string } | null;
+    const rawReseller = data.resellers as
+      | { slug: string; name: string; status: string }
+      | { slug: string; name: string; status: string }[]
+      | null;
+    const reseller = Array.isArray(rawReseller) ? rawReseller[0] : rawReseller;
     if (!reseller || reseller.status !== "active") return { allowed: false as const };
     return {
       allowed: true as const,
@@ -844,4 +848,340 @@ export const listResellerTenantsAdminServer = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false });
     if (error) throw error;
     return data ?? [];
+  });
+
+// --- Portal parceiro: pendÃªncias, CRM, contadores ---
+
+export type ResellerPortalCounts = {
+  pendencias: number;
+  crmLeadsOpen: number;
+};
+
+export type ResellerPendenciaRow = {
+  id: string;
+  type: string;
+  title: string;
+  subtitle: string;
+  date: string | null;
+  severity: "warning" | "critical" | "info";
+  href?: string;
+};
+
+export type ResellerLeadStatus =
+  | "novo"
+  | "contato"
+  | "demo"
+  | "proposta"
+  | "ganho"
+  | "perdido";
+
+export type ResellerLeadRow = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  city: string | null;
+  state: string | null;
+  company_name: string | null;
+  status: ResellerLeadStatus;
+  source: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ResellerLeadStats = {
+  open: number;
+  last30Days: number;
+  opportunities: number;
+};
+
+function daysFromNowIso(days: number) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString();
+}
+
+export const getResellerPortalCountsServer = createServerFn({ method: "GET" })
+  .middleware([requireResellerStaff])
+  .handler(async ({ context }): Promise<ResellerPortalCounts> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const resellerId = context.resellerId as string;
+    const now = new Date().toISOString();
+    const in90 = daysFromNowIso(90);
+    const in14 = daysFromNowIso(14);
+
+    const [
+      { count: suspended },
+      { count: tokensExpiring },
+      { count: invoicesOpen },
+      billingRes,
+      leadsRes,
+    ] = await Promise.all([
+      supabaseAdmin
+        .from("tenants")
+        .select("id", { count: "exact", head: true })
+        .eq("reseller_id", resellerId)
+        .eq("status", "suspended"),
+      supabaseAdmin
+        .from("activation_tokens")
+        .select("id", { count: "exact", head: true })
+        .eq("reseller_id", resellerId)
+        .eq("status", "active")
+        .lte("expires_at", in14)
+        .gte("expires_at", now),
+      supabaseAdmin
+        .from("reseller_invoices")
+        .select("id", { count: "exact", head: true })
+        .eq("reseller_id", resellerId)
+        .in("status", ["draft", "open", "overdue"]),
+      supabaseAdmin.from("reseller_billing").select("payment_status").eq("reseller_id", resellerId).maybeSingle(),
+      supabaseAdmin
+        .from("reseller_leads")
+        .select("id", { count: "exact", head: true })
+        .eq("reseller_id", resellerId)
+        .in("status", ["novo", "contato", "demo", "proposta"]),
+    ]);
+
+    const { data: trialTenants } = await supabaseAdmin
+      .from("tenants")
+      .select("id")
+      .eq("reseller_id", resellerId)
+      .eq("status", "trial");
+
+    let trialSoon = 0;
+    for (const t of trialTenants ?? []) {
+      const { data: billing } = await supabaseAdmin
+        .from("tenant_billing")
+        .select("trial_ends_at")
+        .eq("tenant_id", t.id)
+        .maybeSingle();
+      const ends = billing?.trial_ends_at ? String(billing.trial_ends_at) : null;
+      if (ends && ends <= in90 && ends >= now) trialSoon += 1;
+    }
+
+    let pendencias =
+      (suspended ?? 0) + (tokensExpiring ?? 0) + (invoicesOpen ?? 0) + trialSoon;
+    if (billingRes.data?.payment_status === "overdue") pendencias += 1;
+
+    return {
+      pendencias,
+      crmLeadsOpen: leadsRes.error?.code === "42P01" ? 0 : (leadsRes.count ?? 0),
+    };
+  });
+
+export const listResellerPendenciasServer = createServerFn({ method: "GET" })
+  .middleware([requireResellerStaff])
+  .handler(async ({ context }): Promise<ResellerPendenciaRow[]> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const resellerId = context.resellerId as string;
+    const now = new Date();
+    const in90 = new Date();
+    in90.setDate(in90.getDate() + 90);
+    const in14 = new Date();
+    in14.setDate(in14.getDate() + 14);
+    const items: ResellerPendenciaRow[] = [];
+
+    const { data: tenants } = await supabaseAdmin
+      .from("tenants")
+      .select("id, name, slug, status")
+      .eq("reseller_id", resellerId);
+
+    for (const t of tenants ?? []) {
+      const { data: billing } = await supabaseAdmin
+        .from("tenant_billing")
+        .select("trial_ends_at")
+        .eq("tenant_id", t.id)
+        .maybeSingle();
+      const trialEnd = billing?.trial_ends_at ? new Date(String(billing.trial_ends_at)) : null;
+      if (t.status === "trial" && trialEnd && trialEnd <= in90 && trialEnd >= now) {
+        items.push({
+          id: `trial-${t.id}`,
+          type: "trial_expiring",
+          title: String(t.name),
+          subtitle: "Trial expira em breve â€” entre em contato para conversÃ£o.",
+          date: trialEnd.toISOString(),
+          severity: trialEnd <= in14 ? "critical" : "warning",
+          href: "/parceiro/restaurantes",
+        });
+      }
+      if (t.status === "suspended") {
+        items.push({
+          id: `susp-${t.id}`,
+          type: "suspended",
+          title: String(t.name),
+          subtitle: "Restaurante suspenso na carteira.",
+          date: null,
+          severity: "critical",
+          href: "/parceiro/restaurantes",
+        });
+      }
+    }
+
+    const { data: tokens } = await supabaseAdmin
+      .from("activation_tokens")
+      .select("id, token_prefix, expires_at")
+      .eq("reseller_id", resellerId)
+      .eq("status", "active")
+      .not("expires_at", "is", null);
+    for (const tok of tokens ?? []) {
+      const exp = tok.expires_at ? new Date(String(tok.expires_at)) : null;
+      if (exp && exp <= in14 && exp >= now) {
+        items.push({
+          id: `tok-${tok.id}`,
+          type: "token_expiring",
+          title: `Token ${tok.token_prefix}â€¦`,
+          subtitle: "Token de ativaÃ§Ã£o expira em breve.",
+          date: exp.toISOString(),
+          severity: "warning",
+          href: "/parceiro/tokens",
+        });
+      }
+    }
+
+    const { data: invoices } = await supabaseAdmin
+      .from("reseller_invoices")
+      .select("id, period_end, final_amount, status")
+      .eq("reseller_id", resellerId)
+      .in("status", ["draft", "open", "overdue"]);
+    for (const inv of invoices ?? []) {
+      items.push({
+        id: `inv-${inv.id}`,
+        type: "invoice_open",
+        title: `Fatura ${new Date(String(inv.period_end)).toLocaleDateString("pt-BR")}`,
+        subtitle: `Valor ${Number(inv.final_amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} â€” ${String(inv.status)}`,
+        date: String(inv.period_end),
+        severity: inv.status === "overdue" ? "critical" : "info",
+        href: "/parceiro/financeiro",
+      });
+    }
+
+    const { data: billing } = await supabaseAdmin
+      .from("reseller_billing")
+      .select("payment_status")
+      .eq("reseller_id", resellerId)
+      .maybeSingle();
+    if (billing?.payment_status === "overdue") {
+      items.push({
+        id: "billing-overdue",
+        type: "billing_overdue",
+        title: "Pagamento NorFood em atraso",
+        subtitle: "Regularize com a equipe NorFood para evitar suspensÃ£o.",
+        date: null,
+        severity: "critical",
+        href: "/parceiro/financeiro",
+      });
+    }
+
+    items.sort((a, b) => {
+      const order = { critical: 0, warning: 1, info: 2 };
+      return order[a.severity] - order[b.severity];
+    });
+    return items;
+  });
+
+export const listResellerLeadsServer = createServerFn({ method: "GET" })
+  .middleware([requireResellerStaff])
+  .handler(async ({ context }): Promise<ResellerLeadRow[]> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("reseller_leads")
+      .select("*")
+      .eq("reseller_id", context.resellerId)
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) {
+      if (error.code === "42P01") return [];
+      throw error;
+    }
+    return (data ?? []).map((row) => ({
+      id: String(row.id),
+      name: String(row.name),
+      email: (row.email as string | null) ?? null,
+      phone: (row.phone as string | null) ?? null,
+      city: (row.city as string | null) ?? null,
+      state: (row.state as string | null) ?? null,
+      company_name: (row.company_name as string | null) ?? null,
+      status: row.status as ResellerLeadStatus,
+      source: (row.source as string | null) ?? null,
+      notes: (row.notes as string | null) ?? null,
+      created_at: String(row.created_at),
+      updated_at: String(row.updated_at),
+    }));
+  });
+
+export const getResellerLeadStatsServer = createServerFn({ method: "GET" })
+  .middleware([requireResellerStaff])
+  .handler(async ({ context }): Promise<ResellerLeadStats> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const resellerId = context.resellerId as string;
+    const thirtyAgo = new Date();
+    thirtyAgo.setDate(thirtyAgo.getDate() - 30);
+
+    const { data, error } = await supabaseAdmin
+      .from("reseller_leads")
+      .select("status, created_at")
+      .eq("reseller_id", resellerId);
+    if (error) {
+      if (error.code === "42P01") return { open: 0, last30Days: 0, opportunities: 0 };
+      throw error;
+    }
+
+    const rows = data ?? [];
+    const open = rows.filter((r) =>
+      ["novo", "contato", "demo", "proposta"].includes(String(r.status)),
+    ).length;
+    const last30Days = rows.filter((r) => new Date(String(r.created_at)) >= thirtyAgo).length;
+    const opportunities = rows.filter((r) =>
+      ["demo", "proposta"].includes(String(r.status)),
+    ).length;
+    return { open, last30Days, opportunities };
+  });
+
+export const createResellerLeadServer = createServerFn({ method: "POST" })
+  .middleware([requireResellerStaff])
+  .validator(
+    (input: {
+      name: string;
+      email?: string;
+      phone?: string;
+      city?: string;
+      state?: string;
+      company_name?: string;
+      notes?: string;
+    }) => input,
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
+      .from("reseller_leads")
+      .insert({
+        reseller_id: context.resellerId,
+        name: data.name.trim(),
+        email: data.email?.trim() || null,
+        phone: data.phone?.trim() || null,
+        city: data.city?.trim() || null,
+        state: data.state?.trim()?.toUpperCase().slice(0, 2) || null,
+        company_name: data.company_name?.trim() || null,
+        notes: data.notes?.trim() || null,
+        created_by: context.userId,
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return { id: String(row.id) };
+  });
+
+export const updateResellerLeadStatusServer = createServerFn({ method: "POST" })
+  .middleware([requireResellerStaff])
+  .validator((input: { leadId: string; status: ResellerLeadStatus }) => input)
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("reseller_leads")
+      .update({ status: data.status, updated_at: new Date().toISOString() })
+      .eq("id", data.leadId)
+      .eq("reseller_id", context.resellerId);
+    if (error) throw error;
+    return { ok: true as const };
   });

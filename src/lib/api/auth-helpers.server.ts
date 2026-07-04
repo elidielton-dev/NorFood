@@ -100,6 +100,8 @@ export async function resolveStaffTenantId(
   type TenantRole = import("@/lib/tenant/types").TenantRole;
 
   async function assertCanAccessTenant(tenantId: string) {
+    if (await isPlatformAdminUserId(userId)) return;
+
     const { data: membership, error } = await supabaseAdmin
       .from("tenant_users")
       .select("role")
@@ -113,12 +115,6 @@ export async function resolveStaffTenantId(
       return;
     }
 
-    const { data: isStaff, error: staffError } = await supabaseAdmin.rpc("is_staff", {
-      _user_id: userId,
-    });
-    if (staffError) throw staffError;
-    if (isStaff) return;
-
     throw new Error("Sem permissão para acessar este restaurante.");
   }
 
@@ -131,7 +127,6 @@ export async function resolveStaffTenantId(
       .maybeSingle();
     if (tenantError) throw tenantError;
     if (!tenant?.id) throw new Error("Restaurante não encontrado.");
-    if (await isPlatformAdminUserId(userId)) return tenant.id;
     await assertCanAccessTenant(tenant.id);
     return tenant.id;
   }

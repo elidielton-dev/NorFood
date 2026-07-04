@@ -1,51 +1,34 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { type ReactNode, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   formatBRL,
   itensDoPedido,
+  listarMesaVinculos,
   listarMesas,
   listarPedidos,
-  listarProdutos,
   type Mesa,
   type Pedido,
-  type Produto,
 } from "@/lib/db";
-import {
-  finalizeMesaOrderServer,
-  openMesaOrderServer,
-  updateMesaStatusServer,
-} from "@/lib/api/mesas.functions";
+import { mergeMesasServer, updateMesaStatusServer } from "@/lib/api/mesas.functions";
 import { printHtmlReceipt } from "@/lib/print";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Printer, Receipt, ShoppingBasket, Wallet } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Link2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import {
   GestaoButton,
-  GestaoCard,
   GestaoEmptyState,
-  GestaoField,
   GestaoPage,
-  GestaoSelect,
   GestaoStat,
 } from "@/components/gestao-ui";
+import { BalcaoPos } from "@/components/balcao/balcao-pos";
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
 import { tenantQueryKey } from "@/lib/tenant/query-keys";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/painel/mesas")({
   component: MesasPage,
 });
-
-type CarrinhoMesaItem = {
-  produto: Produto;
-  quantidade: number;
-};
 
 function MesasPage() {
   const qc = useQueryClient();
@@ -54,23 +37,20 @@ function MesasPage() {
     queryKey: tenantQueryKey("mesas", tenantSlug),
     queryFn: listarMesas,
   });
-  const { data: produtos = [] } = useQuery({
-    queryKey: tenantQueryKey("produtos", tenantSlug),
-    queryFn: listarProdutos,
-  });
   const { data: pedidos = [] } = useQuery({
     queryKey: tenantQueryKey("pedidos", tenantSlug),
     queryFn: listarPedidos,
   });
+  const { data: vinculos = [] } = useQuery({
+    queryKey: tenantQueryKey("mesa-vinculos", tenantSlug),
+    queryFn: listarMesaVinculos,
+  });
 
-  const [mesaCriando, setMesaCriando] = useState<Mesa | null>(null);
-  const [mesaDetalhe, setMesaDetalhe] = useState<Mesa | null>(null);
-  const [pedidoDetalhe, setPedidoDetalhe] = useState<Pedido | null>(null);
+  const [mesaPos, setMesaPos] = useState<Mesa | null>(null);
   const [pedidoRecibo, setPedidoRecibo] = useState<Pedido | null>(null);
-  const [carrinho, setCarrinho] = useState<CarrinhoMesaItem[]>([]);
-  const [formaPagamento, setFormaPagamento] = useState("pix");
-  const [salvando, setSalvando] = useState(false);
-  const [pagando, setPagando] = useState(false);
+  const [modoJuntar, setModoJuntar] = useState(false);
+  const [mesasSelecionadas, setMesasSelecionadas] = useState<string[]>([]);
+  const [juntando, setJuntando] = useState(false);
 
   const pedidosAtivosPorMesa = useMemo(() => {
     const mapa = new Map<string, Pedido>();
@@ -79,8 +59,31 @@ function MesasPage() {
       if (pedido.status === "entregue" || pedido.status === "cancelado") continue;
       if (!mapa.has(pedido.mesa_id)) mapa.set(pedido.mesa_id, pedido);
     }
+    for (const vinculo of vinculos) {
+      const pedido = pedidos.find(
+        (p) =>
+          p.id === vinculo.pedido_id &&
+          p.status !== "entregue" &&
+          p.status !== "cancelado",
+      );
+      if (pedido && !mapa.has(vinculo.mesa_id)) {
+        mapa.set(vinculo.mesa_id, pedido);
+      }
+    }
     return mapa;
-  }, [pedidos]);
+  }, [pedidos, vinculos]);
+
+  const vinculosPorPedido = useMemo(() => {
+    const mapa = new Map<string, number[]>();
+    for (const vinculo of vinculos) {
+      const mesa = mesas.find((m) => m.id === vinculo.mesa_id);
+      if (!mesa) continue;
+      const atual = mapa.get(vinculo.pedido_id) ?? [];
+      atual.push(mesa.numero);
+      mapa.set(vinculo.pedido_id, atual);
+    }
+    return mapa;
+  }, [vinculos, mesas]);
 
   function getPedidoAtivoDaMesa(mesa: Mesa) {
     return pedidosAtivosPorMesa.get(mesa.id) ?? null;
@@ -94,6 +97,13 @@ function MesasPage() {
   }
 
   async function abrirMesa(mesa: Mesa) {
+    if (modoJuntar) {
+      setMesasSelecionadas((atual) =>
+        atual.includes(mesa.id) ? atual.filter((id) => id !== mesa.id) : [...atual, mesa.id],
+      );
+      return;
+    }
+
     const pedidoAtivo = getPedidoAtivoDaMesa(mesa);
     const statusVisual = getMesaStatusVisual(mesa);
 
@@ -116,106 +126,66 @@ function MesasPage() {
       }
     }
 
-    if (pedidoAtivo && statusVisual === "ocupada") {
-      setPedidoDetalhe(pedidoAtivo);
-      setMesaDetalhe(mesa);
-      return;
-    }
-
-    if (mesa.status === "reservada") {
+    if (mesa.status === "reservada" && statusVisual === "reservada") {
       toast.error("Esta mesa esta reservada.");
       return;
     }
 
-    setCarrinho([]);
-    setFormaPagamento("pix");
-    setMesaCriando(mesa);
+    await Promise.all([
+      qc.refetchQueries({ queryKey: tenantQueryKey("pedidos", tenantSlug) }),
+      qc.refetchQueries({ queryKey: tenantQueryKey("mesa-vinculos", tenantSlug) }),
+    ]);
+    setMesaPos(mesa);
   }
 
-  function alterarQuantidade(produto: Produto, delta: number) {
-    setCarrinho((atual) => {
-      const existente = atual.find((item) => item.produto.id === produto.id);
-      if (!existente && delta > 0) {
-        return [...atual, { produto, quantidade: 1 }];
-      }
-      return atual
-        .map((item) =>
-          item.produto.id === produto.id
-            ? { ...item, quantidade: Math.max(0, item.quantidade + delta) }
-            : item,
-        )
-        .filter((item) => item.quantidade > 0);
-    });
-  }
-
-  async function criarPedidoMesa() {
-    if (!mesaCriando) return;
-    if (!carrinho.length) {
-      toast.error("Adicione produtos antes de abrir a mesa.");
+  async function confirmarJuncao() {
+    if (mesasSelecionadas.length < 2) {
+      toast.error("Selecione ao menos duas mesas para juntar.");
       return;
     }
 
-    setSalvando(true);
+    const principalId =
+      mesasSelecionadas.find((id) => getPedidoAtivoDaMesa(mesas.find((m) => m.id === id)!)) ??
+      mesasSelecionadas[0];
+    const secundarias = mesasSelecionadas.filter((id) => id !== principalId);
+
+    setJuntando(true);
     try {
-      const mesaAtual = mesaCriando;
-      const pedido = await openMesaOrderServer({
+      await mergeMesasServer({
         data: {
-          mesaId: mesaAtual.id,
           tenantSlug: tenantSlug!,
-          forma_pagamento: formaPagamento,
-          observacoes: `Mesa ${mesaAtual.numero}`,
-          itens: carrinho.map((item) => ({
-            produto_id: item.produto.id,
-            quantidade: item.quantidade,
-            preco_unitario: item.produto.preco,
-          })),
+          mesaPrincipalId: principalId,
+          mesaIds: secundarias,
         },
       });
-      toast.success(`Mesa ${mesaAtual.numero} aberta com sucesso.`);
-      setMesaCriando(null);
-      setCarrinho([]);
+      toast.success("Mesas juntadas com sucesso.");
+      setModoJuntar(false);
+      setMesasSelecionadas([]);
       await Promise.all([
         qc.invalidateQueries({ queryKey: tenantQueryKey("mesas", tenantSlug) }),
         qc.invalidateQueries({ queryKey: tenantQueryKey("pedidos", tenantSlug) }),
+        qc.invalidateQueries({ queryKey: tenantQueryKey("mesa-vinculos", tenantSlug) }),
       ]);
-      setPedidoDetalhe(pedido);
-      setMesaDetalhe(mesaAtual);
     } catch (error: unknown) {
-      toast.error(getErrorMessage(error, "Nao foi possivel abrir a mesa."));
+      toast.error(getErrorMessage(error, "Nao foi possivel juntar as mesas."));
     } finally {
-      setSalvando(false);
+      setJuntando(false);
     }
   }
 
-  async function pagarMesa(mesa: Mesa) {
-    const pedido = pedidoDetalhe ?? getPedidoAtivoDaMesa(mesa);
-    if (!pedido) {
-      toast.error("Nenhum pedido ativo encontrado para esta mesa.");
-      return;
-    }
-
-    setPagando(true);
-    try {
-      await finalizeMesaOrderServer({
-        data: {
-          mesaId: mesa.id,
-          pedidoId: pedido.id,
-          tenantSlug: tenantSlug!,
-        },
-      });
-      toast.success(`Mesa ${mesa.numero} finalizada e liberada.`);
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: tenantQueryKey("mesas", tenantSlug) }),
-        qc.invalidateQueries({ queryKey: tenantQueryKey("pedidos", tenantSlug) }),
-      ]);
-      setPedidoDetalhe(null);
-      setMesaDetalhe(null);
-    } catch (error: unknown) {
-      toast.error(getErrorMessage(error, "Nao foi possivel finalizar a mesa."));
-    } finally {
-      setPagando(false);
-    }
+  function invalidarMesas() {
+    void Promise.all([
+      qc.invalidateQueries({ queryKey: tenantQueryKey("mesas", tenantSlug) }),
+      qc.invalidateQueries({ queryKey: tenantQueryKey("pedidos", tenantSlug) }),
+      qc.invalidateQueries({ queryKey: tenantQueryKey("mesa-vinculos", tenantSlug) }),
+    ]);
   }
+
+  const mesaPosPedido = mesaPos ? getPedidoAtivoDaMesa(mesaPos) : null;
+  const mesasVinculadas =
+    mesaPosPedido && mesaPos
+      ? (vinculosPorPedido.get(mesaPosPedido.id) ?? []).filter((n) => n !== mesaPos.numero)
+      : [];
 
   const livres = mesas.filter((mesa) => getMesaStatusVisual(mesa) === "livre").length;
   const ocupadas = mesas.filter((mesa) => getMesaStatusVisual(mesa) === "ocupada").length;
@@ -223,7 +193,19 @@ function MesasPage() {
   return (
     <GestaoPage
       title="Painel de Mesas"
-      subtitle="Mesa livre abre pedido. Mesa ocupada mostra produtos, recibo e pagamento."
+      subtitle="Toque na mesa para abrir o PDV. Use juntar mesas para unir contas."
+      actions={
+        <GestaoButton
+          variant={modoJuntar ? "primary" : "secondary"}
+          onClick={() => {
+            setModoJuntar((atual) => !atual);
+            setMesasSelecionadas([]);
+          }}
+        >
+          <Link2 className="size-4" />
+          {modoJuntar ? "Cancelar junção" : "Juntar mesas"}
+        </GestaoButton>
+      }
     >
       <div className="grid gap-4 sm:grid-cols-3">
         <GestaoStat label="Mesas livres" value={String(livres)} tone="success" />
@@ -231,24 +213,43 @@ function MesasPage() {
         <GestaoStat label="Total de mesas" value={String(mesas.length)} tone="gold" />
       </div>
 
+      {modoJuntar ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <span>
+            {mesasSelecionadas.length} mesa(s) selecionada(s). Toque nas mesas para marcar ou
+            desmarcar.
+          </span>
+          <GestaoButton size="sm" onClick={() => void confirmarJuncao()} disabled={juntando}>
+            {juntando ? "Juntando..." : "Confirmar junção"}
+          </GestaoButton>
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
         {mesas.map((mesa) => {
           const pedidoAtivo = getPedidoAtivoDaMesa(mesa);
           const statusVisual = getMesaStatusVisual(mesa);
           const ocupada = statusVisual === "ocupada";
           const reservada = statusVisual === "reservada";
+          const selecionada = mesasSelecionadas.includes(mesa.id);
+          const vinculadas = pedidoAtivo
+            ? (vinculosPorPedido.get(pedidoAtivo.id) ?? []).filter((n) => n !== mesa.numero)
+            : [];
 
           return (
             <button
               key={mesa.id}
-              onClick={() => abrirMesa(mesa)}
-              className={`aspect-square rounded-[24px] border-2 p-5 text-left transition hover:-translate-y-1 ${
-                ocupada
-                  ? "border-rose-300 bg-rose-50 text-rose-900"
-                  : reservada
-                    ? "border-amber-300 bg-amber-50 text-amber-900"
-                    : "border-emerald-300 bg-emerald-50 text-emerald-900"
-              }`}
+              onClick={() => void abrirMesa(mesa)}
+              className={cn(
+                "aspect-square rounded-[24px] border-2 p-5 text-left transition hover:-translate-y-1",
+                selecionada && modoJuntar
+                  ? "border-[#FF9100] bg-[#FFF7ED] ring-2 ring-[#FF9100]/40"
+                  : ocupada
+                    ? "border-rose-300 bg-rose-50 text-rose-900"
+                    : reservada
+                      ? "border-amber-300 bg-amber-50 text-amber-900"
+                      : "border-emerald-300 bg-emerald-50 text-emerald-900",
+              )}
             >
               <div className="flex h-full flex-col justify-between">
                 <div>
@@ -264,8 +265,17 @@ function MesasPage() {
                       ? `${formatBRL(pedidoAtivo.total)} em consumo`
                       : reservada
                         ? "Mesa reservada"
-                        : "Toque para abrir pedido"}
+                        : modoJuntar
+                          ? selecionada
+                            ? "Selecionada"
+                            : "Toque para selecionar"
+                          : "Toque para abrir PDV"}
                   </p>
+                  {vinculadas.length > 0 ? (
+                    <p className="mt-1 text-xs font-medium opacity-80">
+                      Junta: {vinculadas.map((n) => `#${n}`).join(", ")}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             </button>
@@ -280,239 +290,31 @@ function MesasPage() {
         />
       ) : null}
 
-      <Dialog open={Boolean(mesaCriando)} onOpenChange={(open) => !open && setMesaCriando(null)}>
-        <DialogContent className="max-w-5xl">
-          <DialogHeader>
-            <DialogTitle>Abrir mesa {mesaCriando ? `#${mesaCriando.numero}` : ""}</DialogTitle>
-            <DialogDescription>
-              Adicione os produtos e confirme. A mesa muda automaticamente para ocupada.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="grid max-h-[60vh] gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
-              {produtos.map((produto) => {
-                const quantidade =
-                  carrinho.find((item) => item.produto.id === produto.id)?.quantidade ?? 0;
-                return (
-                  <div
-                    key={produto.id}
-                    className="rounded-2xl border border-[color:var(--honey-line)] p-4"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-medium">{produto.nome}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {produto.descricao || "Produto disponivel para a mesa"}
-                        </p>
-                      </div>
-                      <p className="text-sm font-semibold text-sage">{formatBRL(produto.preco)}</p>
-                    </div>
-                    <div className="mt-4 flex items-center gap-2">
-                      <button
-                        onClick={() => alterarQuantidade(produto, -1)}
-                        className="size-9 rounded-full border border-border text-lg"
-                      >
-                        -
-                      </button>
-                      <div className="min-w-10 text-center text-sm font-semibold">{quantidade}</div>
-                      <button
-                        onClick={() => alterarQuantidade(produto, 1)}
-                        className="size-9 rounded-full border border-border text-lg"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <GestaoCard className="bg-muted/30">
-              <h3 className="font-display text-2xl">Resumo da mesa</h3>
-              <p className="text-sm text-muted-foreground">
-                {carrinho.length} produtos selecionados
-              </p>
-
-              <div className="mt-4 space-y-3">
-                {carrinho.length === 0 ? (
-                  <GestaoEmptyState
-                    title="Nenhum item selecionado"
-                    description="Escolha os itens para abrir a mesa."
-                  />
-                ) : (
-                  carrinho.map((item) => (
-                    <div
-                      key={item.produto.id}
-                      className="rounded-2xl border border-border bg-background p-3"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-medium">{item.produto.nome}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {item.quantidade}x {formatBRL(item.produto.preco)}
-                          </p>
-                        </div>
-                        <p className="font-semibold">
-                          {formatBRL(item.quantidade * item.produto.preco)}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <GestaoField label="Forma de pagamento sugerida" className="mt-4">
-                <GestaoSelect
-                  value={formaPagamento}
-                  onChange={(e) => setFormaPagamento(e.target.value)}
-                >
-                  <option value="pix">Pix</option>
-                  <option value="credito">Cartao de credito</option>
-                  <option value="debito">Cartao de debito</option>
-                  <option value="dinheiro">Dinheiro</option>
-                </GestaoSelect>
-              </GestaoField>
-
-              <div className="mt-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between text-sm">
-                <span className="text-muted-foreground">Total da mesa</span>
-                <span className="text-xl font-semibold">
-                  {formatBRL(
-                    carrinho.reduce((sum, item) => sum + item.quantidade * item.produto.preco, 0),
-                  )}
-                </span>
-              </div>
-
-              <GestaoButton
-                className="mt-5 w-full"
-                size="lg"
-                onClick={criarPedidoMesa}
-                disabled={salvando}
-              >
-                {salvando ? "Abrindo mesa..." : "Confirmar e ocupar mesa"}
-              </GestaoButton>
-            </GestaoCard>
-          </div>
+      <Dialog open={Boolean(mesaPos)} onOpenChange={(open) => !open && setMesaPos(null)}>
+        <DialogContent className="flex h-[min(92vh,900px)] w-[min(98vw,1400px)] max-w-none flex-col gap-0 overflow-hidden p-0">
+          {mesaPos ? (
+            <BalcaoPos
+              key={mesaPos.id}
+              embedded
+              mesa={{
+                mesaId: mesaPos.id,
+                mesaNumero: mesaPos.numero,
+                pedidoId: mesaPosPedido?.id ? mesaPosPedido.id : null,
+                pedidoNumero: mesaPosPedido?.numero ?? null,
+                pedidoTotal: mesaPosPedido?.total,
+                mesasVinculadas,
+              }}
+              onClose={() => setMesaPos(null)}
+              onMesaUpdated={invalidarMesas}
+            />
+          ) : null}
         </DialogContent>
       </Dialog>
-
-      {mesaDetalhe ? (
-        <MesaDetalheModal
-          mesa={mesaDetalhe}
-          pedido={pedidoDetalhe ?? getPedidoAtivoDaMesa(mesaDetalhe)}
-          pagando={pagando}
-          onClose={() => {
-            setMesaDetalhe(null);
-            setPedidoDetalhe(null);
-          }}
-          onPagar={() => pagarMesa(mesaDetalhe)}
-          onRecibo={(pedido) => {
-            setMesaDetalhe(null);
-            setPedidoDetalhe(null);
-            setPedidoRecibo(pedido);
-          }}
-        />
-      ) : null}
 
       {pedidoRecibo ? (
         <ReciboMesaModal pedido={pedidoRecibo} onClose={() => setPedidoRecibo(null)} />
       ) : null}
     </GestaoPage>
-  );
-}
-
-function MesaDetalheModal({
-  mesa,
-  pedido,
-  pagando,
-  onClose,
-  onPagar,
-  onRecibo,
-}: {
-  mesa: Mesa;
-  pedido: Pedido | null;
-  pagando: boolean;
-  onClose: () => void;
-  onPagar: () => void;
-  onRecibo: (pedido: Pedido) => void;
-}) {
-  const { data: itens = [] } = useQuery({
-    queryKey: ["itens", pedido?.id],
-    queryFn: () => (pedido ? itensDoPedido(pedido.id) : Promise.resolve([])),
-    enabled: Boolean(pedido),
-  });
-
-  return (
-    <Dialog open={Boolean(mesa)} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>Mesa #{mesa.numero}</DialogTitle>
-          <DialogDescription>
-            {pedido
-              ? "Confira os produtos, imprima o recibo ou finalize o pagamento."
-              : "Mesa sem pedido ativo."}
-          </DialogDescription>
-        </DialogHeader>
-
-        {!pedido ? (
-          <GestaoEmptyState
-            title="Sem pedido ativo"
-            description="Esta mesa nao possui pedido ativo no momento."
-          />
-        ) : (
-          <div className="space-y-5">
-            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-              <InfoBox
-                titulo="Status"
-                valor="Ocupada"
-                icon={<ShoppingBasket className="size-4" />}
-              />
-              <InfoBox
-                titulo="Pedido"
-                valor={`#${pedido.numero}`}
-                icon={<Receipt className="size-4" />}
-              />
-              <InfoBox
-                titulo="Total"
-                valor={formatBRL(pedido.total)}
-                icon={<Wallet className="size-4" />}
-              />
-            </div>
-
-            <GestaoCard className="bg-muted/25">
-              <p className="mb-3 text-sm font-semibold">Produtos da mesa</p>
-              <div className="space-y-3">
-                {itens.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-start justify-between gap-3 rounded-2xl border border-border bg-background p-3"
-                  >
-                    <div>
-                      <p className="font-medium">{item.produtos?.nome}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {item.quantidade}x {formatBRL(item.preco_unitario)}
-                      </p>
-                    </div>
-                    <p className="font-semibold">
-                      {formatBRL(item.quantidade * item.preco_unitario)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </GestaoCard>
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <GestaoButton variant="secondary" className="flex-1" onClick={() => onRecibo(pedido)}>
-                <Printer className="size-4" /> Imprimir recibo
-              </GestaoButton>
-              <GestaoButton className="flex-1" onClick={onPagar} disabled={pagando}>
-                <Wallet className="size-4" /> {pagando ? "Finalizando..." : "Pagar e liberar mesa"}
-              </GestaoButton>
-            </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -618,18 +420,6 @@ function ReciboMesaModal({ pedido, onClose }: { pedido: Pedido; onClose: () => v
         </div>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function InfoBox({ titulo, valor, icon }: { titulo: string; valor: string; icon: ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-[color:var(--honey-line)] bg-background p-4">
-      <div className="mb-2 flex items-center gap-2 text-muted-foreground">
-        {icon}
-        <p className="text-xs uppercase tracking-[0.14em]">{titulo}</p>
-      </div>
-      <p className="font-display text-2xl">{valor}</p>
-    </div>
   );
 }
 

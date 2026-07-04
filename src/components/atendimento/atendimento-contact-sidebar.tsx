@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { GitMerge, Loader2, Pencil, Save } from "lucide-react";
+import { GitMerge, Loader2, Pencil, Save, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import { GestaoButton, GestaoInput, gestao } from "@/components/gestao-ui";
 import { cn } from "@/lib/utils";
+import { usePainelNavigate } from "@/lib/painel/use-painel-navigate";
+import { useTenantOptional } from "@/lib/tenant/tenant-context";
 import {
   assignAtendimentoConversationAgentServer,
   fetchAtendimentoContactCrmServer,
@@ -56,9 +57,14 @@ export function AtendimentoContactSidebar({
   });
   const queryClient = useQueryClient();
 
+  const tenantCtx = useTenantOptional();
+  const tenantSlug = tenantCtx?.tenant.slug ?? null;
   const { data: crm } = useQuery({
-    queryKey: ["atendimento-contact-crm", contact?.phone],
-    queryFn: () => fetchAtendimentoContactCrmServer({ data: { phone: contact?.phone ?? null } }),
+    queryKey: ["atendimento-contact-crm", contact?.phone, tenantSlug],
+    queryFn: () =>
+      fetchAtendimentoContactCrmServer({
+        data: { phone: contact?.phone ?? null, tenantSlug },
+      }),
     enabled: Boolean(contact?.phone?.trim()),
   });
 
@@ -166,6 +172,7 @@ export function AtendimentoContactSidebar({
 
   const missingPhone = !contact.phone?.trim();
   const isAgendaContact = conversation.contact_id !== conversation.id;
+  const navigate = usePainelNavigate();
 
   return (
     <div className="flex flex-col gap-6 p-5">
@@ -187,6 +194,28 @@ export function AtendimentoContactSidebar({
           <Pencil className="mr-1.5 size-3.5" />
           Editar contato
         </GestaoButton>
+        {!missingPhone ? (
+          <button
+            type="button"
+            onClick={() =>
+              navigate({
+                to: "/painel/pdv",
+                search: {
+                  origem: "whatsapp",
+                  conversationId: conversation.id,
+                  phone: contact.phone ?? undefined,
+                  name: contact.name ?? undefined,
+                  wabaContactId: isAgendaContact ? conversation.contact_id : contact.id,
+                  modo: "delivery",
+                },
+              })
+            }
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#FF9100] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#E68200]"
+          >
+            <ShoppingBag className="size-4" />
+            Montar pedido no balcão
+          </button>
+        ) : null}
       </div>
 
       {editing ? (
@@ -227,7 +256,7 @@ export function AtendimentoContactSidebar({
                 </>
               )}
             </GestaoButton>
-            <GestaoButton type="button" variant="outline" onClick={() => setEditing(false)}>
+            <GestaoButton type="button" variant="secondary" onClick={() => setEditing(false)}>
               Cancelar
             </GestaoButton>
           </div>

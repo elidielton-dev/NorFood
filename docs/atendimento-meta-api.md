@@ -26,9 +26,13 @@ META_APP_SECRET=<Meta App Secret>
 
 Opcional: `WABA_WEBHOOK_URL` para documentação.
 
+**App Facebook Developer:** use o e-mail `meta@norfood.com.br` como contact email. Guia completo: [meta-facebook-developer.md](./meta-facebook-developer.md).
+
 ## Webhook Meta
 
-URL de produção: `https://abelhaemel.vercel.app/api/waba/webhook`
+URL de produção: `https://norfood.com.br/api/waba/webhook`
+
+Verify token padrão: `norfood-waba-2026` (configurável via `WABA_VERIFY_TOKEN` ou Atendimento → Configurações).
 
 1. Meta for Developers → seu app → WhatsApp → Configuration
 2. Callback URL: URL acima

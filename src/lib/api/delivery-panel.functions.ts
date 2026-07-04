@@ -414,6 +414,175 @@ export const updateKitchenProductionStageServer = createServerFn({ method: "POST
     return { ok: true as const };
   });
 
+export const toggleRiderOnlineServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: TenantScopedInput & { riderId: string; online: boolean }) => input)
+  .handler(async ({ context, data }) => {
+    const { tenantId } = await loadTenantDeliveryContext(context.userId, data.tenantSlug);
+    const { assertTenantPlanFeature } = await import("@/lib/tenant/tenant-plan.server");
+    await assertTenantPlanFeature(tenantId, "delivery_app");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: membership, error: membershipError } = await supabaseAdmin
+      .from("tenant_users")
+      .select("user_id")
+      .eq("tenant_id", tenantId)
+      .eq("user_id", data.riderId)
+      .eq("status", "active")
+      .eq("role", "entregador")
+      .maybeSingle();
+    if (membershipError) throw membershipError;
+    if (!membership) throw new Error("Entregador não pertence a este restaurante.");
+
+    const [profileResult, locationResult] = await Promise.all([
+      supabaseAdmin.from("entregador_perfis").upsert(
+        { user_id: data.riderId, online: data.online, tenant_id: tenantId } as never,
+        { onConflict: "user_id" },
+      ),
+      supabaseAdmin.from("entregadores_localizacao").upsert(
+        {
+          entregador_id: data.riderId,
+          status: data.online ? "online" : "offline",
+          updated_at: new Date().toISOString(),
+          tenant_id: tenantId,
+        } as never,
+        { onConflict: "entregador_id" },
+      ),
+    ]);
+    if (profileResult.error) throw profileResult.error;
+    if (locationResult.error) throw locationResult.error;
+    return { ok: true as const };
+  });
+
+export const reassignDeliveryServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: TenantScopedInput & { deliveryId: string; riderId?: string | null }) => input)
+  .handler(async ({ context, data }) => {
+    const { tenantId } = await loadTenantDeliveryContext(context.userId, data.tenantSlug);
+    const { assertTenantPlanFeature } = await import("@/lib/tenant/tenant-plan.server");
+    await assertTenantPlanFeature(tenantId, "delivery_app");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: delivery, error: deliveryError } = await supabaseAdmin
+      .from("entregas")
+      .select("*")
+      .eq("id", data.deliveryId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (deliveryError) throw deliveryError;
+    if (!delivery) throw new Error("Entrega não encontrada neste restaurante.");
+
+    await assertPedidoBelongsToTenant(tenantId, delivery.pedido_id);
+
+    let nextRiderId = data.riderId ?? null;
+    if (!nextRiderId) {
+      const { data: riders } = await supabaseAdmin
+        .from("tenant_users")
+        .select("user_id")
+        .eq("tenant_id", tenantId)
+        .eq("status", "active")
+        .eq("role", "entregador");
+      const riderIds = (riders ?? []).map((r) => r.user_id).filter((id) => id !== delivery.motoboy_id);
+      if (!riderIds.length) throw new Error("Nao encontrei outro entregador para a troca.");
+
+      const { data: profiles } = await supabaseAdmin
+        .from("entregador_perfis")
+        .select("user_id, online")
+        .in("user_id", riderIds);
+      const online = (profiles ?? []).find((p) => p.online);
+      nextRiderId = online?.user_id ?? riderIds[0] ?? null;
+    }
+    if (!nextRiderId) throw new Error("Nao encontrei outro entregador online para a troca.");
+
+    const { data: riderMembership, error: riderMembershipError } = await supabaseAdmin
+      .from("tenant_users")
+      .select("user_id")
+      .eq("tenant_id", tenantId)
+      .eq("user_id", nextRiderId)
+      .eq("status", "active")
+      .eq("role", "entregador")
+      .maybeSingle();
+    if (riderMembershipError) throw riderMembershipError;
+    if (!riderMembership) throw new Error("Entregador não pertence a este restaurante.");
+
+    const { data: oldRoute } = await supabaseAdmin
+      .from("rotas_entrega")
+      .select("*")
+      .eq("pedido_id", delivery.pedido_id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+
+    const previousRiderId = delivery.motoboy_id;
+    const previousOrder = oldRoute?.ordem_entrega ?? null;
+
+    const { data: activeRoutes } = await supabaseAdmin
+      .from("rotas_entrega")
+      .select("ordem_entrega")
+      .eq("entregador_id", nextRiderId)
+      .eq("tenant_id", tenantId)
+      .neq("status", "entregue");
+    const nextOrder =
+      (activeRoutes ?? []).reduce((max, route) => Math.max(max, route.ordem_entrega), 0) + 1;
+
+    const { error: updateDeliveryError } = await supabaseAdmin
+      .from("entregas")
+      .update({ motoboy_id: nextRiderId, status: "aceito" })
+      .eq("id", data.deliveryId)
+      .eq("tenant_id", tenantId);
+    if (updateDeliveryError) throw updateDeliveryError;
+
+    const { error: updateOrderError } = await supabaseAdmin
+      .from("pedidos")
+      .update({ entregador_id: nextRiderId, ordem_na_rota: nextOrder })
+      .eq("id", delivery.pedido_id)
+      .eq("tenant_id", tenantId);
+    if (updateOrderError) throw updateOrderError;
+
+    const { error: upsertRouteError } = await supabaseAdmin.from("rotas_entrega").upsert(
+      {
+        id: oldRoute?.id,
+        entregador_id: nextRiderId,
+        pedido_id: delivery.pedido_id,
+        ordem_entrega: nextOrder,
+        distancia_km: oldRoute?.distancia_km ?? delivery.distancia_km,
+        tempo_estimado: oldRoute?.tempo_estimado ?? null,
+        status: oldRoute?.status ?? "pendente",
+        tenant_id: tenantId,
+      } as never,
+      { onConflict: "pedido_id" },
+    );
+    if (upsertRouteError) throw upsertRouteError;
+
+    if (previousRiderId && previousOrder != null) {
+      const { data: oldRiderRoutes } = await supabaseAdmin
+        .from("rotas_entrega")
+        .select("id, pedido_id, ordem_entrega")
+        .eq("entregador_id", previousRiderId)
+        .eq("tenant_id", tenantId)
+        .neq("pedido_id", delivery.pedido_id)
+        .neq("status", "entregue")
+        .gt("ordem_entrega", previousOrder);
+
+      for (const route of oldRiderRoutes ?? []) {
+        const { error } = await supabaseAdmin
+          .from("rotas_entrega")
+          .update({ ordem_entrega: route.ordem_entrega - 1 })
+          .eq("id", route.id)
+          .eq("tenant_id", tenantId);
+        if (error) throw error;
+
+        const { error: orderError } = await supabaseAdmin
+          .from("pedidos")
+          .update({ ordem_na_rota: route.ordem_entrega - 1 })
+          .eq("id", route.pedido_id)
+          .eq("tenant_id", tenantId);
+        if (orderError) throw orderError;
+      }
+    }
+
+    return { ok: true as const, riderId: nextRiderId };
+  });
+
 export const updateKitchenMarkReadyServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: TenantScopedInput & { orderId: string }) => input)

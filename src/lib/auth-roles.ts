@@ -46,10 +46,6 @@ export async function resolveLoginDestination(redirectTo?: string): Promise<stri
 }
 
 export async function resolvePostLoginRoute(): Promise<string> {
-  if (await checkCurrentUserPlatformAdmin()) {
-    return "/admin";
-  }
-
   try {
     const { checkResellerAccessServer } = await import("@/lib/api/platform-reseller.functions");
     const resellerAccess = await checkResellerAccessServer();
@@ -58,6 +54,10 @@ export async function resolvePostLoginRoute(): Promise<string> {
     }
   } catch {
     // ignore
+  }
+
+  if (await checkCurrentUserPlatformAdmin()) {
+    return "/admin";
   }
 
   const roles = await fetchCurrentUserRoles();

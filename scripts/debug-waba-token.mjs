@@ -41,7 +41,7 @@ const dbgJson = await dbg.json();
   );
   if (!hasWabaTarget) {
     console.log(
-      "\n>>> AVISO: token sem target_ids no WABA — gere token em WhatsApp → API Setup (app 1478691093569068)",
+      "\n>>> AVISO: token sem target_ids no WABA — gere token em WhatsApp → API Setup do app NorFood",
     );
   }
 

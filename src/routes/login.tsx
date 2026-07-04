@@ -34,6 +34,7 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const nav = useNavigate();
   const { redirect: redirectTo } = Route.useSearch();
+  const isParceiroLogin = redirectTo === "/parceiro" || redirectTo?.startsWith("/parceiro/");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [loading, setLoading] = useState(false);
@@ -53,6 +54,10 @@ function LoginPage() {
     setLoading(true);
     try {
       if (!isSupabaseConfigured()) {
+        if (isParceiroLogin) {
+          toast.error("Configure VITE_SUPABASE_URL no .env para acessar o portal parceiro.");
+          return;
+        }
         toast.success("Modo demo — entrando no painel...");
         nav({
           to: "/t/$tenantSlug/$",
@@ -81,11 +86,17 @@ function LoginPage() {
       <div className="w-full max-w-sm rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-sm">
         <div className="mb-6 flex flex-col items-center text-center">
           <NorfoodLogo size="lg" className="mb-3" />
-          <h1 className="text-2xl font-semibold text-[#111111]">Entrar</h1>
+          <h1 className="text-2xl font-semibold text-[#111111]">
+            {isParceiroLogin ? "Portal Parceiro" : "Entrar"}
+          </h1>
           <p className="mt-1 text-sm text-[#6B7280]">
-            {isSupabaseConfigured()
-              ? "Acesse o painel da sua empresa"
-              : "Modo demo local — clique em Entrar para ir ao painel"}
+            {!isSupabaseConfigured()
+              ? isParceiroLogin
+                ? "Supabase nao configurado neste ambiente — use deploy/.env e reinicie o servidor"
+                : "Modo demo local — clique em Entrar para ir ao painel"
+              : isParceiroLogin
+                ? "Acesse o painel da sua revendedora NorFood"
+                : "Acesse o painel da sua empresa"}
           </p>
         </div>
 
@@ -117,6 +128,15 @@ function LoginPage() {
         </form>
 
         <div className="mt-5 space-y-2 text-center text-sm text-[#6B7280]">
+          {isParceiroLogin ? (
+            <Link to="/login" className="block hover:text-[#111111]">
+              Entrar como restaurante
+            </Link>
+          ) : (
+            <Link to="/login" search={{ redirect: "/parceiro" }} className="block hover:text-[#111111]">
+              Sou revendedor NorFood
+            </Link>
+          )}
           <Link to="/cadastro" className="block hover:text-[#111111]">
             Criar conta
           </Link>

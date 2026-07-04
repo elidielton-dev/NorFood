@@ -32,9 +32,11 @@ import {
   GestaoTableHead,
   StatusPill,
 } from "@/components/gestao-ui";
-import { formatBRL, getOrderNeighborhood } from "@/lib/db";
+import { formatBRL, getOrderMetadataValue, getOrderNeighborhood } from "@/lib/db";
 import {
   fetchDeliveryPanelDataServer,
+  reassignDeliveryServer,
+  toggleRiderOnlineServer,
   type DeliveryPanelData,
 } from "@/lib/api/delivery-panel.functions";
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
@@ -59,10 +61,20 @@ type RiderProfileRow = {
 };
 
 const LOCATION_FRESHNESS_WINDOW_MS = 3 * 60 * 1000;
-const ENTREGADOR_PERFIS_TABLE = "entregador_perfis" as never;
-
 async function fetchDeliveryPanelData(tenantSlug: string): Promise<DeliveryPanelData> {
   return await fetchDeliveryPanelDataServer({ data: tenantSlug });
+}
+
+function origemPedidoLabel(pedido: PedidoRow | undefined) {
+  if (!pedido) return null;
+  const row = pedido as PedidoRow & { origem_venda?: string | null; modo_entrega?: string | null };
+  const origem = row.origem_venda ?? getOrderMetadataValue(pedido.observacoes, "origem");
+  const modo = row.modo_entrega ?? getOrderMetadataValue(pedido.observacoes, "modo");
+  const parts: string[] = [];
+  if (origem) parts.push(origem === "whatsapp" ? "WhatsApp" : origem);
+  if (modo === "retirada") parts.push("Retirada");
+  else if (modo === "delivery") parts.push("Delivery");
+  return parts.length ? parts.join(" · ") : null;
 }
 
 function DeliveryManagementPage() {
@@ -213,108 +225,30 @@ function DeliveryManagementPage() {
   const onlineRiders = riders.filter((rider) => rider.online).length;
 
   async function toggleRiderOnline(riderId: string, nextOnline: boolean) {
-    const [profileResult, locationResult] = await Promise.all([
-      supabase.from(ENTREGADOR_PERFIS_TABLE).upsert(
-        {
-          user_id: riderId,
-          online: nextOnline,
-        },
-        {
-          onConflict: "user_id",
-        },
-      ),
-      supabase.from("entregadores_localizacao").upsert(
-        {
-          entregador_id: riderId,
-          status: nextOnline ? "online" : "offline",
-          updated_at: new Date().toISOString(),
-        },
-        {
-          onConflict: "entregador_id",
-        },
-      ),
-    ]);
-
-    if (profileResult.error) throw profileResult.error;
-    if (locationResult.error) throw locationResult.error;
-
-    toast.success(nextOnline ? "Entregador ficou online." : "Entregador ficou offline.");
-    await qc.invalidateQueries({ queryKey: ["delivery-panel-real", tenantSlug] });
+    try {
+      await toggleRiderOnlineServer({
+        data: { tenantSlug: tenantSlug!, riderId, online: nextOnline },
+      });
+      toast.success(nextOnline ? "Entregador ficou online." : "Entregador ficou offline.");
+      await qc.invalidateQueries({ queryKey: ["delivery-panel-real", tenantSlug] });
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Nao foi possivel atualizar o entregador.");
+    }
   }
 
   async function reassignDelivery(deliveryId: string) {
-    const delivery = entregas.find((item) => item.id === deliveryId);
-    if (!delivery) return;
-
-    const nextRider = riders.find((rider) => rider.id !== delivery.motoboy_id && rider.online);
-    if (!nextRider) {
-      toast.error("Nao encontrei outro entregador online para a troca.");
-      return;
-    }
-
-    const pedido = pedidosById.get(delivery.pedido_id);
-    const oldRoute = routesByPedidoId.get(delivery.pedido_id);
-    const previousRiderId = delivery.motoboy_id;
-    const previousOrder = oldRoute?.ordem_entrega ?? pedido?.ordem_na_rota ?? null;
-    const nextOrder =
-      routes
-        .filter((route) => route.entregador_id === nextRider.id && route.status !== "entregue")
-        .reduce((max, route) => Math.max(max, route.ordem_entrega), 0) + 1;
-
-    const { error: updateDeliveryError } = await supabase
-      .from("entregas")
-      .update({ motoboy_id: nextRider.id, status: "aceito" })
-      .eq("id", deliveryId);
-    if (updateDeliveryError) throw updateDeliveryError;
-
-    const { error: updateOrderError } = await supabase
-      .from("pedidos")
-      .update({ entregador_id: nextRider.id, ordem_na_rota: nextOrder })
-      .eq("id", delivery.pedido_id);
-    if (updateOrderError) throw updateOrderError;
-
-    const { error: upsertRouteError } = await supabase.from("rotas_entrega").upsert(
-      {
-        id: oldRoute?.id,
-        entregador_id: nextRider.id,
-        pedido_id: delivery.pedido_id,
-        ordem_entrega: nextOrder,
-        distancia_km: oldRoute?.distancia_km ?? delivery.distancia_km,
-        tempo_estimado: oldRoute?.tempo_estimado ?? null,
-        status: oldRoute?.status ?? "pendente",
-      },
-      {
-        onConflict: "pedido_id",
-      },
-    );
-    if (upsertRouteError) throw upsertRouteError;
-
-    if (previousRiderId && previousOrder) {
-      const oldRiderRoutes = routes.filter(
-        (route) =>
-          route.entregador_id === previousRiderId &&
-          route.pedido_id !== delivery.pedido_id &&
-          route.status !== "entregue" &&
-          route.ordem_entrega > previousOrder,
+    try {
+      const result = await reassignDeliveryServer({
+        data: { tenantSlug: tenantSlug!, deliveryId },
+      });
+      const rider = riders.find((item) => item.id === result.riderId);
+      toast.success(`Entrega movida para ${rider?.nome ?? "outro entregador"}.`);
+      await qc.invalidateQueries({ queryKey: ["delivery-panel-real", tenantSlug] });
+    } catch (error: unknown) {
+      toast.error(
+        error instanceof Error ? error.message : "Nao foi possivel trocar o entregador.",
       );
-
-      for (const route of oldRiderRoutes) {
-        const { error } = await supabase
-          .from("rotas_entrega")
-          .update({ ordem_entrega: route.ordem_entrega - 1 })
-          .eq("id", route.id);
-        if (error) throw error;
-
-        const { error: orderError } = await supabase
-          .from("pedidos")
-          .update({ ordem_na_rota: route.ordem_entrega - 1 })
-          .eq("id", route.pedido_id);
-        if (orderError) throw orderError;
-      }
     }
-
-    toast.success(`Entrega movida para ${nextRider.nome}.`);
-    await qc.invalidateQueries({ queryKey: ["delivery-panel-real", tenantSlug] });
   }
 
   function contactRider(riderId: string) {
@@ -576,6 +510,11 @@ function DeliveryManagementPage() {
                         delivery.bairro,
                       )}
                     </div>
+                    {origemPedidoLabel(pedido) ? (
+                      <div className="mt-1 inline-flex rounded-md bg-[#FFF7ED] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#C45A00]">
+                        {origemPedidoLabel(pedido)}
+                      </div>
+                    ) : null}
                   </td>
                   <td className="p-3 align-top hidden md:table-cell">
                     <div>{customer?.nome ?? "Cliente"}</div>

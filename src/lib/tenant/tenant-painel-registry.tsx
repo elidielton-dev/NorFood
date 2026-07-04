@@ -49,7 +49,11 @@ export const TENANT_PAINEL_REGISTRY: Record<string, ComponentType> = {
   kds: painelPage(() => import("@/routes/_authenticated/painel.kds")),
   "gestao-delivery": painelPage(() => import("@/routes/_authenticated/painel.gestao-delivery")),
   cozinha: painelPage(() => import("@/routes/_authenticated/painel.cozinha")),
-  pdv: painelPage(() => import("@/routes/_authenticated/painel.pdv")),
+  pdv: painelPage(() =>
+    import("@/components/balcao/balcao-page").then((mod) => ({
+      Route: { options: { component: mod.BalcaoPage } },
+    })),
+  ),
   mesas: painelPage(() => import("@/routes/_authenticated/painel.mesas")),
   delivery: painelPage(() => import("@/routes/_authenticated/painel.delivery")),
 

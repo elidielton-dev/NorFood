@@ -13,7 +13,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const META_APP_SECRET = process.env.META_APP_SECRET;
 const WEBHOOK_URL =
-  process.env.WABA_WEBHOOK_URL ?? "https://abelhaemel.vercel.app/api/waba/webhook";
+  process.env.WABA_WEBHOOK_URL ?? "https://norfood.com.br/api/waba/webhook";
 
 function signBody(rawBody, secret) {
   return (
@@ -79,7 +79,8 @@ async function main() {
   }
 
   // GET verify
-  const getUrl = `${WEBHOOK_URL}?hub.mode=subscribe&hub.challenge=validation-challenge&hub.verify_token=abelha-mel-2026`;
+  const verifyToken = process.env.WABA_VERIFY_TOKEN ?? "norfood-waba-2026";
+  const getUrl = `${WEBHOOK_URL}?hub.mode=subscribe&hub.challenge=validation-challenge&hub.verify_token=${encodeURIComponent(verifyToken)}`;
   const getRes = await fetch(getUrl);
   const getText = await getRes.text();
   console.log("\nWebhook GET:", getRes.status, getText === "validation-challenge" ? "OK" : getText.slice(0, 80));

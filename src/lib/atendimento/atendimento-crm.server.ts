@@ -35,6 +35,7 @@ async function findClienteByPhone(phone: string) {
 
 export async function fetchAtendimentoContactCrm(
   phone: string | null | undefined,
+  tenantId?: string | null,
 ): Promise<AtendimentoContactCrm> {
   const empty: AtendimentoContactCrm = {
     clienteId: null,
@@ -49,6 +50,18 @@ export async function fetchAtendimentoContactCrm(
   const cliente = await findClienteByPhone(phone);
   if (!cliente) return empty;
 
+  // Sem tenant, não lista pedidos (evita vazar histórico entre restaurantes).
+  if (!tenantId) {
+    return {
+      clienteId: cliente.id,
+      nome: cliente.nome ?? null,
+      telefone: cliente.telefone ?? phone,
+      pontos: cliente.pontos_fidelidade ?? null,
+      pedidosRecentes: [],
+      totalPedidos: 0,
+    };
+  }
+
   const {
     data: pedidos,
     error,
@@ -57,6 +70,7 @@ export async function fetchAtendimentoContactCrm(
     .from("pedidos")
     .select("id, status, total, created_at", { count: "exact" })
     .eq("cliente_id", cliente.id)
+    .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false })
     .limit(5);
   if (error) throw error;

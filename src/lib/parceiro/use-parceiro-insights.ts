@@ -1,6 +1,11 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchResellerDashboard, fetchResellerTenants, fetchActivationTokens } from "@/lib/reseller/client";
+import {
+  fetchResellerDashboard,
+  fetchResellerTenants,
+  fetchActivationTokens,
+  fetchResellerTeam,
+} from "@/lib/reseller/client";
 import { buildParceiroAchievements } from "@/lib/parceiro/achievements";
 
 export function useParceiroInsights() {
@@ -19,6 +24,12 @@ export function useParceiroInsights() {
   const tokensQuery = useQuery({
     queryKey: ["reseller-tokens"],
     queryFn: fetchActivationTokens,
+    staleTime: 60_000,
+  });
+
+  const teamQuery = useQuery({
+    queryKey: ["reseller-team"],
+    queryFn: fetchResellerTeam,
     staleTime: 60_000,
   });
 
@@ -46,6 +57,8 @@ export function useParceiroInsights() {
 
   const unlockedCount = achievements.filter((a) => a.unlocked).length;
 
+  const teamSize = teamQuery.data?.length ?? 1;
+
   return {
     isLoading: dashboardQuery.isLoading || tokensQuery.isLoading,
     reseller,
@@ -55,6 +68,7 @@ export function useParceiroInsights() {
     tokensUsed,
     achievements,
     unlockedCount,
+    teamSize,
     level: unlockedCount >= 6 ? "Platinum" : unlockedCount >= 4 ? "Gold" : unlockedCount >= 2 ? "Silver" : "Bronze",
   };
 }

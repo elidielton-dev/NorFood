@@ -367,6 +367,7 @@ export type Database = {
           saiu_em: string | null;
           status: string;
           taxa: number;
+          tenant_id: string | null;
           updated_at: string;
         };
         Insert: {
@@ -381,6 +382,7 @@ export type Database = {
           saiu_em?: string | null;
           status?: string;
           taxa?: number;
+          tenant_id?: string | null;
           updated_at?: string;
         };
         Update: {
@@ -395,6 +397,7 @@ export type Database = {
           saiu_em?: string | null;
           status?: string;
           taxa?: number;
+          tenant_id?: string | null;
           updated_at?: string;
         };
         Relationships: [
@@ -584,6 +587,7 @@ export type Database = {
           status: Database["public"]["Enums"]["pedido_status"];
           subtotal: number;
           taxa_entrega: number;
+          tenant_id: string | null;
           total: number;
           troco_para: number | null;
           updated_at: string;
@@ -609,6 +613,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["pedido_status"];
           subtotal?: number;
           taxa_entrega?: number;
+          tenant_id?: string | null;
           total?: number;
           troco_para?: number | null;
           updated_at?: string;
@@ -634,6 +639,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["pedido_status"];
           subtotal?: number;
           taxa_entrega?: number;
+          tenant_id?: string | null;
           total?: number;
           troco_para?: number | null;
           updated_at?: string;

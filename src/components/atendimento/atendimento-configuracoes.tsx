@@ -47,6 +47,7 @@ import {
   showAtendimentoDesktopNotification,
   useAtendimentoNotificationSettings,
 } from "@/lib/atendimento/notification-settings";
+import { META_DEVELOPER_APP } from "@/lib/meta/developer-app";
 import type { AtendimentoProvider } from "@/lib/waba/types";
 import { atendimento } from "@/components/atendimento/atendimento-ui";
 
@@ -169,7 +170,7 @@ function WhatsAppPanel() {
     phone_number_id: "",
     waba_id: "",
     access_token: "",
-    verify_token: "",
+    verify_token: META_DEVELOPER_APP.verifyToken,
     pin: "",
     coexistence_mode: true,
   });
@@ -276,12 +277,12 @@ function WhatsAppPanel() {
   const webhookUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/api/waba/webhook`
-      : "https://abelhaemel.vercel.app/api/waba/webhook";
+      : META_DEVELOPER_APP.webhookUrl;
 
   const evolutionWebhookUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/api/whatsapp/webhook`
-      : "https://abelhaemel.vercel.app/api/whatsapp/webhook";
+      : `${META_DEVELOPER_APP.siteUrl}/api/whatsapp/webhook`;
 
   async function copyWebhook(url: string) {
     try {

@@ -1,10 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { BalcaoPos } from "@/components/balcao/balcao-pos";
+import { BalcaoPage } from "@/components/balcao/balcao-page";
 
 export const Route = createFileRoute("/_authenticated/painel/pdv")({
   component: BalcaoPage,
 });
-
-function BalcaoPage() {
-  return <BalcaoPos />;
-}

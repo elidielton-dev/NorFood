@@ -23,8 +23,9 @@ export const Route = createFileRoute("/parceiro")({
       if (access.allowed) {
         return { access };
       }
-    } catch {
-      throw redirect({ to: "/login", search: { redirect: "/parceiro" } });
+    } catch (error) {
+      console.warn("[parceiro] Falha ao verificar revendedora:", error);
+      // Usuário autenticado mas API falhou — não mandar de volta ao login (evita loop).
     }
 
     if (await checkCurrentUserPlatformAdmin()) {

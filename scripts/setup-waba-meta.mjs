@@ -17,7 +17,7 @@ injectDeployEnv();
 const PHONE_NUMBER_ID = process.env.WABA_PHONE_NUMBER_ID ?? "1177941225399615";
 const WABA_ID = process.env.WABA_WABA_ID ?? "1323860869938811";
 const ACCESS_TOKEN = process.env.WABA_ACCESS_TOKEN;
-const VERIFY_TOKEN = process.env.WABA_VERIFY_TOKEN ?? "abelha-mel-2026";
+const VERIFY_TOKEN = process.env.WABA_VERIFY_TOKEN ?? "norfood-waba-2026";
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -82,7 +82,7 @@ async function main() {
     );
     if (!hasWaba) {
       console.warn(
-        "AVISO: token sem WABA vinculado (target_ids vazio). Gere em WhatsApp → API Setup do app 1478691093569068.",
+        "AVISO: token sem WABA vinculado (target_ids vazio). Gere em WhatsApp → API Setup do app NorFood.",
       );
       console.warn("Envios podem falhar na entrega até usar token correto.");
     } else {
@@ -98,7 +98,7 @@ async function main() {
   if (appId && appSecret) {
     console.log("Inscrevendo webhook (messages)...");
     const webhookUrl =
-      process.env.WABA_WEBHOOK_URL ?? "https://abelhaemel.vercel.app/api/waba/webhook";
+      process.env.WABA_WEBHOOK_URL ?? "https://norfood.com.br/api/waba/webhook";
     const params = new URLSearchParams({
       object: "whatsapp_business_account",
       callback_url: webhookUrl,
@@ -135,7 +135,7 @@ async function main() {
 
   console.log("OK — waba_config salvo.");
   console.log("Verify token (webhook Meta):", VERIFY_TOKEN);
-  console.log("Webhook URL: https://abelhaemel.vercel.app/api/waba/webhook");
+  console.log("Webhook URL: https://norfood.com.br/api/waba/webhook");
 }
 
 main().catch((err) => {

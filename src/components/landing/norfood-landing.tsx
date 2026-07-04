@@ -22,6 +22,7 @@ import {
 import { NorfoodLogo } from "@/components/brand/norfood-logo";
 import { LandingCookieBanner } from "@/components/landing/landing-cookie-banner";
 import { LandingRestaurantSection } from "@/components/landing/landing-restaurant-section";
+import { LandingSiteHeader } from "@/components/landing/landing-site-header";
 import { ScrollReveal } from "@/components/landing/landing-scroll-reveal";
 import {
   LandingTestimonialsCarousel,
@@ -137,48 +138,7 @@ export function NorfoodLanding() {
 }
 
 function LandingHeader() {
-  return (
-    <header className="sticky top-0 z-50 border-b border-[#FF9100]/15 bg-white/95 shadow-sm backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <Link to="/">
-          <NorfoodLogo size="md" />
-        </Link>
-
-        <nav className="hidden items-center gap-6 text-sm font-medium text-[#5C4A3A] md:flex">
-          <a href="#como-funciona" className="transition hover:text-[#FF9100]">
-            Como pedir
-          </a>
-          <a href="#categorias" className="transition hover:text-[#FF9100]">
-            Categorias
-          </a>
-          <a href="#para-restaurantes" className="transition hover:text-[#FF9100]">
-            Restaurantes
-          </a>
-          <a href="#vantagens" className="transition hover:text-[#FF9100]">
-            Vantagens
-          </a>
-          <a href="#depoimentos" className="transition hover:text-[#FF9100]">
-            Depoimentos
-          </a>
-        </nav>
-
-        <div className="flex items-center gap-2">
-          <Link
-            to="/cadastro"
-            className="hidden rounded-full border-2 border-[#FF9100] px-4 py-2 text-sm font-semibold text-[#FF9100] transition hover:bg-[#FF9100]/10 sm:inline-flex"
-          >
-            Quero ser parceiro
-          </Link>
-          <Link
-            to={lojaPath(NORFOOD_DEMO_TENANT_SLUG)}
-            className="rounded-full bg-[#FF9100] px-4 py-2 text-sm font-semibold text-white shadow-md shadow-[#FF9100]/30 transition hover:bg-[#FF5C00]"
-          >
-            Pedir agora
-          </Link>
-        </div>
-      </div>
-    </header>
-  );
+  return <LandingSiteHeader active="home" />;
 }
 
 function HeroSection() {
@@ -582,7 +542,7 @@ function PartnerCtaSection() {
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
-              to="/cadastro"
+              to="/parceiros"
               className="inline-flex items-center gap-2 rounded-full bg-[#FF9100] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#FF5C00]"
             >
               <Sparkles className="size-4" />
@@ -643,7 +603,7 @@ function LandingFooter() {
                 </a>
               </li>
               <li>
-                <Link to="/cadastro" className="hover:text-[#FF9100]">
+                <Link to="/parceiros" className="hover:text-[#FF9100]">
                   Seja parceiro
                 </Link>
               </li>
