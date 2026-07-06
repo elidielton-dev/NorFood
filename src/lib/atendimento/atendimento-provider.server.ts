@@ -1,5 +1,5 @@
 /**
- * Camada unificada Atendimento — Meta Cloud API ou Evolution (QR).
+ * Camada unificada Atendimento — Meta Cloud API ou WhatsApp Web (Baileys).
  * A UI usa sempre tipos WabaConversation / WabaMessage.
  */
 
@@ -8,6 +8,7 @@ import {
   fetchWhatsAppChats,
   getWhatsAppInboxState,
   getWhatsAppMessages,
+  hardResetWhatsAppConnection,
   resolveAndPersistChatContact,
   sendWhatsAppMediaMessage,
   sendWhatsAppTextMessage,
@@ -15,8 +16,10 @@ import {
   refreshWhatsAppPairingCode,
   startWhatsAppConnection,
   startWhatsAppConnectionWithPhone,
+  runLightInboxCatchUp,
+  maybeRunLightInboxCatchUpInBackground,
 } from "@/lib/api/whatsapp.server";
-import { isEvolutionConfigured } from "@/lib/api/whatsapp-evolution.server";
+import { isBaileysConfigured } from "@/lib/api/whatsapp-baileys.server";
 import { markChatAsRead } from "@/lib/api/whatsapp-store.server";
 import {
   getWabaConfigStatus,
@@ -47,7 +50,7 @@ import {
   phoneToJid,
   looksLikeWhatsAppPhoneDigits,
   phonesMatchLoosely,
-  toEvolutionSendDigits,
+  toWhatsAppSendDigits,
 } from "@/lib/whatsapp";
 import { listWabaContacts } from "@/lib/waba/waba.server";
 import type { WabaContact } from "@/lib/waba/types";
@@ -55,7 +58,7 @@ import type { WabaContact } from "@/lib/waba/types";
 export type { AtendimentoProvider, AtendimentoMessagesPayload } from "@/lib/waba/types";
 
 /** Telefone para exibir — nunca usa o ID interno @lid nem numero adivinhado por nome. */
-function evolutionContactDisplayPhone(
+function baileysContactDisplayPhone(
   chat: WhatsAppChat,
   wabaContact?: WabaContact | null,
 ): string {
@@ -142,7 +145,7 @@ function resolveWabaContactForChat(
 
 function applyWabaContactPhone(chat: WhatsAppChat, wabaContact: WabaContact | null): WhatsAppChat {
   if (!wabaContact?.phone?.trim()) return chat;
-  if (evolutionContactDisplayPhone(chat, wabaContact)) return chat;
+  if (baileysContactDisplayPhone(chat, wabaContact)) return chat;
   const formatted = formatWhatsAppPhone(wabaContact.phone) ?? wabaContact.phone;
   return { ...chat, phone: formatted };
 }
@@ -169,7 +172,7 @@ async function maybeResolveUnresolvedInboxChats(chats: WhatsAppChat[]) {
   const needsResolve = chats
     .filter(
       (chat) =>
-        !evolutionContactDisplayPhone(chat) &&
+        !baileysContactDisplayPhone(chat) &&
         (chat.remoteJid.endsWith("@lid") || !chat.phone?.trim()),
     )
     .slice(0, 4);
@@ -200,7 +203,7 @@ async function maybeResolveUnresolvedInboxChats(chats: WhatsAppChat[]) {
 function maybeConsolidateInboxInBackground() {
   if (Date.now() - lastInboxConsolidateAt < INBOX_CONSOLIDATE_MS) return;
   lastInboxConsolidateAt = Date.now();
-  void consolidateEvolutionInbox().catch((error) => {
+  void consolidateBaileysInbox().catch((error) => {
     console.error("[maybeConsolidateInboxInBackground]", error);
   });
 }
@@ -210,19 +213,22 @@ export type AtendimentoConfigStatus = WabaConfigPublic & {
   /** Conectado conforme o provedor escolhido */
   inbox_connected: boolean;
   provider_label: string;
-  evolution?: {
+  baileys?: {
     configured: boolean;
     status: string;
     qrCode: string | null;
     pairingCode: string | null;
     connectMode: "qr" | "pairing" | null;
     pairingIssuedAt: string | null;
+    baileysOwnerPhone: string | null;
     evolutionOwnerPhone: string | null;
     phoneNumber: string | null;
     profileName: string | null;
     connected: boolean;
     warning?: string | null;
   };
+  /** @deprecated use baileys */
+  evolution?: AtendimentoConfigStatus["baileys"];
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -239,14 +245,18 @@ export async function getActiveProvider(): Promise<AtendimentoProvider> {
     .eq("workspace_id", WABA_WORKSPACE_ID)
     .maybeSingle();
 
-  return data?.active_provider === "evolution" ? "evolution" : "meta";
+  const provider = data?.active_provider;
+  if (provider === "baileys" || provider === "evolution") return "baileys";
+  return "meta";
 }
 
 export async function setActiveProvider(provider: AtendimentoProvider) {
+  const normalized: "meta" | "baileys" =
+    provider === "meta" ? "meta" : "baileys";
   const { error } = await db().from("waba_config").upsert(
     {
       workspace_id: WABA_WORKSPACE_ID,
-      active_provider: provider,
+      active_provider: normalized,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "workspace_id" },
@@ -254,12 +264,12 @@ export async function setActiveProvider(provider: AtendimentoProvider) {
   if (error) throw new Error(error.message);
 }
 
-function mapEvolutionChatToConversation(
+function mapBaileysChatToConversation(
   chat: WhatsAppChat,
   wabaContact?: WabaContact | null,
 ): WabaConversation {
   const now = new Date().toISOString();
-  const displayPhone = evolutionContactDisplayPhone(chat, wabaContact);
+  const displayPhone = baileysContactDisplayPhone(chat, wabaContact);
   return {
     id: chat.id,
     workspace_id: WABA_WORKSPACE_ID,
@@ -288,7 +298,7 @@ function mapEvolutionChatToConversation(
   };
 }
 
-function mapEvolutionMessageToWaba(msg: WhatsAppMessage, conversationId: string): WabaMessage {
+function mapBaileysMessageToWaba(msg: WhatsAppMessage, conversationId: string): WabaMessage {
   const outbound = msg.direction === "outbound";
   const contentType =
     msg.messageType === "text"
@@ -322,16 +332,18 @@ export async function getAtendimentoConfigStatus(): Promise<AtendimentoConfigSta
   const active_provider = await getActiveProvider();
   const meta = await getWabaConfigStatus();
 
-  let evolutionBlock: AtendimentoConfigStatus["evolution"];
-  if (isEvolutionConfigured()) {
+  let baileysBlock: AtendimentoConfigStatus["baileys"];
+  const gatewayConfigured = isBaileysConfigured();
+  if (gatewayConfigured) {
     const state = await getWhatsAppInboxState();
-    evolutionBlock = {
-      configured: state.configured,
+    baileysBlock = {
+      configured: true,
       status: state.status,
       qrCode: state.qrCode,
       pairingCode: state.pairingCode,
       connectMode: state.connectMode,
       pairingIssuedAt: state.pairingIssuedAt,
+      baileysOwnerPhone: state.evolutionOwnerPhone,
       evolutionOwnerPhone: state.evolutionOwnerPhone,
       phoneNumber: state.phoneNumber,
       profileName: state.profileName,
@@ -339,25 +351,27 @@ export async function getAtendimentoConfigStatus(): Promise<AtendimentoConfigSta
       warning: state.warning,
     };
   } else {
-    evolutionBlock = {
+    baileysBlock = {
       configured: false,
       status: "disconnected",
       qrCode: null,
       pairingCode: null,
       connectMode: null,
       pairingIssuedAt: null,
+      baileysOwnerPhone: null,
       evolutionOwnerPhone: null,
       phoneNumber: null,
       profileName: null,
       connected: false,
-      warning: "Configure EVOLUTION_API_URL e EVOLUTION_API_KEY no servidor.",
+      warning: "Configure WHATSAPP_GATEWAY_URL e WHATSAPP_GATEWAY_KEY no servidor.",
     };
   }
 
   const inbox_connected =
-    active_provider === "meta" ? meta.connected : Boolean(evolutionBlock?.connected);
+    active_provider === "meta" ? meta.connected : Boolean(baileysBlock?.connected);
 
-  const provider_label = active_provider === "meta" ? "Meta Cloud API" : "Evolution (QR Code)";
+  const provider_label =
+    active_provider === "meta" ? "Meta Cloud API" : "WhatsApp Web (Baileys)";
 
   return {
     ...meta,
@@ -365,7 +379,8 @@ export async function getAtendimentoConfigStatus(): Promise<AtendimentoConfigSta
     inbox_connected,
     provider_label,
     connected: inbox_connected,
-    evolution: evolutionBlock,
+    baileys: baileysBlock,
+    evolution: baileysBlock,
   };
 }
 
@@ -374,13 +389,13 @@ export async function saveAtendimentoMetaConfig(input: Parameters<typeof saveWab
   return saveWabaConfig(input);
 }
 
-export async function connectAtendimentoEvolution(options?: { phone?: string; renew?: boolean }) {
-  if (!isEvolutionConfigured()) {
+export async function connectAtendimentoBaileys(options?: { phone?: string; renew?: boolean }) {
+  if (!isBaileysConfigured()) {
     throw new Error(
-      "Evolution API não configurada no servidor (EVOLUTION_API_URL / EVOLUTION_API_KEY).",
+      "WhatsApp gateway não configurado no servidor (WHATSAPP_GATEWAY_URL / WHATSAPP_GATEWAY_KEY).",
     );
   }
-  await setActiveProvider("evolution");
+  await setActiveProvider("baileys");
   const result = options?.phone?.trim()
     ? options.renew
       ? await refreshWhatsAppPairingCode(options.phone)
@@ -391,15 +406,42 @@ export async function connectAtendimentoEvolution(options?: { phone?: string; re
   return result;
 }
 
-export async function disconnectAtendimentoEvolution() {
+export const connectAtendimentoEvolution = connectAtendimentoBaileys;
+
+export async function disconnectAtendimentoBaileys() {
   return disconnectWhatsApp();
 }
+
+export const disconnectAtendimentoEvolution = disconnectAtendimentoBaileys;
+
+export async function hardResetAtendimentoBaileys() {
+  if (!isBaileysConfigured()) {
+    throw new Error(
+      "WhatsApp gateway não configurado no servidor (WHATSAPP_GATEWAY_URL / WHATSAPP_GATEWAY_KEY).",
+    );
+  }
+  await setActiveProvider("baileys");
+  const result = await hardResetWhatsAppConnection();
+  const status = await getAtendimentoConfigStatus();
+  const warning =
+    result && typeof result === "object" && "warning" in result
+      ? String((result as { warning?: string | null }).warning ?? "").trim()
+      : "";
+  if (!warning || !status.baileys) return status;
+  return {
+    ...status,
+    baileys: { ...status.baileys, warning },
+    evolution: status.evolution ? { ...status.evolution, warning } : status.evolution,
+  };
+}
+
+export const hardResetAtendimentoEvolution = hardResetAtendimentoBaileys;
 
 let lastFullInboxListAt = 0;
 const FULL_INBOX_LIST_MS = 120_000;
 
 async function hydrateProfilePicturesForChats(chats: WhatsAppChat[]): Promise<WhatsAppChat[]> {
-  if (!isEvolutionConfigured()) return chats;
+  if (!isBaileysConfigured()) return chats;
 
   const needsPic = chats.filter((chat) => {
     if (!isChatPhoneTrusted(chat)) return false;
@@ -447,13 +489,14 @@ export async function listAtendimentoConversations(options?: {
   });
 
   const provider = await getActiveProvider();
-  if (provider === "evolution") {
+  if (provider === "baileys") {
     const useFullEnrichment =
       !options?.light && Date.now() - lastFullInboxListAt > FULL_INBOX_LIST_MS;
 
     if (useFullEnrichment) {
       lastFullInboxListAt = Date.now();
       maybeConsolidateInboxInBackground();
+      maybeRunLightInboxCatchUpInBackground();
 
       const wabaIndexes = await loadWabaContactIndexes();
       let chats = await fetchWhatsAppChats({ mode: "conversations", sync: "none" });
@@ -467,7 +510,7 @@ export async function listAtendimentoConversations(options?: {
         return { chat: withAgendaPhone, wabaContact };
       });
       return enriched
-        .map(({ chat, wabaContact }) => mapEvolutionChatToConversation(chat, wabaContact))
+        .map(({ chat, wabaContact }) => mapBaileysChatToConversation(chat, wabaContact))
         .sort((a, b) =>
           String(b.last_message_at ?? "").localeCompare(String(a.last_message_at ?? "")),
         );
@@ -481,7 +524,7 @@ export async function listAtendimentoConversations(options?: {
       .map((chat) => {
         const wabaContact = resolveWabaContactForChat(chat, wabaIndexes);
         const withAgendaPhone = applyWabaContactPhone(chat, wabaContact);
-        return mapEvolutionChatToConversation(withAgendaPhone, wabaContact);
+        return mapBaileysChatToConversation(withAgendaPhone, wabaContact);
       })
       .sort((a, b) =>
         String(b.last_message_at ?? "").localeCompare(String(a.last_message_at ?? "")),
@@ -498,26 +541,27 @@ export async function listAtendimentoMessages(
   const history = options?.history ?? false;
   const before = options?.before ?? null;
 
-  if (provider === "evolution") {
+  if (provider === "baileys") {
+    const SESSION_ANCHOR_TOLERANCE_MS = 2000;
     const { getWhatsAppChatById, getWhatsAppMessageHistoryMeta } =
       await import("@/lib/api/whatsapp-store.server");
-    const { resolveAttendanceSessionAnchor } =
+    const { resolveAttendanceSessionAnchor, reconcileAtendimentoSessionFromRecentMessages } =
       await import("@/lib/atendimento/atendimento-hours.server");
-    const chat = await getWhatsAppChatById(conversationId);
+    let chat = await getWhatsAppChatById(conversationId);
     let sessionAt = chat?.attendanceOpenedAt ?? null;
 
-    if (!history && sessionAt && chat?.inboxStatus !== "closed") {
-      const recentMs = Date.now() - new Date(sessionAt).getTime();
-      if (recentMs >= 0 && recentMs < 5 * 60_000) {
-        const probe = await getWhatsAppMessageHistoryMeta(conversationId, {
-          since: sessionAt,
-          history: false,
-          fetchedCount: 0,
-          sessionAt,
-        });
-        if (probe.hasOlderBeforeSession) {
+    if (!history && sessionAt && chat && chat.inboxStatus !== "closed") {
+      const lastMsgAt = chat.lastMessageAt;
+      if (lastMsgAt) {
+        const lastMs = new Date(lastMsgAt).getTime();
+        const sessionMs = new Date(sessionAt).getTime();
+        if (
+          Number.isFinite(lastMs) &&
+          Number.isFinite(sessionMs) &&
+          lastMs < sessionMs - SESSION_ANCHOR_TOLERANCE_MS
+        ) {
           const anchor = await resolveAttendanceSessionAnchor(conversationId, sessionAt);
-          if (new Date(anchor).getTime() < new Date(sessionAt).getTime()) {
+          if (new Date(anchor).getTime() < sessionMs) {
             await supabaseAdmin
               .from("whatsapp_chats")
               .update({
@@ -531,14 +575,30 @@ export async function listAtendimentoMessages(
       }
     }
 
-    const since = !history ? (sessionAt ?? undefined) : undefined;
-    const { messages } = await getWhatsAppMessages(conversationId, {
+    let since = !history ? (sessionAt ?? undefined) : undefined;
+    let { messages } = await getWhatsAppMessages(conversationId, {
       history,
       since,
       before: before ?? undefined,
       markRead: false,
     });
-    const mapped = messages.map((m) => mapEvolutionMessageToWaba(m, conversationId));
+
+    if (!history && messages.length === 0 && chat?.lastMessageAt) {
+      await reconcileAtendimentoSessionFromRecentMessages(conversationId);
+      chat = await getWhatsAppChatById(conversationId);
+      const nextSessionAt = chat?.attendanceOpenedAt ?? sessionAt;
+      if (nextSessionAt !== sessionAt) {
+        sessionAt = nextSessionAt;
+        since = sessionAt ?? undefined;
+        ({ messages } = await getWhatsAppMessages(conversationId, {
+          history,
+          since,
+          before: before ?? undefined,
+          markRead: false,
+        }));
+      }
+    }
+    const mapped = messages.map((m) => mapBaileysMessageToWaba(m, conversationId));
     const meta = await getWhatsAppMessageHistoryMeta(conversationId, {
       since,
       history,
@@ -565,7 +625,7 @@ export async function listAtendimentoMessages(
 
 export async function markAtendimentoConversationRead(conversationId: string) {
   const provider = await getActiveProvider();
-  if (provider === "evolution") {
+  if (provider === "baileys") {
     await markChatAsRead(conversationId);
     return;
   }
@@ -579,7 +639,7 @@ export async function sendAtendimentoTextMessage(input: {
   quotedMessageId?: string;
 }) {
   const provider = await getActiveProvider();
-  if (provider === "evolution") {
+  if (provider === "baileys") {
     await sendWhatsAppTextMessage(input.conversationId, input.text, {
       quotedMessageId: input.quotedMessageId,
     });
@@ -608,7 +668,7 @@ export async function sendAtendimentoMediaMessage(input: {
   agentUserId?: string;
 }) {
   const provider = await getActiveProvider();
-  if (provider === "evolution") {
+  if (provider === "baileys") {
     await sendWhatsAppMediaMessage({
       chatId: input.conversationId,
       mediatype: input.mediatype,
@@ -619,12 +679,12 @@ export async function sendAtendimentoMediaMessage(input: {
     });
     return { ok: true as const };
   }
-  throw new Error("Envio de audio e midia disponivel apenas com Evolution (QR Code).");
+  throw new Error("Envio de audio e midia disponivel apenas com WhatsApp Web (Baileys).");
 }
 
 export async function resolveAtendimentoMessageMediaUrl(messageId: string) {
   const provider = await getActiveProvider();
-  if (provider === "evolution") {
+  if (provider === "baileys") {
     return resolveWhatsAppMessageMediaUrl(messageId);
   }
   return null;
@@ -635,7 +695,7 @@ export async function updateAtendimentoConversationStatus(
   status: WabaConversationStatus,
 ) {
   const provider = await getActiveProvider();
-  if (provider === "evolution") {
+  if (provider === "baileys") {
     const { updateWhatsAppChatInboxStatus } = await import("@/lib/api/whatsapp-store.server");
     await updateWhatsAppChatInboxStatus(conversationId, status);
     return;
@@ -661,11 +721,17 @@ export async function updateAtendimentoConversationStatus(
   if (error) throw new Error(error.message);
 }
 
-export async function consolidateEvolutionInbox() {
+export async function consolidateBaileysInbox() {
   const { runFullOrphanLidConsolidation } = await import("@/lib/api/whatsapp-store.server");
   await runFullOrphanLidConsolidation();
   return { ok: true };
 }
+
+export async function syncAtendimentoInbox() {
+  return runLightInboxCatchUp();
+}
+
+export const consolidateEvolutionInbox = consolidateBaileysInbox;
 
 export async function linkAtendimentoConversationPhone(conversationId: string, phone: string) {
   const { getWhatsAppChatById } = await import("@/lib/api/whatsapp-store.server");
@@ -739,7 +805,7 @@ export async function openAtendimentoConversationFromContact(input: {
   const targetDigits = normalizeWhatsAppPhone(input.phone);
   if (!targetDigits) throw new Error("Telefone invalido.");
 
-  if (provider === "evolution") {
+  if (provider === "baileys") {
     const { createWhatsAppChatByPhone } = await import("@/lib/api/whatsapp.server");
     const {
       findWhatsAppChatByPhoneDigits,
@@ -813,7 +879,7 @@ export async function assignAtendimentoConversationAgent(
   const provider = await getActiveProvider();
   const now = new Date().toISOString();
 
-  if (provider === "evolution") {
+  if (provider === "baileys") {
     const { updateChatIdentityInPlace } = await import("@/lib/api/whatsapp-store.server");
     await updateChatIdentityInPlace(conversationId, { assigned_agent_id: agentUserId });
     return { ok: true as const };
@@ -829,7 +895,7 @@ export async function assignAtendimentoConversationAgent(
 
 export async function mergeAtendimentoConversationDuplicates(conversationId: string) {
   const provider = await getActiveProvider();
-  if (provider !== "evolution") {
+  if (provider !== "baileys") {
     return { merged: 0, targetId: conversationId };
   }
   const { mergeDuplicatesForChat } = await import("@/lib/api/whatsapp-store.server");

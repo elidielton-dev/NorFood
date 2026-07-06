@@ -73,7 +73,7 @@ export interface WabaMessage {
   reply_to_from_me?: boolean | null;
 }
 
-export type AtendimentoProvider = "meta" | "evolution";
+export type AtendimentoProvider = "meta" | "baileys" | "evolution";
 
 export interface WabaConfigPublic {
   connected: boolean;
@@ -89,8 +89,8 @@ export interface WabaConfigPublic {
   is_on_biz_app?: boolean;
   platform_type?: string | null;
   coexistence_active?: boolean;
-  /** Provedor ativo: meta ou evolution */
-  active_provider?: "meta" | "evolution";
+  /** Provedor ativo: meta ou baileys */
+  active_provider?: "meta" | "baileys" | "evolution";
   inbox_connected?: boolean;
   provider_label?: string;
 }

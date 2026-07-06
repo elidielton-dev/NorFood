@@ -2,8 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertStaffUserId } from "@/lib/api/auth-helpers.server";
 import {
+  connectAtendimentoBaileys,
   connectAtendimentoEvolution,
+  disconnectAtendimentoBaileys,
   disconnectAtendimentoEvolution,
+  hardResetAtendimentoBaileys,
+  hardResetAtendimentoEvolution,
   getAtendimentoConfigStatus,
   listAtendimentoConversations,
   listAtendimentoMessages,
@@ -16,7 +20,9 @@ import {
   setActiveProvider,
   updateAtendimentoConversationStatus,
   assignAtendimentoConversationAgent,
+  consolidateBaileysInbox,
   consolidateEvolutionInbox,
+  syncAtendimentoInbox,
   linkAtendimentoConversationPhone,
   saveAtendimentoConversationContact,
   mergeAtendimentoConversationDuplicates,
@@ -88,25 +94,60 @@ export const saveAtendimentoMetaConfigServer = createServerFn({ method: "POST" }
     return saveAtendimentoMetaConfig(data);
   });
 
-export const connectAtendimentoEvolutionServer = createServerFn({ method: "POST" })
+export const connectAtendimentoBaileysServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: { phone?: string; renew?: boolean }) => input ?? {})
   .handler(async ({ context, data }) => {
     await staffOnly(context.userId);
-    await connectAtendimentoEvolution(
-      data?.phone ? { phone: data.phone, renew: data.renew } : undefined,
-    );
-    return getAtendimentoConfigStatus();
+    try {
+      const connectResult = await connectAtendimentoBaileys(
+        data?.phone ? { phone: data.phone, renew: data.renew } : undefined,
+      );
+      const status = await getAtendimentoConfigStatus();
+      const pendingWarning =
+        connectResult && typeof connectResult === "object" && "warning" in connectResult
+          ? String((connectResult as { warning?: string | null }).warning ?? "").trim()
+          : "";
+      if (!pendingWarning || !status.baileys) return status;
+      return {
+        ...status,
+        baileys: { ...status.baileys, warning: pendingWarning },
+        evolution: status.evolution ? { ...status.evolution, warning: pendingWarning } : status.evolution,
+      };
+    } catch (error) {
+      const status = await getAtendimentoConfigStatus();
+      const message = error instanceof Error ? error.message : "Falha ao conectar o WhatsApp.";
+      if (!status.baileys) return status;
+      return {
+        ...status,
+        baileys: { ...status.baileys, warning: message },
+        evolution: status.evolution ? { ...status.evolution, warning: message } : status.evolution,
+      };
+    }
   });
 
-export const disconnectAtendimentoEvolutionServer = createServerFn({ method: "POST" })
+export const connectAtendimentoEvolutionServer = connectAtendimentoBaileysServer;
+
+export const disconnectAtendimentoBaileysServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator(() => ({}))
   .handler(async ({ context }) => {
     await staffOnly(context.userId);
-    await disconnectAtendimentoEvolution();
+    await disconnectAtendimentoBaileys();
     return getAtendimentoConfigStatus();
   });
+
+export const disconnectAtendimentoEvolutionServer = disconnectAtendimentoBaileysServer;
+
+export const hardResetAtendimentoBaileysServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(() => ({}))
+  .handler(async ({ context }) => {
+    await staffOnly(context.userId);
+    return hardResetAtendimentoBaileys();
+  });
+
+export const hardResetAtendimentoEvolutionServer = hardResetAtendimentoBaileysServer;
 
 export const fetchAtendimentoConversationsServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -312,12 +353,22 @@ export const updateAtendimentoConversationStatusServer = createServerFn({ method
     return { ok: true };
   });
 
-export const consolidateEvolutionInboxServer = createServerFn({ method: "POST" })
+export const consolidateBaileysInboxServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator(() => ({}))
   .handler(async ({ context }) => {
     await staffOnly(context.userId);
-    return consolidateEvolutionInbox();
+    return consolidateBaileysInbox();
+  });
+
+export const consolidateEvolutionInboxServer = consolidateBaileysInboxServer;
+
+export const syncAtendimentoInboxServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(() => ({}))
+  .handler(async ({ context }) => {
+    await staffOnly(context.userId);
+    return syncAtendimentoInbox();
   });
 
 export const linkAtendimentoConversationPhoneServer = createServerFn({ method: "POST" })

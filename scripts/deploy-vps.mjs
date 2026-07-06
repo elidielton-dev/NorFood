@@ -114,6 +114,7 @@ async function main() {
     ".output",
     "dist",
     ".cursor",
+    "deploy/.env",
   ];
   // Windows: tar pipe over ssh (rsync indisponível nativamente)
   if (process.platform === "win32") {

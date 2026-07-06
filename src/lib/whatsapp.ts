@@ -71,7 +71,7 @@ export type WhatsAppMessagesPayload = {
 /** Modo da lista lateral: conversas recentes ou agenda completa. */
 export type WhatsAppListMode = "conversations" | "agenda";
 
-/** Tipo de sincronizacao com a Evolution API. */
+/** Tipo de sincronizacao com o gateway WhatsApp Web (Baileys). */
 export type WhatsAppSyncMode = "none" | "search" | "full";
 
 export type WhatsAppContactProfile = {
@@ -86,7 +86,7 @@ export type WhatsAppContactProfile = {
 
 export type WhatsAppInboxState = {
   configured: boolean;
-  provider: "evolution" | "demo";
+  provider: "baileys" | "evolution" | "demo";
   status: WhatsAppConnectionStatus;
   instanceName: string;
   phoneNumber: string | null;
@@ -98,8 +98,10 @@ export type WhatsAppInboxState = {
   connectMode: WhatsAppConnectAuthMode | null;
   /** Quando o codigo de vinculo foi gerado (ISO). */
   pairingIssuedAt: string | null;
-  /** Telefone que estava na instancia Evolution antes do pairing (se houver). */
+  /** Telefone que estava na instancia WhatsApp Web antes do pairing (se houver). */
   evolutionOwnerPhone: string | null;
+  /** Alias de evolutionOwnerPhone para gateway Baileys. */
+  baileysOwnerPhone?: string | null;
   warning: string | null;
 };
 
@@ -310,23 +312,29 @@ export function pickMessageRemoteJid(key: Record<string, unknown>) {
   return primary || alt;
 }
 
-export function toEvolutionSendDigits(value: string) {
+export function toWhatsAppSendDigits(value: string) {
   const digits = normalizeWhatsAppPhone(value);
   if (digits.length >= 12 && digits.length <= 13) return digits;
   if (digits.length === 10 || digits.length === 11) return `55${digits}`;
   return null;
 }
 
-/** Evolution sendText/sendMedia: nunca usar digitos de @lid como telefone. */
-export function resolveEvolutionSendNumber(remoteJid: string, phone?: string | null) {
+/** @deprecated use toWhatsAppSendDigits */
+export const toEvolutionSendDigits = toWhatsAppSendDigits;
+
+/** WhatsApp Web send: nunca usar digitos de @lid como telefone. */
+export function resolveWhatsAppSendNumber(remoteJid: string, phone?: string | null) {
   if (remoteJid.endsWith("@s.whatsapp.net")) {
-    return toEvolutionSendDigits(remoteJid.split("@")[0] ?? "");
+    return toWhatsAppSendDigits(remoteJid.split("@")[0] ?? "");
   }
   if (remoteJid.endsWith("@lid")) {
-    return toEvolutionSendDigits(phone ?? "");
+    return toWhatsAppSendDigits(phone ?? "");
   }
-  return toEvolutionSendDigits(phone ?? "");
+  return toWhatsAppSendDigits(phone ?? "");
 }
+
+/** @deprecated use resolveWhatsAppSendNumber */
+export const resolveEvolutionSendNumber = resolveWhatsAppSendNumber;
 
 /** Telefone confirmado manualmente ou via JID real @s.whatsapp.net. */
 export function isChatPhoneTrusted(chat: {

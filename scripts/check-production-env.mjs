@@ -40,8 +40,9 @@ const recommended = [
   "MP_WEBHOOK_SECRET",
   "CRON_SECRET",
   "ENCRYPTION_KEY",
-  "EVOLUTION_API_URL",
-  "EVOLUTION_API_KEY",
+  "WHATSAPP_GATEWAY_URL",
+  "WHATSAPP_GATEWAY_KEY",
+  "WHATSAPP_WEBHOOK_URL",
 ];
 
 const missingRecommended = recommended.filter((key) => !env[key]);

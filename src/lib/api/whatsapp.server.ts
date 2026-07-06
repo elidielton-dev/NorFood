@@ -20,8 +20,9 @@ import {
   sendEvolutionMedia,
   sendEvolutionMessage,
   resolveEvolutionSendTarget,
-  startEvolutionQrSession,
-} from "@/lib/api/whatsapp-evolution.server";
+  resolveBaileysSendAddress,
+  triggerEvolutionQrSession,
+} from "@/lib/api/whatsapp-baileys.server";
 import {
   activateDemoWhatsApp,
   bulkUpsertWhatsAppChats,
@@ -90,8 +91,8 @@ import {
   resolveLidContactPushName,
 } from "@/lib/api/whatsapp-identity.server";
 
-function resolveProvider(): "evolution" | "demo" {
-  return isEvolutionConfigured() ? "evolution" : "demo";
+function resolveProvider(): "baileys" | "demo" {
+  return isEvolutionConfigured() ? "baileys" : "demo";
 }
 
 let lastRetentionCleanupAt = 0;
@@ -293,7 +294,7 @@ async function ensureWhatsAppMessageMediaStored(input: {
   if (!input.waMessageId || input.waMessageId.startsWith("local-")) return input.mediaUrl;
 
   const { updateWhatsAppMessageMediaUrl } = await import("@/lib/api/whatsapp-store.server");
-  const { fetchEvolutionMediaBase64 } = await import("@/lib/api/whatsapp-evolution.server");
+  const { fetchEvolutionMediaBase64 } = await import("@/lib/api/whatsapp-baileys.server");
   const chat = await getWhatsAppChatById(input.chatId);
 
   const jids = new Set<string>();
@@ -450,9 +451,10 @@ export async function processIncomingWhatsAppRecord(record: Record<string, unkno
   }
 
   if (isInbound) {
-    const { ensureCustomerInboundKeepsConversationOpen } =
+    const { ensureCustomerInboundKeepsConversationOpen, syncAtendimentoSessionOnActivity } =
       await import("@/lib/atendimento/atendimento-hours.server");
     await ensureCustomerInboundKeepsConversationOpen(finalChatId, parsed.sentAt);
+    await syncAtendimentoSessionOnActivity(finalChatId, parsed.sentAt);
   }
 
   const contactName =
@@ -661,7 +663,7 @@ export async function refreshWhatsAppChatProfilePicture(
 
   const { getWhatsAppChatById, updateChatIdentityInPlace } =
     await import("@/lib/api/whatsapp-store.server");
-  const { fetchEvolutionProfilePicture } = await import("@/lib/api/whatsapp-evolution.server");
+  const { fetchEvolutionProfilePicture } = await import("@/lib/api/whatsapp-baileys.server");
 
   const row = await getWhatsAppChatById(chatId);
   if (!row) return null;
@@ -793,7 +795,7 @@ async function ensureChatReadyForSend(chat: {
     phoneVerifiedAt: chat.phoneVerifiedAt,
   });
 
-  if (!target.digits) {
+  if (!target.digits && !target.sendViaLid) {
     throw new Error(
       "Telefone do contato nao identificado. Aguarde a sincronizacao ou cadastre o numero na agenda.",
     );
@@ -812,7 +814,7 @@ async function ensureChatReadyForSend(chat: {
     remoteJid: target.sendRemoteJid,
     identity: target.identity,
     digits: target.digits,
-    sendViaLid: false,
+    sendViaLid: target.sendViaLid ?? false,
     sendRemoteJid: target.sendRemoteJid,
   };
 }
@@ -822,6 +824,60 @@ function pairingPendingAgeMs(updatedAt: string | null | undefined) {
   const ts = new Date(updatedAt).getTime();
   if (Number.isNaN(ts)) return 0;
   return Math.max(0, Date.now() - ts);
+}
+
+const AUTH_PENDING_EXPIRE_MS = 90_000;
+
+function isAuthPendingExpired(updatedAt: string | null | undefined) {
+  return pairingPendingAgeMs(updatedAt) > AUTH_PENDING_EXPIRE_MS;
+}
+
+async function clearStaleWhatsAppAuthState() {
+  await setWhatsAppStatus("disconnected", {
+    qr_code: null,
+    phone_number: null,
+    profile_name: null,
+    connected_at: null,
+    provider: "baileys",
+  });
+}
+
+async function persistGatewayConnectedState(
+  config: { connected_at: string | null },
+  fallback?: { phoneNumber?: string | null; profileName?: string | null },
+) {
+  let phoneNumber = fallback?.phoneNumber ?? null;
+  let profileName = fallback?.profileName ?? null;
+  try {
+    const profile = await fetchEvolutionProfile();
+    phoneNumber = profile.phoneNumber ?? phoneNumber;
+    profileName = profile.profileName ?? profileName;
+  } catch {
+    /* profile opcional — manter connected mesmo se /profile falhar */
+  }
+  await ensureEvolutionWebhookConfigured();
+  await setWhatsAppStatus("connected", {
+    phone_number: phoneNumber,
+    profile_name: profileName,
+    qr_code: null,
+    provider: "baileys",
+    connected_at: config.connected_at ?? new Date().toISOString(),
+  });
+  return { phoneNumber, profileName };
+}
+
+async function probeGatewayProfilePhone() {
+  try {
+    const profile = await fetchEvolutionProfile();
+    return profile.phoneNumber?.trim() ? profile : null;
+  } catch {
+    return null;
+  }
+}
+
+async function readGatewayAuthError() {
+  const qr = await fetchEvolutionQrCode();
+  return qr.authError;
 }
 
 async function resolvePendingPairingCode(
@@ -900,7 +956,7 @@ export async function getWhatsAppInboxState(): Promise<WhatsAppInboxState> {
       pairingIssuedAt: null,
       evolutionOwnerPhone: null,
       warning: schemaReady
-        ? "Modo demonstracao ativo. Configure EVOLUTION_API_URL e EVOLUTION_API_KEY para conectar o WhatsApp real."
+        ? "Modo demonstracao ativo. Configure WHATSAPP_GATEWAY_URL e WHATSAPP_GATEWAY_KEY para conectar o WhatsApp real."
         : "Migration WhatsApp pendente no Supabase. Usando demonstracao local.",
     };
   }
@@ -935,7 +991,7 @@ export async function getWhatsAppInboxState(): Promise<WhatsAppInboxState> {
       profileName = null;
       if (liveStatus === "connected" || liveStatus === "connecting") {
         warning =
-          "Painel desconectado, mas a Evolution ainda reporta sessao ativa. Clique em Desconectar novamente.";
+        "Painel desconectado, mas o gateway ainda reporta sessao ativa. Clique em Desconectar novamente.";
       }
     } else if (liveStatus === "connected") {
       status = "connected";
@@ -943,23 +999,31 @@ export async function getWhatsAppInboxState(): Promise<WhatsAppInboxState> {
       pairingCode = null;
       connectMode = null;
       pairingIssuedAt = null;
-      const profile = await fetchEvolutionProfile();
-      phoneNumber = profile.phoneNumber ?? phoneNumber;
-      profileName = profile.profileName ?? profileName;
-      await ensureEvolutionWebhookConfigured();
-      await setWhatsAppStatus("connected", {
-        phone_number: phoneNumber,
-        profile_name: profileName,
-        qr_code: null,
-        provider: "evolution",
-        connected_at: config.connected_at ?? new Date().toISOString(),
+      const applied = await persistGatewayConnectedState(config, {
+        phoneNumber,
+        profileName,
       });
+      phoneNumber = applied.phoneNumber ?? phoneNumber;
+      profileName = applied.profileName ?? profileName;
     } else if (liveStatus === "connecting") {
-      if (storedAuthMode === "pairing") {
+      const profileWhileConnecting = await probeGatewayProfilePhone();
+      if (profileWhileConnecting?.phoneNumber) {
+        status = "connected";
+        qrCode = null;
+        pairingCode = null;
+        connectMode = null;
+        pairingIssuedAt = null;
+        const applied = await persistGatewayConnectedState(config, {
+          phoneNumber: profileWhileConnecting.phoneNumber,
+          profileName: profileWhileConnecting.profileName,
+        });
+        phoneNumber = applied.phoneNumber ?? phoneNumber;
+        profileName = applied.profileName ?? profileName;
+      } else if (storedAuthMode === "pairing") {
         connectMode = "pairing";
         status = "pairing";
         if (!pairingCode) {
-          const { config: latest } = await readWhatsAppConfig("evolution");
+          const { config: latest } = await readWhatsAppConfig("baileys");
           pairingCode = decodePairingCodeStorage(latest.qr_code);
         }
         if (!pairingCode) {
@@ -972,26 +1036,37 @@ export async function getWhatsAppInboxState(): Promise<WhatsAppInboxState> {
             pairingCode = fromEvo;
             await setWhatsAppStatus("pairing", {
               qr_code: encodePairingCodeStorage(fromEvo),
-              provider: "evolution",
+              provider: "baileys",
               phone_number: phoneNumber,
             });
           }
         }
         if (!pairingCode && pairingPendingAgeMs(config.updated_at) > 90_000) {
           warning =
-            "A Evolution nao devolveu o codigo de vinculo. Clique em Desconectar, aguarde 10 segundos e tente Gerar codigo de novo.";
+            "O gateway nao devolveu o codigo de vinculo. Clique em Desconectar, aguarde 10 segundos e tente Gerar codigo de novo.";
         }
       } else if (storedAuthMode === "qr") {
         connectMode = "qr";
         if (qrCode) {
           status = "qr";
+          const authError = await readGatewayAuthError();
+          if (authError) warning = authError;
         } else {
           const qr = await fetchEvolutionQrCode();
-          if (qr.qrCode) {
+          if (qr.authError) {
+            warning = qr.authError;
+            status = "connecting";
+          } else if (qr.qrCode) {
             qrCode = qr.qrCode;
             pairingCode = null;
             status = "qr";
-            await setWhatsAppStatus("qr", { qr_code: qrCode, provider: "evolution" });
+            await setWhatsAppStatus("qr", { qr_code: qrCode, provider: "baileys" });
+          } else if (isAuthPendingExpired(config.updated_at)) {
+            status = "disconnected";
+            connectMode = null;
+            warning =
+              "O QR Code expirou sem resposta do gateway. Clique em Desconectar, aguarde 10 segundos e tente Gerar QR Code de novo.";
+            await clearStaleWhatsAppAuthState();
           } else {
             status = "connecting";
           }
@@ -1012,30 +1087,58 @@ export async function getWhatsAppInboxState(): Promise<WhatsAppInboxState> {
           pairingCode = fromEvo;
           await setWhatsAppStatus("pairing", {
             qr_code: encodePairingCodeStorage(fromEvo),
-            provider: "evolution",
+            provider: "baileys",
             phone_number: phoneNumber,
           });
         }
       }
       if (!pairingCode && pairingPendingAgeMs(config.updated_at) > 90_000) {
         warning =
-          "A Evolution nao devolveu o codigo de vinculo. Clique em Desconectar, aguarde 10 segundos e tente Gerar codigo de novo.";
+          "O gateway nao devolveu o codigo de vinculo. Clique em Desconectar, aguarde 10 segundos e tente Gerar codigo de novo.";
       }
     } else if (storedAuthMode === "qr") {
-      status = "qr";
+      connectMode = "qr";
       if (!qrCode) {
         const qr = await fetchEvolutionQrCode();
-        qrCode = qr.qrCode;
-        if (qrCode) {
-          await setWhatsAppStatus("qr", { qr_code: qrCode, provider: "evolution" });
+        if (qr.authError) {
+          warning = qr.authError;
+          status = "connecting";
+        } else if (qr.qrCode) {
+          qrCode = qr.qrCode;
+          status = "qr";
+          await setWhatsAppStatus("qr", { qr_code: qrCode, provider: "baileys" });
+        } else if (isAuthPendingExpired(config.updated_at) && liveStatus === "disconnected") {
+          status = "disconnected";
+          connectMode = null;
+          warning =
+            "O QR Code expirou sem resposta do gateway. Clique em Desconectar, aguarde 10 segundos e tente Gerar QR Code de novo.";
+          await clearStaleWhatsAppAuthState();
+        } else {
+          status = "qr";
         }
+      } else {
+        status = "qr";
       }
+      if (!warning) {
+        const authError = await readGatewayAuthError();
+        if (authError) warning = authError;
+      }
+    } else if (config.status === "connected" && liveStatus !== "connected") {
+      status = "disconnected";
+      connectMode = null;
+      phoneNumber = null;
+      profileName = null;
+      qrCode = null;
+      pairingCode = null;
+      warning =
+        "Sessao antiga no banco foi limpa. Clique em Gerar QR Code para conectar novamente.";
+      await clearStaleWhatsAppAuthState();
     } else {
       status = config.status === "connected" ? "connected" : "disconnected";
       connectMode = null;
     }
   } catch (error) {
-    warning = error instanceof Error ? error.message : "Falha ao consultar Evolution API.";
+    warning = error instanceof Error ? error.message : "Falha ao consultar gateway WhatsApp.";
     if (explicitlyDisconnected) {
       status = "disconnected";
       qrCode = null;
@@ -1055,7 +1158,7 @@ export async function getWhatsAppInboxState(): Promise<WhatsAppInboxState> {
 
   return {
     configured: true,
-    provider: "evolution",
+    provider: "baileys",
     status,
     instanceName: config.instance_name,
     phoneNumber,
@@ -1071,7 +1174,7 @@ export async function getWhatsAppInboxState(): Promise<WhatsAppInboxState> {
 
 export async function refreshWhatsAppPairingCode(phone: string) {
   if (!isEvolutionConfigured()) {
-    throw new Error("Evolution API nao configurada.");
+    throw new Error("WhatsApp gateway nao configurado.");
   }
 
   const digits = toEvolutionSendDigits(phone) || normalizeWhatsAppPhone(phone);
@@ -1088,7 +1191,7 @@ export async function refreshWhatsAppPairingCode(phone: string) {
 
   await setWhatsAppStatus("pairing", {
     qr_code: encodePairingCodeStorage(result.pairingCode),
-    provider: "evolution",
+    provider: "baileys",
     phone_number: formatWhatsAppPhone(digits),
     profile_name: null,
   });
@@ -1102,28 +1205,44 @@ export async function refreshWhatsAppPairingCode(phone: string) {
 
 export async function startWhatsAppConnection() {
   if (!isEvolutionConfigured()) {
-    activateDemoWhatsApp();
-    return getWhatsAppInboxState();
+    throw new Error(
+      "Gateway WhatsApp nao configurado. Defina WHATSAPP_GATEWAY_URL e WHATSAPP_GATEWAY_KEY no servidor.",
+    );
   }
 
-  const result = await startEvolutionQrSession();
-  if (!result.qrCode) {
-    throw new Error("Nao foi possivel gerar o QR Code. Tente novamente em alguns segundos.");
-  }
+  const { resetEvolutionInstanceSession } = await import("@/lib/api/whatsapp-baileys.server");
+  await resetEvolutionInstanceSession();
 
   await setWhatsAppStatus("qr", {
-    qr_code: result.qrCode,
-    provider: "evolution",
+    qr_code: null,
+    provider: "baileys",
     phone_number: null,
     profile_name: null,
+    connected_at: null,
   });
-  const state = await getWhatsAppInboxState();
-  return inboxStateWithFreshAuth(state, { status: "qr", qrCode: result.qrCode });
+
+  await triggerEvolutionQrSession();
+
+  return {
+    configured: true,
+    provider: "baileys",
+    status: "qr",
+    instanceName: "norfood",
+    phoneNumber: null,
+    profileName: null,
+    qrCode: null,
+    pairingCode: null,
+    connectMode: "qr",
+    pairingIssuedAt: null,
+    evolutionOwnerPhone: null,
+    warning:
+      "Gerando QR Code. O painel atualiza sozinho em alguns segundos — aguarde sem clicar de novo.",
+  };
 }
 
 export async function startWhatsAppConnectionWithPhone(phone: string) {
   if (!isEvolutionConfigured()) {
-    throw new Error("Evolution API nao configurada.");
+    throw new Error("WhatsApp gateway nao configurado.");
   }
 
   const digits = toEvolutionSendDigits(phone) || normalizeWhatsAppPhone(phone);
@@ -1135,7 +1254,7 @@ export async function startWhatsAppConnectionWithPhone(phone: string) {
 
   await setWhatsAppStatus("pairing", {
     qr_code: null,
-    provider: "evolution",
+    provider: "baileys",
     phone_number: formattedPhone,
     profile_name: null,
   });
@@ -1144,7 +1263,7 @@ export async function startWhatsAppConnectionWithPhone(phone: string) {
   if (result.pairingCode) {
     await setWhatsAppStatus("pairing", {
       qr_code: encodePairingCodeStorage(result.pairingCode),
-      provider: "evolution",
+      provider: "baileys",
       phone_number: formattedPhone,
       profile_name: null,
     });
@@ -1173,9 +1292,54 @@ export async function startWhatsAppConnectionWithPhone(phone: string) {
 
   const hint =
     liveStatus === "connected"
-      ? "O WhatsApp ainda aparece conectado na Evolution. Use Desconectar e tente novamente."
+      ? "O WhatsApp ainda aparece conectado no gateway. Use Desconectar e tente novamente."
       : "Confira o numero com DDI 55 + DDD e tente novamente. Se persistir, confira CONFIG_SESSION_PHONE_* na VPS.";
   throw new Error(`Nao foi possivel gerar o codigo de vinculo. ${hint}`);
+}
+
+export async function hardResetWhatsAppConnection() {
+  if (isEvolutionConfigured()) {
+    try {
+      await forceDisconnectEvolutionInstance();
+    } catch (error) {
+      console.error("[hardResetWhatsAppConnection] force disconnect:", error);
+    }
+  }
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { error: msgError } = await supabaseAdmin
+    .from("whatsapp_messages")
+    .delete()
+    .not("id", "is", null);
+  if (msgError) throw msgError;
+
+  const { error: chatError } = await supabaseAdmin
+    .from("whatsapp_chats")
+    .delete()
+    .not("id", "is", null);
+  if (chatError) throw chatError;
+
+  await setWhatsAppStatus("disconnected", {
+    qr_code: null,
+    phone_number: null,
+    profile_name: null,
+    connected_at: null,
+    provider: isEvolutionConfigured() ? "baileys" : "demo",
+  });
+
+  if (isEvolutionConfigured()) {
+    const { resetEvolutionInstanceSession } = await import("@/lib/api/whatsapp-baileys.server");
+    await resetEvolutionInstanceSession();
+  } else {
+    activateDemoWhatsApp();
+  }
+
+  const state = await getWhatsAppInboxState();
+  return {
+    ...state,
+    warning:
+      "Conexao zerada. Todos os chats foram removidos. Clique em Gerar QR Code para conectar de novo.",
+  };
 }
 
 export async function disconnectWhatsApp() {
@@ -1186,12 +1350,12 @@ export async function disconnectWhatsApp() {
       const liveAfter = await forceDisconnectEvolutionInstance();
       if (liveAfter === "connected" || liveAfter === "connecting") {
         evolutionWarning =
-          "A Evolution ainda nao liberou a sessao. Aguarde 10 segundos e clique em Desconectar novamente.";
+          "O gateway ainda nao liberou a sessao. Aguarde 10 segundos e clique em Desconectar novamente.";
       }
     } catch (error) {
       console.error("[disconnectWhatsApp] Evolution force disconnect:", error);
       evolutionWarning =
-        error instanceof Error ? error.message : "Falha ao desconectar na Evolution API.";
+        error instanceof Error ? error.message : "Falha ao desconectar no gateway WhatsApp.";
     }
   }
 
@@ -1200,7 +1364,7 @@ export async function disconnectWhatsApp() {
     phone_number: null,
     profile_name: null,
     connected_at: null,
-    provider: isEvolutionConfigured() ? "evolution" : "demo",
+    provider: isEvolutionConfigured() ? "baileys" : "demo",
   });
   if (!isEvolutionConfigured()) activateDemoWhatsApp();
 
@@ -1421,9 +1585,13 @@ async function syncMessagesMirrorForRecentChats() {
   }
 }
 
-async function syncRecentMessagesForChatMirror(chatId: string, remoteJid: string) {
+async function syncRecentMessagesForChatMirror(
+  chatId: string,
+  remoteJid: string,
+  minSentMs?: number,
+) {
   const rawMessages = await fetchEvolutionMessages(remoteJid, 40);
-  const retentionMs = whatsappRetentionCutoff().getTime();
+  const retentionMs = minSentMs ?? whatsappRetentionCutoff().getTime();
 
   const toInsert: Parameters<typeof insertWhatsAppMessage>[0][] = [];
   for (const raw of rawMessages) {
@@ -1498,6 +1666,70 @@ async function syncRecentMessagesForChatMirror(chatId: string, remoteJid: string
   await reconcileAtendimentoSessionFromRecentMessages(chatId);
 }
 
+let lastLightInboxCatchUpAt = 0;
+const LIGHT_INBOX_CATCHUP_MS = 120_000;
+
+export async function runLightInboxCatchUp(): Promise<{ ok: boolean; chatsSynced: number }> {
+  if (!isEvolutionConfigured()) return { ok: false, chatsSynced: 0 };
+
+  const { config } = await readWhatsAppConfig("baileys");
+  if (config.status !== "connected") return { ok: false, chatsSynced: 0 };
+
+  const cutoff = await getWhatsAppInboundMessageCutoff();
+  const cutoffMs = cutoff.getTime();
+  const owner = await getInstanceOwner();
+  const rawChats = await fetchEvolutionChats();
+  const inputs: Parameters<typeof bulkUpsertWhatsAppChats>[0] = [];
+
+  for (const raw of rawChats) {
+    if (!raw || typeof raw !== "object") continue;
+    const parsed = parseEvolutionChat(raw as Record<string, unknown>);
+    if (!parsed.remoteJid || parsed.isGroup || !isValidWhatsAppChatJid(parsed.remoteJid)) continue;
+    if (isOwnerJid(parsed.remoteJid, owner)) continue;
+
+    const lastAt = parsed.lastMessageAt ? new Date(parsed.lastMessageAt) : null;
+    if (!lastAt || lastAt.getTime() < cutoffMs) continue;
+
+    inputs.push({
+      remoteJid: parsed.remoteJid,
+      name: parsed.name,
+      phone: parsed.phone,
+      profilePicUrl: parsed.profilePicUrl,
+      lastMessage: parsed.lastMessage,
+      lastMessageAt: parsed.lastMessageAt,
+      firstContactAt: parsed.lastMessageAt,
+      mirrorName: true,
+    });
+  }
+
+  if (inputs.length > 0) {
+    for (let index = 0; index < inputs.length; index += 100) {
+      await bulkUpsertWhatsAppChats(inputs.slice(index, index + 100));
+    }
+  }
+
+  const chats = await listWhatsAppChats();
+  for (const chat of chats) {
+    if (!chat.lastMessageAt) continue;
+    if (new Date(chat.lastMessageAt).getTime() < cutoffMs) continue;
+    try {
+      await syncRecentMessagesForChatMirror(chat.id, chat.remoteJid, cutoffMs);
+    } catch (error) {
+      console.error("[runLightInboxCatchUp] messages", chat.remoteJid, error);
+    }
+  }
+
+  return { ok: true, chatsSynced: inputs.length };
+}
+
+export function maybeRunLightInboxCatchUpInBackground() {
+  if (Date.now() - lastLightInboxCatchUpAt < LIGHT_INBOX_CATCHUP_MS) return;
+  lastLightInboxCatchUpAt = Date.now();
+  void runLightInboxCatchUp().catch((error) => {
+    console.error("[runLightInboxCatchUp]", error);
+  });
+}
+
 export async function searchWhatsAppChats(term: string) {
   return fetchWhatsAppChats({ search: term, mode: "conversations", sync: "full" });
 }
@@ -1565,12 +1797,12 @@ const messageSyncAt = new Map<string, number>();
 const MESSAGE_FETCH_RESOLVE_MS = 30_000;
 const MESSAGE_SYNC_MS = 12_000;
 
-function evolutionNumberFromReady(ready: { digits: string | null; sendRemoteJid: string }) {
-  if (ready.digits) return ready.digits;
-  if (ready.sendRemoteJid.endsWith("@s.whatsapp.net")) {
-    return ready.sendRemoteJid.split("@")[0] ?? "";
-  }
-  throw new Error("Telefone do contato nao identificado para envio.");
+function evolutionSendAddressFromReady(ready: {
+  digits: string | null;
+  sendRemoteJid: string;
+  sendViaLid?: boolean;
+}) {
+  return resolveBaileysSendAddress(ready);
 }
 
 export async function sendWhatsAppTextMessage(
@@ -1591,7 +1823,7 @@ export async function sendWhatsAppTextMessage(
     firstContactAt: row.first_contact_at,
   });
 
-  let quoted: import("@/lib/api/whatsapp-evolution.server").EvolutionQuotedMessage | undefined;
+  let quoted: import("@/lib/api/whatsapp-baileys.server").EvolutionQuotedMessage | undefined;
   let replyToWaMessageId: string | null = null;
   let replyToText: string | null = null;
   let replyToFromMe: boolean | null = null;
@@ -1624,21 +1856,43 @@ export async function sendWhatsAppTextMessage(
     }
   }
 
-  if (isEvolutionConfigured()) {
-    try {
-      await sendEvolutionMessage(
-        {
-          digits: ready.digits,
-          sendRemoteJid: ready.sendRemoteJid,
-          sendViaLid: false,
-        },
-        text.trim(),
-        quoted,
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Falha ao enviar via Evolution API.";
-      throw new Error(message);
-    }
+  let waMessageId: string;
+
+  if (!isEvolutionConfigured()) {
+    waMessageId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const sentAt = new Date().toISOString();
+    const { syncAtendimentoSessionOnActivity } =
+      await import("@/lib/atendimento/atendimento-hours.server");
+    await syncAtendimentoSessionOnActivity(ready.chatId, sentAt);
+    return insertWhatsAppMessage({
+      chatId: ready.chatId,
+      remoteJid: ready.sendRemoteJid,
+      waMessageId,
+      direction: "outbound",
+      messageType: "text",
+      body: text.trim(),
+      status: "delivered",
+      sentAt,
+      replyToWaMessageId,
+      replyToText,
+      replyToFromMe,
+    });
+  }
+
+  try {
+    const sent = await sendEvolutionMessage(
+      {
+        digits: ready.digits,
+        sendRemoteJid: ready.sendRemoteJid,
+        sendViaLid: ready.sendViaLid,
+      },
+      text.trim(),
+      quoted,
+    );
+    waMessageId = sent.waMessageId;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Falha ao enviar via gateway WhatsApp.";
+    throw new Error(message);
   }
 
   const sentAt = new Date().toISOString();
@@ -1649,11 +1903,11 @@ export async function sendWhatsAppTextMessage(
   return insertWhatsAppMessage({
     chatId: ready.chatId,
     remoteJid: ready.sendRemoteJid,
-    waMessageId: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    waMessageId,
     direction: "outbound",
     messageType: "text",
     body: text.trim(),
-    status: isEvolutionConfigured() ? "sent" : "delivered",
+    status: "sent",
     sentAt,
     replyToWaMessageId,
     replyToText,
@@ -1682,21 +1936,48 @@ export async function sendWhatsAppMediaMessage(input: {
     firstContactAt: row.first_contact_at,
   });
 
-  if (isEvolutionConfigured()) {
-    const number = evolutionNumberFromReady(ready);
-    if (input.mediatype === "audio") {
-      await sendEvolutionAudio(number, input.base64);
-    } else {
-      await sendEvolutionMedia({
-        number,
-        mediatype: input.mediatype,
-        media: input.base64,
-        mimetype: input.mimetype,
-        caption: input.caption,
-        fileName: input.fileName,
-      });
-    }
+  let waMessageId: string;
+
+  if (!isEvolutionConfigured()) {
+    waMessageId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const sentAt = new Date().toISOString();
+    const { syncAtendimentoSessionOnActivity } =
+      await import("@/lib/atendimento/atendimento-hours.server");
+    await syncAtendimentoSessionOnActivity(ready.chatId, sentAt);
+    const dataUrl =
+      input.mimetype && input.mediatype === "image"
+        ? `data:${input.mimetype};base64,${input.base64}`
+        : input.mediatype === "audio"
+          ? `data:${input.mimetype ?? "audio/webm"};base64,${input.base64}`
+          : null;
+    return insertWhatsAppMessage({
+      chatId: ready.chatId,
+      remoteJid: ready.sendRemoteJid,
+      waMessageId,
+      direction: "outbound",
+      messageType: input.mediatype,
+      body: input.caption ?? input.fileName ?? null,
+      mediaUrl: dataUrl,
+      mediaMime: input.mimetype ?? null,
+      fileName: input.fileName ?? null,
+      status: "delivered",
+      sentAt,
+    });
   }
+
+  const number = evolutionSendAddressFromReady(ready);
+  const sent =
+    input.mediatype === "audio"
+      ? await sendEvolutionAudio(number, input.base64, input.mimetype)
+      : await sendEvolutionMedia({
+          number,
+          mediatype: input.mediatype,
+          media: input.base64,
+          mimetype: input.mimetype,
+          caption: input.caption,
+          fileName: input.fileName,
+        });
+  waMessageId = sent.waMessageId;
 
   const sentAt = new Date().toISOString();
   const { syncAtendimentoSessionOnActivity } =
@@ -1713,14 +1994,14 @@ export async function sendWhatsAppMediaMessage(input: {
   return insertWhatsAppMessage({
     chatId: ready.chatId,
     remoteJid: ready.sendRemoteJid,
-    waMessageId: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    waMessageId,
     direction: "outbound",
     messageType: input.mediatype,
     body: input.caption ?? input.fileName ?? null,
     mediaUrl: dataUrl,
     mediaMime: input.mimetype ?? null,
     fileName: input.fileName ?? null,
-    status: isEvolutionConfigured() ? "sent" : "delivered",
+    status: "sent",
     sentAt,
   });
 }
@@ -1755,6 +2036,9 @@ function normalizeWebhookPayload(body: Record<string, unknown>) {
   if (body.webhook && typeof body.webhook === "object") {
     return body.webhook as Record<string, unknown>;
   }
+  if (typeof body.event === "string" && body.data && typeof body.data === "object") {
+    return body;
+  }
   if (body.data && typeof body.data === "object") {
     const nested = body.data as Record<string, unknown>;
     if (nested.event || nested.type) return nested;
@@ -1763,20 +2047,82 @@ function normalizeWebhookPayload(body: Record<string, unknown>) {
 }
 
 function extractWebhookMessageRecords(data: unknown): Record<string, unknown>[] {
+  const hasMessageContent = (item: Record<string, unknown>) => {
+    const message = item.message;
+    return Boolean(message && typeof message === "object" && Object.keys(message).length > 0);
+  };
+
   if (Array.isArray(data)) {
-    return data.filter((item): item is Record<string, unknown> =>
-      Boolean(item && typeof item === "object"),
+    return data.filter(
+      (item): item is Record<string, unknown> =>
+        Boolean(item && typeof item === "object" && hasMessageContent(item)),
     );
   }
   if (!data || typeof data !== "object") return [];
   const record = data as Record<string, unknown>;
-  if (record.key && record.message) return [record];
+  if (record.key && hasMessageContent(record)) return [record];
   if (Array.isArray(record.messages)) {
-    return record.messages.filter((item): item is Record<string, unknown> =>
-      Boolean(item && typeof item === "object"),
+    return record.messages.filter(
+      (item): item is Record<string, unknown> =>
+        Boolean(item && typeof item === "object" && hasMessageContent(item)),
     );
   }
-  return [record];
+  return [];
+}
+
+function extractWebhookMessageStatusUpdates(
+  data: unknown,
+): Array<{ key: Record<string, unknown>; update: Record<string, unknown> }> {
+  const isStatusUpdate = (item: Record<string, unknown>) =>
+    Boolean(item.key && item.update && !item.message);
+
+  if (Array.isArray(data)) {
+    return data.filter((item): item is Record<string, unknown> =>
+      Boolean(item && typeof item === "object" && isStatusUpdate(item)),
+    ) as Array<{ key: Record<string, unknown>; update: Record<string, unknown> }>;
+  }
+  if (!data || typeof data !== "object") return [];
+  const record = data as Record<string, unknown>;
+  if (isStatusUpdate(record)) {
+    return [record as { key: Record<string, unknown>; update: Record<string, unknown> }];
+  }
+  return [];
+}
+
+function mapBaileysAckToDeliveryStatus(status: unknown): string | null {
+  if (typeof status === "number") {
+    if (status <= 0) return "failed";
+    if (status >= 4) return "read";
+    if (status >= 3) return "delivered";
+    return "sent";
+  }
+  const normalized = String(status ?? "").toUpperCase();
+  if (!normalized) return null;
+  if (normalized.includes("ERROR") || normalized.includes("FAIL")) return "failed";
+  if (normalized.includes("READ") || normalized.includes("PLAYED")) return "read";
+  if (normalized.includes("DELIVER") || normalized.includes("RECEIVED")) return "delivered";
+  if (
+    normalized.includes("SERVER") ||
+    normalized.includes("SENT") ||
+    normalized.includes("PENDING")
+  ) {
+    return "sent";
+  }
+  return null;
+}
+
+export async function processWhatsAppMessageStatusUpdate(record: {
+  key: Record<string, unknown>;
+  update: Record<string, unknown>;
+}) {
+  const waMessageId = String(record.key.id ?? "").trim();
+  if (!waMessageId) return null;
+
+  const { updateWhatsAppMessageStatusByWaId } = await import("@/lib/api/whatsapp-store.server");
+  const status = mapBaileysAckToDeliveryStatus(record.update.status);
+  if (!status) return null;
+
+  return updateWhatsAppMessageStatusByWaId(waMessageId, status);
 }
 
 export async function handleWhatsAppWebhook(body: Record<string, unknown>) {
@@ -1788,14 +2134,28 @@ export async function handleWhatsAppWebhook(body: Record<string, unknown>) {
     const state = String((data as { state?: string }).state ?? "").toLowerCase();
     if (state === "open") {
       await ensureEvolutionWebhookConfigured();
-      const { config } = await readWhatsAppConfig("evolution");
+      const { config } = await readWhatsAppConfig("baileys");
+      let phoneNumber = config.phone_number;
+      let profileName = config.profile_name;
+      try {
+        const profile = await fetchEvolutionProfile();
+        phoneNumber = profile.phoneNumber ?? phoneNumber;
+        profileName = profile.profileName ?? profileName;
+      } catch {
+        /* manter valores do banco se profile falhar */
+      }
       await setWhatsAppStatus("connected", {
         qr_code: null,
-        provider: "evolution",
+        provider: "baileys",
+        phone_number: phoneNumber,
+        profile_name: profileName,
         connected_at: config.connected_at ?? new Date().toISOString(),
       });
+      void runLightInboxCatchUp().catch((error) => {
+        console.error("[handleWhatsAppWebhook] light catch-up on open", error);
+      });
     } else if (state === "close") {
-      const { config } = await readWhatsAppConfig("evolution");
+      const { config } = await readWhatsAppConfig("baileys");
       const authPending =
         config.status === "pairing" ||
         config.status === "qr" ||
@@ -1805,7 +2165,7 @@ export async function handleWhatsAppWebhook(body: Record<string, unknown>) {
         return { ok: true, handled: "connection_close_ignored_auth" };
       }
       await setWhatsAppStatus("disconnected", {
-        provider: "evolution",
+        provider: "baileys",
         qr_code: null,
         phone_number: null,
         profile_name: null,
@@ -1821,16 +2181,16 @@ export async function handleWhatsAppWebhook(body: Record<string, unknown>) {
       parseEvolutionPairingCode(dataRecord) ?? parseEvolutionPairingCode(nested);
 
     if (pairingFromEvent) {
-      const { config } = await readWhatsAppConfig("evolution");
+      const { config } = await readWhatsAppConfig("baileys");
       await setWhatsAppStatus("pairing", {
         qr_code: encodePairingCodeStorage(pairingFromEvent),
-        provider: "evolution",
+        provider: "baileys",
         phone_number: config.phone_number,
       });
       return { ok: true, handled: "pairing_code" };
     }
 
-    const { config } = await readWhatsAppConfig("evolution");
+    const { config } = await readWhatsAppConfig("baileys");
     if (isPairingCodeStorage(config.qr_code) || config.status === "pairing") {
       return { ok: true, handled: "qrcode_ignored_pairing" };
     }
@@ -1842,19 +2202,35 @@ export async function handleWhatsAppWebhook(body: Record<string, unknown>) {
     );
     await setWhatsAppStatus("qr", {
       qr_code: qr.startsWith("data:") ? qr : qr ? `data:image/png;base64,${qr}` : null,
-      provider: "evolution",
+      provider: "baileys",
     });
     return { ok: true, handled: "qrcode" };
   }
 
-  if (event.includes("messages")) {
+  if (event.includes("messages_update") || event === "messages.update") {
+    const updates = extractWebhookMessageStatusUpdates(data);
+    let processed = 0;
+    for (const record of updates) {
+      const result = await processWhatsAppMessageStatusUpdate(record);
+      if (result) processed += 1;
+    }
+    return { ok: true, handled: "messages_update", count: processed };
+  }
+
+  if (event.includes("messages_upsert") || event === "messages.upsert" || event.includes("messages")) {
+    const dataRecord = (data && typeof data === "object" ? data : {}) as Record<string, unknown>;
+    const upsertType = String(dataRecord.type ?? "").toLowerCase();
+    if (upsertType === "append") {
+      return { ok: true, handled: "messages_upsert_append_ignored", count: 0 };
+    }
+
     const records = extractWebhookMessageRecords(data);
     let processed = 0;
     for (const record of records) {
       const result = await processIncomingWhatsAppRecord(record);
       if (result) processed += 1;
     }
-    return { ok: true, handled: "messages", count: processed };
+    return { ok: true, handled: "messages_upsert", count: processed };
   }
 
   if (event.includes("chats")) {
@@ -1902,7 +2278,7 @@ export async function createWhatsAppChatByPhone(phone: string, name?: string) {
 }
 
 export async function getWhatsAppSetupInfo() {
-  const { getEvolutionPublicConfig } = await import("@/lib/api/whatsapp-evolution.server");
+  const { getEvolutionPublicConfig } = await import("@/lib/api/whatsapp-baileys.server");
   const webhookStatus = isEvolutionConfigured() ? await fetchEvolutionWebhookStatus() : null;
   if (isEvolutionConfigured() && !webhookStatus?.configured) {
     await ensureEvolutionWebhookConfigured();
@@ -1912,7 +2288,7 @@ export async function getWhatsAppSetupInfo() {
     evolutionConfigured: isEvolutionConfigured(),
     evolution: getEvolutionPublicConfig(),
     schemaReady: await isWhatsAppSchemaReady(),
-    webhookUrl: (await import("@/lib/api/whatsapp-evolution.server")).getPublicWebhookUrl(),
+    webhookUrl: (await import("@/lib/api/whatsapp-baileys.server")).getPublicWebhookUrl(),
     webhookConfigured: refreshed?.configured ?? false,
     retentionDays: 7,
   };

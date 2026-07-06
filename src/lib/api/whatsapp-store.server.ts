@@ -89,8 +89,12 @@ export function getWhatsAppDisplayMessageCutoff(): Date {
 
 /** Corte para importar mensagens novas via webhook/sync (apos conexao QR). */
 export async function getWhatsAppInboundMessageCutoff(): Promise<Date> {
-  const { config } = await readWhatsAppConfig("evolution");
+  const { config } = await readWhatsAppConfig("baileys");
   if (config.connected_at) {
+    const connectedMs = new Date(config.connected_at).getTime();
+    if (Number.isFinite(connectedMs)) {
+      return new Date(connectedMs - 30_000);
+    }
     return new Date(config.connected_at);
   }
   return whatsappRetentionCutoff();
@@ -353,7 +357,7 @@ export async function isWhatsAppSchemaReady() {
   }
 }
 
-export async function readWhatsAppConfig(provider: "evolution" | "demo") {
+export async function readWhatsAppConfig(provider: "baileys" | "evolution" | "demo") {
   const schemaReady = await isWhatsAppSchemaReady();
   if (!schemaReady) {
     return { config: getMemoryState().config, schemaReady: false, provider: "demo" as const };
@@ -377,7 +381,7 @@ export async function readWhatsAppConfig(provider: "evolution" | "demo") {
     const fallback: DbConfigRow = {
       id: "default",
       instance_name: "abelha-mel",
-      status: provider === "evolution" ? "disconnected" : "demo",
+      status: provider === "baileys" || provider === "evolution" ? "disconnected" : "demo",
       phone_number: null,
       profile_name: provider === "demo" ? "Abelha & Mel" : null,
       qr_code: null,
@@ -388,7 +392,11 @@ export async function readWhatsAppConfig(provider: "evolution" | "demo") {
     return { config: fallback, schemaReady: true, provider };
   }
 
-  return { config: data, schemaReady: true, provider: data.provider as "evolution" | "demo" };
+  return {
+    config: data,
+    schemaReady: true,
+    provider: data.provider as "baileys" | "evolution" | "demo",
+  };
 }
 
 export async function writeWhatsAppConfig(patch: Partial<DbConfigRow>) {
@@ -971,7 +979,9 @@ export async function updateWhatsAppChatInboxStatus(
     const wasClosed = (chat.inbox_status ?? "open") === "closed";
     chat.inbox_status = inboxStatus;
     if (inboxStatus === "open" && wasClosed) {
-      chat.attendance_opened_at = nowIso();
+      const { resolveAttendanceSessionAnchor } =
+        await import("@/lib/atendimento/atendimento-hours.server");
+      chat.attendance_opened_at = await resolveAttendanceSessionAnchor(chatId, nowIso());
     }
     chat.updated_at = nowIso();
     return mapChat(chat);
@@ -989,7 +999,9 @@ export async function updateWhatsAppChatInboxStatus(
     updated_at: nowIso(),
   };
   if (inboxStatus === "open" && current?.inbox_status === "closed") {
-    patch.attendance_opened_at = nowIso();
+    const { resolveAttendanceSessionAnchor } =
+      await import("@/lib/atendimento/atendimento-hours.server");
+    patch.attendance_opened_at = await resolveAttendanceSessionAnchor(chatId, nowIso());
   }
 
   const { data, error } = await supabase
@@ -2386,6 +2398,27 @@ export async function getWhatsAppMessageRow(messageId: string) {
   return data ?? null;
 }
 
+export async function updateWhatsAppMessageStatusByWaId(waMessageId: string, status: string) {
+  const schemaReady = await isWhatsAppSchemaReady();
+  if (!schemaReady) {
+    const state = getMemoryState();
+    const row = state.messages.find((item) => item.wa_message_id === waMessageId);
+    if (!row) return null;
+    row.status = status;
+    return mapMessage(row);
+  }
+
+  const supabase = await getSupabase();
+  const { data, error } = await supabase
+    .from("whatsapp_messages")
+    .update({ status })
+    .eq("wa_message_id", waMessageId)
+    .select("*")
+    .maybeSingle<DbMessageRow>();
+  if (error) throw error;
+  return data ? mapMessage(data) : null;
+}
+
 export async function updateWhatsAppMessageMediaUrl(messageId: string, mediaUrl: string) {
   const schemaReady = await isWhatsAppSchemaReady();
   if (!schemaReady) {
@@ -2855,16 +2888,44 @@ export async function insertWhatsAppMessage(input: {
   }
 
   const supabase = await getSupabase();
+
+  let body = input.body ?? null;
+  let messageType = input.messageType;
+  let mediaUrl = input.mediaUrl ?? null;
+  let mediaMime = input.mediaMime ?? null;
+  let fileName = input.fileName ?? null;
+
+  if (
+    !body?.trim() &&
+    !mediaUrl &&
+    !input.waMessageId.startsWith("local-")
+  ) {
+    const { data: existing } = await supabase
+      .from("whatsapp_messages")
+      .select("body, message_type, media_url, media_mime, file_name")
+      .eq("wa_message_id", input.waMessageId)
+      .maybeSingle<DbMessageRow>();
+    if (existing) {
+      if (existing.body?.trim()) body = existing.body;
+      if (!mediaUrl && existing.media_url) mediaUrl = existing.media_url;
+      if (!mediaMime && existing.media_mime) mediaMime = existing.media_mime;
+      if (!fileName && existing.file_name) fileName = existing.file_name;
+      if (messageType === "text" && existing.message_type !== "text") {
+        messageType = existing.message_type as WhatsAppMessageType;
+      }
+    }
+  }
+
   const baseRow = {
     chat_id: chatId,
     remote_jid: remoteJid,
     wa_message_id: input.waMessageId,
     direction: input.direction,
-    message_type: input.messageType,
-    body: input.body ?? null,
-    media_url: input.mediaUrl ?? null,
-    media_mime: input.mediaMime ?? null,
-    file_name: input.fileName ?? null,
+    message_type: messageType,
+    body,
+    media_url: mediaUrl,
+    media_mime: mediaMime,
+    file_name: fileName,
     status: input.status ?? "sent",
     sent_at: sentAt,
   };
@@ -2916,14 +2977,14 @@ export async function insertWhatsAppMessage(input: {
 
   if (chatId) {
     await touchWhatsAppChatPreview(chatId, {
-      lastMessage: formatMessagePreview(input.messageType, input.body ?? null),
+      lastMessage: formatMessagePreview(messageType, body ?? null),
       lastMessageAt: payload.sent_at,
       unreadDelta: input.direction === "inbound" ? 1 : 0,
     });
   } else {
     await upsertWhatsAppChat({
       remoteJid,
-      lastMessage: formatMessagePreview(input.messageType, input.body ?? null),
+      lastMessage: formatMessagePreview(messageType, body ?? null),
       lastMessageAt: payload.sent_at,
       unreadDelta: input.direction === "inbound" ? 1 : 0,
     });
@@ -3245,6 +3306,9 @@ export function parseEvolutionChat(data: Record<string, unknown>) {
     isGroup: remoteJid.endsWith("@g.us"),
   };
 }
+
+export const parseWhatsAppWebMessage = parseEvolutionMessage;
+export const parseWhatsAppWebChat = parseEvolutionChat;
 
 type ChatUpsertInput = {
   remoteJid: string;

@@ -1,4 +1,4 @@
-import type { EvolutionQuotedMessage } from "@/lib/api/whatsapp-evolution.server";
+import type { BaileysQuotedMessage } from "@/lib/api/whatsapp-baileys.server";
 import type { WhatsAppMessage } from "@/lib/whatsapp";
 import { mediaTypeLabel } from "@/lib/atendimento/message-reply";
 
@@ -7,7 +7,7 @@ export function buildEvolutionQuotedFromWhatsAppMessage(
     WhatsAppMessage,
     "waMessageId" | "remoteJid" | "direction" | "body" | "messageType" | "fileName"
   >,
-): EvolutionQuotedMessage | null {
+): BaileysQuotedMessage | null {
   if (!msg.waMessageId || msg.waMessageId.startsWith("local-")) return null;
 
   const preview =

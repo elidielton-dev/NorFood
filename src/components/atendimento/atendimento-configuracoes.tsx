@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Component, useCallback, useEffect, useRef, useState, type ErrorInfo, type ReactNode } from "react";
 import {
   Bell,
   Copy,
@@ -29,6 +29,16 @@ import {
   PAIRING_CODE_TTL_SECONDS,
 } from "@/lib/whatsapp";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   connectAtendimentoEvolutionServer,
   consolidateEvolutionInboxServer,
   disconnectAtendimentoEvolutionServer,
@@ -36,6 +46,7 @@ import {
   fetchWabaCoexistenceStatusServer,
   fetchWabaTemplatesServer,
   fetchAtendimentoStatsServer,
+  hardResetAtendimentoEvolutionServer,
   saveAtendimentoMetaConfigServer,
   setAtendimentoProviderServer,
   syncWabaTemplatesServer,
@@ -65,7 +76,7 @@ export function AtendimentoConfiguracoes() {
   return (
     <ConfiguracoesPageFrame
       title="WhatsApp / atendimento"
-      description="Conexão Meta ou Evolution, notificações e templates. Histórico das conversas: últimos 7 dias."
+      description="Conexão Meta ou WhatsApp Web (Baileys), notificações e templates. Histórico das conversas: últimos 7 dias."
     >
       <AtendimentoStatsBar />
 
@@ -102,7 +113,9 @@ export function AtendimentoConfiguracoes() {
 
         <div className="min-w-0">
           {section === "whatsapp" ? (
-            <WhatsAppPanel />
+            <WhatsAppPanelErrorBoundary>
+              <WhatsAppPanel />
+            </WhatsAppPanelErrorBoundary>
           ) : section === "notificacoes" ? (
             <NotificacoesPanel />
           ) : (
@@ -146,6 +159,44 @@ function AtendimentoStatsBar() {
   );
 }
 
+class WhatsAppPanelErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null }
+> {
+  state = { error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[WhatsAppPanel]", error, info);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <GestaoAlert tone="warning">
+          <p className="text-sm">
+            Nao foi possivel carregar a configuracao do WhatsApp.
+            {this.state.error.message ? ` ${this.state.error.message}` : ""}
+          </p>
+          <GestaoButton
+            className="mt-3"
+            variant="secondary"
+            size="sm"
+            type="button"
+            onClick={() => this.setState({ error: null })}
+          >
+            Tentar novamente
+          </GestaoButton>
+        </GestaoAlert>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function WhatsAppPanel() {
   const qc = useQueryClient();
   const [providerChoice, setProviderChoice] = useState<AtendimentoProvider>("meta");
@@ -153,15 +204,21 @@ function WhatsAppPanel() {
   const {
     data: config,
     isLoading,
+    isError,
+    error: configError,
     refetch,
   } = useQuery({
     queryKey: ["atendimento-config"],
     queryFn: () => fetchAtendimentoConfigServer(),
+    retry: 1,
+    throwOnError: false,
     refetchInterval: (q) => {
-      const evo = q.state.data?.evolution;
-      if (evo?.status === "pairing" && !evo.pairingCode) return 2_000;
-      if (evo?.status === "pairing") return 2_000;
-      if (evo?.status === "qr" || evo?.status === "connecting") return 4_000;
+      const evo = q.state.data?.baileys ?? q.state.data?.evolution;
+      if (evo?.status === "pairing" && !evo.pairingCode) return 4_000;
+      if (evo?.status === "pairing") return 4_000;
+      if (evo?.status === "qr" && !evo.qrCode) return 4_000;
+      if (evo?.status === "qr" && evo.qrCode) return 3_000;
+      if (evo?.status === "connecting") return 3_000;
       return false;
     },
   });
@@ -213,9 +270,11 @@ function WhatsAppPanel() {
     onSuccess: (data, variables) => {
       void qc.invalidateQueries({ queryKey: ["atendimento-config"] });
       void qc.invalidateQueries({ queryKey: ["atendimento-conversations"] });
-      const warn = data?.evolution?.warning;
-      if (warn?.includes("Gerando codigo")) {
+      const warn = data?.baileys?.warning ?? data?.evolution?.warning;
+      if (warn?.includes("Gerando")) {
         toast.info(warn);
+      } else if (warn) {
+        toast.warning(warn);
       } else if (typeof variables === "object" && variables?.renew) {
         toast.success("Novo codigo de vinculo gerado.");
       }
@@ -230,7 +289,7 @@ function WhatsAppPanel() {
     onSuccess: (data) => {
       void qc.invalidateQueries({ queryKey: ["atendimento-config"] });
       void qc.invalidateQueries({ queryKey: ["atendimento-conversations"] });
-      const warn = data?.evolution?.warning;
+      const warn = data?.baileys?.warning ?? data?.evolution?.warning;
       if (warn) {
         toast.warning(warn);
       } else {
@@ -239,6 +298,20 @@ function WhatsAppPanel() {
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Falha ao desconectar o WhatsApp.");
+    },
+  });
+
+  const hardResetEvolutionMutation = useMutation({
+    mutationFn: () => hardResetAtendimentoEvolutionServer({ data: {} }),
+    onSuccess: (data) => {
+      void qc.invalidateQueries({ queryKey: ["atendimento-config"] });
+      void qc.invalidateQueries({ queryKey: ["atendimento-conversations"] });
+      const warn = data?.baileys?.warning ?? data?.evolution?.warning;
+      if (warn) toast.warning(warn);
+      else toast.success("Conexao zerada. Gere um novo QR Code.");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Falha ao zerar a conexao.");
     },
   });
 
@@ -302,8 +375,22 @@ function WhatsAppPanel() {
     );
   }
 
+  if (isError) {
+    return (
+      <GestaoAlert tone="warning">
+        <p className="text-sm">
+          Nao foi possivel carregar a configuracao do WhatsApp.
+          {configError instanceof Error ? ` ${configError.message}` : ""}
+        </p>
+        <GestaoButton className="mt-3" variant="secondary" size="sm" onClick={() => refetch()}>
+          Tentar novamente
+        </GestaoButton>
+      </GestaoAlert>
+    );
+  }
+
   const inboxConnected = config?.inbox_connected ?? false;
-  const evolution = config?.evolution;
+  const evolution = config?.baileys ?? config?.evolution;
   const activeProvider = config?.active_provider ?? providerChoice;
 
   return (
@@ -324,7 +411,7 @@ function WhatsAppPanel() {
             <p className="mt-1 text-sm text-[#6B7280]">
               {activeProvider === "meta"
                 ? (config?.display_phone_number ?? config?.phone_number_id ?? "Meta Cloud API")
-                : (evolution?.phoneNumber ?? evolution?.profileName ?? "Evolution (QR)")}
+                : (evolution?.phoneNumber ?? evolution?.profileName ?? "WhatsApp Web (Baileys)")}
             </p>
             <p className="mt-1 text-xs text-[#6B7280]">
               O painel exibe o histórico dos últimos 7 dias. Conversas encerradas vão para
@@ -347,9 +434,9 @@ function WhatsAppPanel() {
                 desc: "API oficial. Requer app Meta e token permanente.",
               },
               {
-                id: "evolution" as const,
-                title: "Evolution (QR Code)",
-                desc: "Sem Meta. Escaneie QR na Evolution na sua VPS.",
+                id: "baileys" as const,
+                title: "WhatsApp Web (Baileys)",
+                desc: "Sem Meta. Conecte via QR ou código no gateway Baileys na VPS.",
               },
             ] as const
           ).map((opt) => {
@@ -382,7 +469,7 @@ function WhatsAppPanel() {
         </div>
       </ConfigSection>
 
-      {providerChoice === "evolution" ? (
+      {(providerChoice === "baileys" || providerChoice === "evolution") ? (
         <EvolutionConnectPanel
           evolution={evolution}
           webhookUrl={evolutionWebhookUrl}
@@ -391,11 +478,13 @@ function WhatsAppPanel() {
           onConnect={(phone) => connectEvolutionMutation.mutate(phone)}
           onRenewPairing={(phone) => connectEvolutionMutation.mutate({ phone, renew: true })}
           onDisconnect={() => disconnectEvolutionMutation.mutate()}
+          onHardReset={() => hardResetEvolutionMutation.mutate()}
           onRefresh={() => refetch()}
           onConsolidate={() => consolidateInboxMutation.mutate()}
           consolidating={consolidateInboxMutation.isPending}
           connecting={connectEvolutionMutation.isPending}
           disconnecting={disconnectEvolutionMutation.isPending}
+          hardResetting={hardResetEvolutionMutation.isPending}
           error={
             connectEvolutionMutation.error instanceof Error
               ? connectEvolutionMutation.error.message
@@ -563,11 +652,13 @@ function EvolutionConnectPanel({
   onConnect,
   onRenewPairing,
   onDisconnect,
+  onHardReset,
   onRefresh,
   onConsolidate,
   consolidating,
   connecting,
   disconnecting,
+  hardResetting,
   error,
 }: {
   evolution?: {
@@ -589,16 +680,19 @@ function EvolutionConnectPanel({
   onConnect: (phone?: string) => void;
   onRenewPairing: (phone: string) => void;
   onDisconnect: () => void;
+  onHardReset: () => void;
   onRefresh: () => void;
   onConsolidate: () => void;
   consolidating: boolean;
   connecting: boolean;
   disconnecting: boolean;
+  hardResetting: boolean;
   error: string | null;
 }) {
   const [connectMode, setConnectMode] = useState<"qr" | "phone">("qr");
   const [phoneDraft, setPhoneDraft] = useState("");
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const [hardResetOpen, setHardResetOpen] = useState(false);
   const renewingRef = useRef(false);
 
   const waitingAuth = ["qr", "pairing", "connecting"].includes(evolution?.status ?? "");
@@ -621,6 +715,16 @@ function EvolutionConnectPanel({
 
   const showQr = connectMode === "qr" && Boolean(evolution?.qrCode && waitingAuth);
   const showPairing = connectMode === "phone" && Boolean(evolution?.pairingCode && waitingAuth);
+  const qrPending =
+    connectMode === "qr" &&
+    !evolution?.connected &&
+    (evolution?.status === "qr" || evolution?.status === "connecting") &&
+    !evolution?.qrCode;
+  const scanConfirmPending =
+    connectMode === "qr" &&
+    !evolution?.connected &&
+    evolution?.status === "connecting" &&
+    !evolution?.qrCode;
   const pairingPending =
     connectMode === "phone" &&
     !evolution?.connected &&
@@ -628,6 +732,21 @@ function EvolutionConnectPanel({
     !evolution?.pairingCode;
 
   const [pendingSeconds, setPendingSeconds] = useState(0);
+  const [qrPendingSeconds, setQrPendingSeconds] = useState(0);
+
+  useEffect(() => {
+    if (!qrPending) {
+      setQrPendingSeconds(0);
+      return;
+    }
+    const startedAt = Date.now();
+    const tick = () => {
+      setQrPendingSeconds(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)));
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [qrPending]);
 
   useEffect(() => {
     if (!pairingPending) {
@@ -646,6 +765,7 @@ function EvolutionConnectPanel({
   }, [pairingPending, evolution?.pairingIssuedAt]);
 
   const pairingTimedOut = pairingPending && pendingSeconds >= 90;
+  const qrTimedOut = qrPending && qrPendingSeconds >= 90;
 
   const resolvePairingPhone = useCallback(() => {
     const draftDigits = phoneDraft.replace(/\D/g, "");
@@ -699,9 +819,9 @@ function EvolutionConnectPanel({
   return (
     <div className="space-y-4">
       <GestaoAlert tone="info">
-        <strong>Evolution API</strong> na sua VPS. Configure{" "}
-        <code className="text-xs">EVOLUTION_API_URL</code> e{" "}
-        <code className="text-xs">EVOLUTION_API_KEY</code> no servidor.
+        <strong>Gateway WhatsApp (Baileys)</strong> na sua VPS. Configure{" "}
+        <code className="text-xs">WHATSAPP_GATEWAY_URL</code> e{" "}
+        <code className="text-xs">WHATSAPP_GATEWAY_KEY</code> no servidor.
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <span className="text-xs">Webhook:</span>
           <code className="rounded-lg bg-muted px-2 py-1 text-xs">{webhookUrl}</code>
@@ -760,11 +880,52 @@ function EvolutionConnectPanel({
           </div>
         ) : null}
 
+        {qrPending && !qrTimedOut ? (
+          <div className="flex flex-col items-center gap-3 rounded-xl border border-[color:var(--honey-line)] bg-white p-6">
+            <Loader2 className="size-9 animate-spin text-sage" />
+            <p className="text-sm font-medium text-[color:var(--gestao-ink)]">Gerando QR Code...</p>
+            <p className="text-center text-xs text-muted-foreground">
+              Aguarde alguns segundos. Nao clique em Gerar QR Code novamente.
+            </p>
+            <p className="text-center text-xs text-muted-foreground tabular-nums">
+              Aguardando ha {qrPendingSeconds}s
+            </p>
+          </div>
+        ) : null}
+
+        {qrTimedOut ? (
+          <GestaoAlert tone="warning">
+            <p className="text-sm">
+              O gateway nao devolveu o QR Code apos 90 segundos. Clique em{" "}
+              <strong>Desconectar</strong>, aguarde 10 segundos e clique em{" "}
+              <strong>Gerar QR Code</strong> de novo.
+            </p>
+          </GestaoAlert>
+        ) : null}
+
+        {scanConfirmPending ? (
+          <div className="flex flex-col items-center gap-3 rounded-xl border border-[color:var(--honey-line)] bg-white p-6">
+            <Loader2 className="size-9 animate-spin text-sage" />
+            <p className="text-sm font-medium text-[color:var(--gestao-ink)]">
+              QR escaneado? Aguardando confirmacao do WhatsApp...
+            </p>
+            <p className="text-center text-xs text-muted-foreground">
+              Isso pode levar ate 30 segundos. Nao clique em Gerar QR Code novamente.
+            </p>
+          </div>
+        ) : null}
+
+        {evolution?.warning && !showQr && !qrTimedOut && !scanConfirmPending ? (
+          <GestaoAlert tone="warning">
+            <p className="text-sm">{evolution.warning}</p>
+          </GestaoAlert>
+        ) : null}
+
         {showQr ? (
           <div className="flex flex-col items-center gap-3 rounded-xl border border-[color:var(--honey-line)] bg-white p-4">
             <img
               src={evolution!.qrCode!}
-              alt="QR Code WhatsApp Evolution"
+              alt="QR Code WhatsApp Baileys"
               className="size-56 max-w-full object-contain"
             />
             <p className="text-center text-sm text-muted-foreground">
@@ -780,7 +941,7 @@ function EvolutionConnectPanel({
               Gerando codigo de vinculo...
             </p>
             <p className="text-center text-xs text-muted-foreground">
-              A Evolution esta preparando a sessao. O codigo aparece aqui em alguns segundos.
+              O gateway esta preparando a sessao. O codigo aparece aqui em alguns segundos.
             </p>
             <p className="text-center text-xs text-muted-foreground tabular-nums">
               Aguardando ha {pendingSeconds}s
@@ -791,7 +952,7 @@ function EvolutionConnectPanel({
         {pairingTimedOut ? (
           <GestaoAlert tone="warning">
             <p className="text-sm">
-              A Evolution nao devolveu o codigo apos 90 segundos. Clique em{" "}
+              O gateway nao devolveu o codigo apos 90 segundos. Clique em{" "}
               <strong>Desconectar</strong>, aguarde 10 segundos e clique em{" "}
               <strong>Gerar codigo</strong> de novo.
             </p>
@@ -911,7 +1072,6 @@ function EvolutionConnectPanel({
                 onClick={() => onConnect(phoneDraft)}
                 disabled={
                   connecting ||
-                  !evolution?.configured ||
                   !phoneDraft.trim() ||
                   (pairingPending && !pairingTimedOut)
                 }
@@ -926,7 +1086,7 @@ function EvolutionConnectPanel({
             ) : (
               <GestaoButton
                 onClick={() => onConnect()}
-                disabled={connecting || !evolution?.configured}
+                disabled={connecting || (qrPending && !qrTimedOut)}
               >
                 {connecting ? (
                   <Loader2 className="size-4 animate-spin" />
@@ -947,6 +1107,38 @@ function EvolutionConnectPanel({
             <RefreshCw className="size-4" />
             Atualizar status
           </GestaoButton>
+          <GestaoButton
+            variant="secondary"
+            size="sm"
+            type="button"
+            disabled={hardResetting || connecting || disconnecting}
+            onClick={() => setHardResetOpen(true)}
+          >
+            {hardResetting ? <Loader2 className="size-4 animate-spin" /> : null}
+            Zerar conexao
+          </GestaoButton>
+          <AlertDialog open={hardResetOpen} onOpenChange={setHardResetOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Zerar conexao WhatsApp?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Isso desconecta o gateway, apaga todos os chats e mensagens do atendimento e
+                  limpa a configuracao. Voce precisara escanear um novo QR Code depois.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    setHardResetOpen(false);
+                    onHardReset();
+                  }}
+                >
+                  Zerar tudo
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           {evolution?.connected ? (
             <GestaoButton
               variant="secondary"
@@ -963,9 +1155,12 @@ function EvolutionConnectPanel({
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
         {!evolution?.configured ? (
-          <p className="text-sm text-muted-foreground">
-            Evolution não configurada no servidor. Adicione as variáveis de ambiente e faça
-            redeploy.
+          <p className="text-sm text-amber-800">
+            Gateway WhatsApp nao detectado no servidor. Em producao, configure{" "}
+            <code className="text-xs">WHATSAPP_GATEWAY_URL</code> e{" "}
+            <code className="text-xs">WHATSAPP_GATEWAY_KEY</code> e suba o container{" "}
+            <code className="text-xs">whatsapp-gateway</code>. Em desenvolvimento local, rode{" "}
+            <code className="text-xs">npm run dev:whatsapp-gateway</code>.
           </p>
         ) : null}
       </ConfigSection>

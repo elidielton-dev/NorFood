@@ -7,7 +7,7 @@ Guia para hospedar a plataforma em VPS com **Docker + Caddy + PM2 cluster**, Sup
 | Cenário | Máx. tenants | Workers Node |
 |---------|--------------|--------------|
 | **App only** (Supabase externo) | **35** | 3 |
-| Com Evolution API na mesma VPS | **15** | 2 |
+| Com gateway WhatsApp (Baileys) na mesma VPS | **15** | 2 |
 | VPS 4 GB (perfil `vps-4gb`) | **18** | 2 |
 
 Cada tenant = 1 restaurante. Estimativa para loja pequena/média:

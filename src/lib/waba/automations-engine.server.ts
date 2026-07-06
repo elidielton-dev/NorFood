@@ -20,10 +20,10 @@ async function sendAutomationReply(phone: string, message: string) {
   const provider = await getActiveProvider();
   const digits = canonicalContactPhone(phone).replace(/\D/g, "");
 
-  if (provider === "evolution") {
-    const { sendEvolutionText } = await import("@/lib/api/whatsapp-evolution.server");
-    await sendEvolutionText(digits, message);
-    return "evolution" as const;
+  if (provider === "baileys") {
+    const { sendBaileysText } = await import("@/lib/api/whatsapp-baileys.server");
+    await sendBaileysText(digits, message);
+    return "baileys" as const;
   }
 
   const db = supabaseAdmin as Db;
@@ -47,13 +47,13 @@ async function sendAutomationReply(phone: string, message: string) {
 }
 
 async function logAutomationReply(input: {
-  channel: "evolution" | "meta";
+  channel: "baileys" | "evolution" | "meta";
   conversationId?: string;
   message: string;
 }) {
   if (!input.conversationId) return;
 
-  if (input.channel === "evolution") {
+  if (input.channel === "baileys" || input.channel === "evolution") {
     const { getWhatsAppChatById, insertWhatsAppMessage } =
       await import("@/lib/api/whatsapp-store.server");
     const chat = await getWhatsAppChatById(input.conversationId);

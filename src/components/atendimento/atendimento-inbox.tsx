@@ -50,6 +50,7 @@ import {
   markAtendimentoConversationReadServer,
   sendAtendimentoMediaServer,
   sendAtendimentoMessageServer,
+  syncAtendimentoInboxServer,
   updateAtendimentoConversationStatusServer,
 } from "@/lib/api/atendimento.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -615,8 +616,24 @@ export function AtendimentoInbox({ initialConversationId }: { initialConversatio
     staleTime: 0,
     refetchOnWindowFocus: true,
     placeholderData: keepPreviousData,
-    refetchInterval: realtimeOk ? 20_000 : 10_000,
+    refetchInterval: realtimeOk ? 20_000 : 8_000,
   });
+
+  const inboxCatchUpDoneRef = useRef(false);
+
+  useEffect(() => {
+    if (!config?.inbox_connected && !config?.baileys?.connected) return;
+    if (inboxCatchUpDoneRef.current) return;
+    inboxCatchUpDoneRef.current = true;
+    void syncAtendimentoInboxServer().then(() => {
+      void refetch();
+    });
+  }, [config?.inbox_connected, config?.baileys?.connected, refetch]);
+
+  const refreshInbox = useCallback(async () => {
+    await syncAtendimentoInboxServer();
+    await refetch();
+  }, [refetch]);
 
   const { data: contactTagsIndex = {} } = useQuery({
     queryKey: ["contact-tags-index"],
@@ -1580,6 +1597,9 @@ export function AtendimentoInbox({ initialConversationId }: { initialConversatio
       );
     },
     onSettled: () => {
+      if (activeId) {
+        void qc.refetchQueries({ queryKey: atendimentoMessagesQueryKey(activeId), type: "active" });
+      }
       queueFocusMessageInput();
     },
   });
@@ -1756,11 +1776,11 @@ export function AtendimentoInbox({ initialConversationId }: { initialConversatio
               <p className="text-sm font-semibold text-[color:var(--gestao-ink)]">{panelTitle}</p>
               <button
                 type="button"
-                onClick={() => refetch()}
+                onClick={() => void refreshInbox()}
                 className="rounded-md p-1.5 text-muted-foreground hover:bg-[color:var(--gestao-cream)]/60"
                 aria-label="Atualizar"
               >
-                <RefreshCw className={cn("size-4", isLoading && "animate-spin")} />
+                <RefreshCw className={cn("size-4", (isLoading || isFetching) && "animate-spin")} />
               </button>
             </div>
 
@@ -2467,6 +2487,10 @@ function MessageBubble({
 
         {msg.content_text && msg.content_type !== "audio" ? (
           <p className="whitespace-pre-wrap text-sm">{msg.content_text}</p>
+        ) : null}
+
+        {!msg.content_text && msg.content_type === "text" ? (
+          <p className="text-sm italic opacity-70">(mensagem indisponível)</p>
         ) : null}
 
         {!msg.content_text &&

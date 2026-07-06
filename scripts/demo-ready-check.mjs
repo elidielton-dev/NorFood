@@ -122,12 +122,15 @@ function checkEnv(envVars) {
   if (envVars.VITE_DEMO_MODE === "true") fail("VITE_DEMO_MODE=true — desative em producao");
   else pass("VITE_DEMO_MODE nao esta true");
 
+  const gateway =
+    envVars.WHATSAPP_GATEWAY_URL?.trim() && envVars.WHATSAPP_GATEWAY_KEY?.trim();
   const evolution =
     envVars.EVOLUTION_API_URL?.trim() && envVars.EVOLUTION_API_KEY?.trim();
   const meta = envVars.META_APP_ID?.trim() && envVars.ENCRYPTION_KEY?.trim();
-  if (evolution) pass("Evolution API configurada");
+  if (gateway) pass("Gateway WhatsApp (Baileys) configurado");
+  else if (evolution) pass("Evolution API configurada (legado)");
   else if (meta) pass("Meta WABA configurada");
-  else warn("Nenhum provedor WhatsApp (Evolution ou Meta) no .env local");
+  else warn("Nenhum provedor WhatsApp (Baileys, Evolution ou Meta) no .env local");
 
   if (!envVars.CRON_SECRET?.trim()) warn("CRON_SECRET ausente — auto-fechamento de atendimento pode falhar");
   else pass("CRON_SECRET definido");
@@ -136,13 +139,37 @@ function checkEnv(envVars) {
   else pass("MP_WEBHOOK_SECRET definido");
 }
 
-async function checkEvolution(envVars) {
-  console.log("\n== Evolution VPS ==");
+async function checkGateway(envVars) {
+  console.log("\n== WhatsApp gateway (Baileys) ==");
+  const gatewayBase = envVars.WHATSAPP_GATEWAY_URL?.replace(/\/$/, "");
+  const gatewayKey = envVars.WHATSAPP_GATEWAY_KEY;
+  if (gatewayBase && gatewayKey) {
+    try {
+      const healthRes = await fetch(`${gatewayBase}/health`, {
+        headers: { apikey: gatewayKey },
+      });
+      const healthJson = await healthRes.json().catch(() => ({}));
+      if (!healthRes.ok) fail(`Gateway HTTP ${healthRes.status}`);
+      else pass(`Gateway online (${healthJson.connection ?? "?"})`);
+
+      const stateRes = await fetch(`${gatewayBase}/connection`, {
+        headers: { apikey: gatewayKey },
+      });
+      const stateJson = await stateRes.json().catch(() => ({}));
+      const state = stateJson?.instance?.state ?? stateJson?.state ?? "desconhecido";
+      if (state === "open") pass("WhatsApp conectado no gateway");
+      else fail(`WhatsApp nao conectado no gateway: state=${state}`);
+    } catch (error) {
+      fail(`Gateway inacessivel: ${error instanceof Error ? error.message : error}`);
+    }
+    return;
+  }
+
   const base = envVars.EVOLUTION_API_URL?.replace(/\/$/, "");
   const apiKey = envVars.EVOLUTION_API_KEY;
   const instance = envVars.EVOLUTION_INSTANCE_NAME ?? "abelha-mel";
   if (!base || !apiKey) {
-    warn("Evolution nao configurada — pule se for demo so com Meta");
+    warn("Gateway WhatsApp nao configurado — pule se for demo so com Meta");
     return;
   }
 
@@ -152,7 +179,7 @@ async function checkEvolution(envVars) {
     });
     const stateJson = await stateRes.json().catch(() => ({}));
     const state = stateJson?.instance?.state ?? stateJson?.state ?? "desconhecido";
-    if (state === "open") pass(`WhatsApp conectado (${instance})`);
+    if (state === "open") pass(`WhatsApp conectado (${instance}) via Evolution legado`);
     else fail(`WhatsApp nao conectado: state=${state}`);
   } catch (error) {
     fail(`Evolution inacessivel: ${error instanceof Error ? error.message : error}`);
@@ -164,7 +191,7 @@ async function main() {
   await checkRoutes();
   checkEnv(env);
   await checkSupabase(env);
-  await checkEvolution(env);
+  await checkGateway(env);
 
   console.log("\n== Resumo ==");
   console.log(`OK: ${ok.length} | Avisos: ${warnings.length} | Falhas: ${issues.length}`);

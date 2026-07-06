@@ -11,7 +11,8 @@ import { createClient } from "@supabase/supabase-js";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const DEMO_RESTAURANT_TENANT_ID = "a0000000-0000-4000-8000-000000000002";
-const DEMO_OWNER_EMAIL = process.env.DEMO_RESTAURANT_OWNER_EMAIL ?? "gestor@norfood.local";
+const DEMO_OWNER_EMAIL = process.env.DEMO_RESTAURANT_OWNER_EMAIL ?? "gestor@demo-restaurante.local";
+const DEMO_OWNER_PASSWORD = process.env.DEMO_RESTAURANT_OWNER_PASSWORD ?? "DemoRestaurante2026!";
 const TESTE01_OWNER_EMAIL = process.env.TESTE01_OWNER_EMAIL ?? "owner-teste01@norfood.local";
 const TESTE01_OWNER_PASSWORD = process.env.TESTE01_OWNER_PASSWORD ?? "Teste01Owner2026!";
 
@@ -96,11 +97,25 @@ async function fixDemoRestaurante() {
   console.log("\n== demo-restaurante ==");
   const user = await ensureUser({
     email: DEMO_OWNER_EMAIL,
-    password: process.env.MANAGER_PASSWORD ?? "GestorNorfood2026!",
+    password: DEMO_OWNER_PASSWORD,
     name: "Gestor Demo Restaurante",
-    phone: "(11) 99999-0002",
+    phone: "(11) 99999-0003",
   });
   await linkOwner(DEMO_RESTAURANT_TENANT_ID, "demo-restaurante", user.id, user.email);
+
+  // Remove vínculo legado: mesmo e-mail do norfood não pode ser owner do demo
+  const norfoodManager = await findUserByEmail(
+    process.env.MANAGER_EMAIL ?? "gestor@norfood.local",
+  );
+  if (norfoodManager && norfoodManager.id !== user.id) {
+    const { error: unlinkError } = await admin
+      .from("tenant_users")
+      .delete()
+      .eq("tenant_id", DEMO_RESTAURANT_TENANT_ID)
+      .eq("user_id", norfoodManager.id);
+    if (unlinkError) throw unlinkError;
+    console.log(`  Removido owner legado ${norfoodManager.email} do demo-restaurante`);
+  }
 }
 
 async function fixTeste01() {

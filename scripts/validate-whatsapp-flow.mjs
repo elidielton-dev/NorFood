@@ -1,13 +1,20 @@
 #!/usr/bin/env node
 /**
- * Validação ponta a ponta do WhatsApp (Evolution API).
- * Uso: node scripts/validate-whatsapp-flow.mjs
- * Variáveis: EVOLUTION_API_URL, EVOLUTION_API_KEY, EVOLUTION_INSTANCE_NAME
+ * Validação ponta a ponta do WhatsApp (gateway Baileys ou Evolution legado).
+ * Variáveis: WHATSAPP_GATEWAY_URL, WHATSAPP_GATEWAY_KEY
+ * Legado: EVOLUTION_API_URL, EVOLUTION_API_KEY, EVOLUTION_INSTANCE_NAME
  */
 
-const baseUrl = (process.env.EVOLUTION_API_URL ?? "http://54.207.185.74:8080").replace(/\/$/, "");
-const apiKey = process.env.EVOLUTION_API_KEY ?? "AbelhaMel2026Segura";
-const instance = (process.env.EVOLUTION_INSTANCE_NAME ?? "abelha-mel").trim();
+const useGateway = Boolean(process.env.WHATSAPP_GATEWAY_URL?.trim());
+const baseUrl = (
+  useGateway
+    ? process.env.WHATSAPP_GATEWAY_URL
+    : process.env.EVOLUTION_API_URL ?? "http://54.207.185.74:8080"
+).replace(/\/$/, "");
+const apiKey = useGateway
+  ? (process.env.WHATSAPP_GATEWAY_KEY ?? "")
+  : (process.env.EVOLUTION_API_KEY ?? "AbelhaMel2026Segura");
+const instance = (process.env.WHATSAPP_INSTANCE_NAME ?? process.env.EVOLUTION_INSTANCE_NAME ?? "norfood").trim();
 const testContact = process.env.WHATSAPP_TEST_CONTACT ?? "maykonvrumvrum";
 const testMessage = process.env.WHATSAPP_TEST_MESSAGE ?? "teste validacao";
 const webhookUrl =
@@ -44,7 +51,61 @@ function log(step, result, extra = "") {
 }
 
 async function main() {
-  console.log(`\n=== Validação WhatsApp — ${instance} @ ${baseUrl} ===\n`);
+  console.log(
+    `\n=== Validação WhatsApp (${useGateway ? "Baileys gateway" : "Evolution"}) — ${instance} @ ${baseUrl} ===\n`,
+  );
+
+  if (useGateway) {
+    const health = await api("/health");
+    log("1. Health gateway", health);
+
+    const connection = await api("/connection");
+    log("2. Connection", connection);
+    const state = String(connection.body?.state ?? connection.body?.instance?.state ?? "");
+    const connected = state === "open";
+    if (!connected) {
+      console.error("WhatsApp não está conectado no gateway. Pareie o número antes de continuar.");
+      process.exit(1);
+    }
+
+    const webhookPing = await fetch(webhookUrl, { method: "GET" }).catch(() => null);
+    log("3. Webhook painel (GET)", {
+      ok: webhookPing?.ok ?? false,
+      status: webhookPing?.status ?? 0,
+      ms: 0,
+      body: webhookPing ? await webhookPing.json().catch(() => ({})) : {},
+    });
+
+    const chats = await api("/chats");
+    const chatList = Array.isArray(chats.body) ? chats.body : [];
+    log("4. /chats", chats, `→ ${chatList.length} conversas`);
+
+    const contacts = await api("/contacts");
+    const contactList = Array.isArray(contacts.body) ? contacts.body : [];
+    log("5. /contacts", contacts, `→ ${contactList.length} contatos`);
+
+    const match = contactList.find((c) =>
+      String(c.pushName ?? "").toLowerCase().includes(testContact.toLowerCase()),
+    );
+    if (!match?.remoteJid) {
+      console.warn(`\nContato "${testContact}" não encontrado — pulando envio de teste.`);
+    } else {
+      const number = match.remoteJid.split("@")[0];
+      const send = await api("/message/text", {
+        method: "POST",
+        body: JSON.stringify({ number, text: testMessage }),
+      });
+      log("6. sendText", send, `"${testMessage}" para ${number}`);
+    }
+
+    console.log("\n--- Resumo ---");
+    if (failed > 0) {
+      console.error(`✗ ${failed} etapa(s) falharam.`);
+      process.exit(1);
+    }
+    console.log("✓ Validação concluída. Gateway Baileys OK.\n");
+    return;
+  }
 
   const instances = await api(`/instance/fetchInstances?instanceName=${instance}`);
   log("1. Instância", instances);

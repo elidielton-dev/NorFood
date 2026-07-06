@@ -229,12 +229,13 @@ export async function syncAtendimentoSessionOnActivity(chatId: string, activityA
   if (!row) return;
 
   if (row.inbox_status === "closed") {
+    const anchor = await resolveAttendanceSessionAnchor(chatId, sessionAt);
     const { error } = await supabaseAdmin
       .from("whatsapp_chats")
       .update({
         inbox_status: "open",
-        attendance_opened_at: sessionAt,
-        updated_at: sessionAt,
+        attendance_opened_at: anchor,
+        updated_at: anchor,
       })
       .eq("id", chatId)
       .eq("inbox_status", "closed");

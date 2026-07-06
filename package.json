@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
+    "dev:whatsapp-gateway": "npm --prefix services/whatsapp-gateway run dev",
     "build": "vite build",
     "build:vps": "vite build",
     "start:prod": "node .output/server/index.mjs",
@@ -44,6 +45,7 @@
     "check:production-env": "node ./scripts/check-production-env.mjs",
     "validate:all-channels": "node ./scripts/validate-all-channels.mjs",
     "validate:whatsapp": "node ./scripts/validate-whatsapp-flow.mjs",
+    "validate:whatsapp:gateway": "node ./scripts/validate-whatsapp-gateway.mjs",
     "validate:whatsapp:full": "node ./scripts/validate-whatsapp-full.mjs",
     "validate:whatsapp:e2e": "node ./scripts/validate-whatsapp-e2e.mjs",
     "validate:whatsapp:web": "node ./scripts/validate-whatsapp-vs-web.mjs",

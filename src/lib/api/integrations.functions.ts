@@ -47,8 +47,12 @@ export const getIntegrationStatus = createServerFn({ method: "GET" })
         apiUrl: process.env.QUERO_DELIVERY_API_URL ?? "",
       },
       whatsapp: {
-        enabled: Boolean(process.env.EVOLUTION_API_URL && process.env.EVOLUTION_API_KEY),
-        instanceName: process.env.EVOLUTION_INSTANCE_NAME ?? "abelha-mel",
+        enabled: Boolean(
+          (process.env.WHATSAPP_GATEWAY_URL && process.env.WHATSAPP_GATEWAY_KEY) ||
+            (process.env.EVOLUTION_API_URL && process.env.EVOLUTION_API_KEY),
+        ),
+        gatewayUrl: process.env.WHATSAPP_GATEWAY_URL ?? "",
+        instanceName: process.env.WHATSAPP_INSTANCE_NAME ?? process.env.EVOLUTION_INSTANCE_NAME ?? "norfood",
         webhookUrl:
           process.env.WHATSAPP_WEBHOOK_URL ??
           (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}/api/whatsapp/webhook` : ""),

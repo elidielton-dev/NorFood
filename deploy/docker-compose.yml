@@ -24,6 +24,10 @@ services:
       EXPO_METRO_HOST: ${EXPO_METRO_HOST:-15.228.214.190}
       EXPO_METRO_PORT: ${EXPO_METRO_PORT:-8081}
       EXPO_URL_FILE: /data/expo-go-url.txt
+      WHATSAPP_GATEWAY_URL: http://whatsapp-gateway:8090
+      WHATSAPP_GATEWAY_KEY: ${WHATSAPP_GATEWAY_KEY}
+      WHATSAPP_INSTANCE_NAME: ${WHATSAPP_INSTANCE_NAME:-norfood}
+      WHATSAPP_WEBHOOK_URL: ${WHATSAPP_WEBHOOK_URL}
     volumes:
       - expo-go-data:/data:ro
     expose:
@@ -42,6 +46,42 @@ services:
           memory: 6G
         reservations:
           memory: 2G
+
+    depends_on:
+      whatsapp-gateway:
+        condition: service_healthy
+
+  whatsapp-gateway:
+    build:
+      context: ../services/whatsapp-gateway
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      WHATSAPP_AUTH_DIR: /data/auth
+      WHATSAPP_GATEWAY_PORT: 8090
+      WHATSAPP_WEBHOOK_URL: ${WHATSAPP_WEBHOOK_URL}
+      WHATSAPP_GATEWAY_KEY: ${WHATSAPP_GATEWAY_KEY}
+      WHATSAPP_INSTANCE_NAME: ${WHATSAPP_INSTANCE_NAME:-norfood}
+    volumes:
+      - whatsapp-auth:/data/auth
+    expose:
+      - "8090"
+    networks:
+      - norfood-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8090/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
 
   expo-metro:
     build:
@@ -98,3 +138,4 @@ volumes:
   caddy_data:
   caddy_config:
   expo-go-data:
+  whatsapp-auth:

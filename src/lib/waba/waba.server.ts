@@ -67,6 +67,31 @@ export async function getWabaConfigStatus(): Promise<WabaConfigPublic> {
   const formVerifyToken = formVerifyTokenFromRow(data?.verify_token);
   const phoneNumberId = data?.phone_number_id ?? DEFAULT_WABA_PHONE_NUMBER_ID;
   const wabaId = data?.waba_id ?? DEFAULT_WABA_ID;
+  const activeProvider =
+    data?.active_provider === "baileys" || data?.active_provider === "evolution"
+      ? "baileys"
+      : "meta";
+
+  if (
+    activeProvider === "baileys" &&
+    data?.phone_number_id &&
+    data?.access_token
+  ) {
+    return {
+      connected: false,
+      status: "disconnected",
+      phone_number_id: data.phone_number_id,
+      display_phone_number: data.display_phone_number ?? null,
+      waba_id: data.waba_id ?? wabaId,
+      form_verify_token: formVerifyToken,
+      coexistence_mode: Boolean(data.coexistence_mode),
+      is_on_biz_app: data.is_on_biz_app ?? undefined,
+      platform_type: data.platform_type ?? null,
+      active_provider: "baileys",
+      reason: "baileys_active",
+      message: "WhatsApp Web (Baileys) ativo. Conexao Meta nao e verificada neste modo.",
+    };
+  }
 
   if (error || !data?.phone_number_id || !data?.access_token) {
     return {
@@ -76,7 +101,7 @@ export async function getWabaConfigStatus(): Promise<WabaConfigPublic> {
       display_phone_number: data?.display_phone_number ?? null,
       waba_id: wabaId,
       form_verify_token: formVerifyToken,
-      active_provider: data?.active_provider === "evolution" ? "evolution" : "meta",
+      active_provider: activeProvider,
       reason: "no_config",
       message: "Configure a API Meta em Atendimento → Configurações.",
     };
@@ -99,7 +124,7 @@ export async function getWabaConfigStatus(): Promise<WabaConfigPublic> {
       is_on_biz_app: info.is_on_biz_app,
       platform_type: info.platform_type ?? null,
       coexistence_active: isCoexistenceActive(info),
-      active_provider: data.active_provider === "evolution" ? "evolution" : "meta",
+      active_provider: activeProvider,
     };
   } catch (err) {
     return {
@@ -112,7 +137,7 @@ export async function getWabaConfigStatus(): Promise<WabaConfigPublic> {
       coexistence_mode: Boolean(data.coexistence_mode),
       is_on_biz_app: data.is_on_biz_app ?? undefined,
       platform_type: data.platform_type ?? null,
-      active_provider: data.active_provider === "evolution" ? "evolution" : "meta",
+      active_provider: activeProvider,
       reason: "meta_api_error",
       message: err instanceof Error ? err.message : "Falha ao validar token Meta",
     };

@@ -8,11 +8,11 @@ async function sendPlatformWhatsApp(phone: string, text: string) {
     const { getActiveProvider } = await import("@/lib/atendimento/atendimento-provider.server");
     const provider = await getActiveProvider();
 
-    if (provider === "evolution") {
-      const { sendEvolutionText } = await import("@/lib/api/whatsapp-evolution.server");
+    if (provider === "baileys") {
+      const { sendBaileysText } = await import("@/lib/api/whatsapp-baileys.server");
       const digits = phone.replace(/\D/g, "");
-      await sendEvolutionText(digits, text);
-      return { ok: true as const, channel: "evolution" as const };
+      await sendBaileysText(digits, text);
+      return { ok: true as const, channel: "baileys" as const };
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

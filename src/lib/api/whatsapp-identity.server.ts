@@ -5,7 +5,7 @@ import {
   fetchEvolutionMessages,
   fetchEvolutionProfile,
   fetchEvolutionRecentMessages,
-} from "@/lib/api/whatsapp-evolution.server";
+} from "@/lib/api/whatsapp-baileys.server";
 import {
   extractPhoneJidFromMessageKey,
   jidToPhone,
