@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { Home } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 import {
   CONFIG_NAV_GROUPS,
   configNavHref,

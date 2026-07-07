@@ -1,6 +1,6 @@
 import type { BillingModel, BillingPlanId } from "@/lib/platform/billing-plans";
-import type { DocumentType } from "@/lib/document-validation";
-import { buildAppUrl } from "@/lib/app-url";
+import type { DocumentType } from "@/lib/shared/document-validation";
+import { buildAppUrl } from "@/lib/shared/app-url";
 
 export type SignupDraft = {
   version: 1;

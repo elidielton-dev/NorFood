@@ -3,7 +3,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import {
   fetchStaffAtendimentoNotificationPrefsServer,
   saveStaffAtendimentoNotificationPrefsServer,
-} from "@/lib/api/atendimento.functions";
+} from "@/lib/api/atendimento/atendimento.functions";
 import { playAtendimentoInboundChime } from "@/lib/atendimento/inbound-chime";
 import type { WabaConversation } from "@/lib/waba/types";
 

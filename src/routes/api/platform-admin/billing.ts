@@ -6,7 +6,7 @@ import {
   loadAdminBillingRows,
   loadBillingInvoicesForPeriod,
   markBillingInvoicePaid,
-} from "@/lib/api/platform-billing.functions";
+} from "@/lib/api/financeiro/platform-billing.functions";
 
 function formatUnknownError(error: unknown, fallback: string) {
   if (error instanceof Error) return error.message;
@@ -115,7 +115,7 @@ export const Route = createFileRoute("/api/platform-admin/billing")({
               return Response.json({ error: "invoiceId é obrigatório." }, { status: 400 });
             }
             const { createPlatformBillingCheckout } =
-              await import("@/lib/api/platform-billing-mercadopago.server");
+              await import("@/lib/api/financeiro/platform-billing-mercadopago.server");
             const result = await createPlatformBillingCheckout(body.invoiceId);
             return Response.json(result, { headers: { "cache-control": "no-store" } });
           }
@@ -125,7 +125,7 @@ export const Route = createFileRoute("/api/platform-admin/billing")({
               return Response.json({ error: "invoiceId é obrigatório." }, { status: 400 });
             }
             const { createPlatformBillingPix } =
-              await import("@/lib/api/platform-billing-mercadopago.server");
+              await import("@/lib/api/financeiro/platform-billing-mercadopago.server");
             const result = await createPlatformBillingPix(body.invoiceId);
             return Response.json(result, { headers: { "cache-control": "no-store" } });
           }

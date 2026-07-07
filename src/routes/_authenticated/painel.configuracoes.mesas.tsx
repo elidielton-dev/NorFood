@@ -13,11 +13,11 @@ import {
   fetchMesasAdminServer,
   saveMesaAdminServer,
   seedMesasAdminServer,
-} from "@/lib/api/mesas-admin.functions";
+} from "@/lib/api/pedidos/mesas-admin.functions";
 import {
   fetchTenantAdminSettingsServer,
   saveMesasSettingsServer,
-} from "@/lib/api/tenant-settings-admin.functions";
+} from "@/lib/api/tenant/tenant-settings-admin.functions";
 import { DEFAULT_MESAS_SETTINGS } from "@/lib/mesas-settings";
 import { lojaPath } from "@/lib/tenant/painel-routes";
 import { useTenant, useTenantSlug } from "@/lib/tenant/tenant-context";
@@ -29,8 +29,8 @@ import {
   GestaoTable,
   GestaoTableHead,
   GestaoEmptyState,
-} from "@/components/gestao-ui";
-import { printMesaQrCode } from "@/lib/print";
+} from "@/components/painel/gestao-ui";
+import { printMesaQrCode } from "@/lib/shared/print";
 
 export const Route = createFileRoute("/_authenticated/painel/configuracoes/mesas")({
   component: ConfiguracoesMesasPage,

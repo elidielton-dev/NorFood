@@ -4,7 +4,7 @@ import { Shield, UserCircle } from "lucide-react";
 import { ParceiroDataTable, type ParceiroTableColumn } from "@/components/parceiro/parceiro-data-table";
 import { ParceiroCard, ParceiroPage } from "@/routes/parceiro";
 import { fetchResellerTeam } from "@/lib/reseller/client";
-import type { ResellerTeamMember } from "@/lib/api/platform-reseller.functions";
+import type { ResellerTeamMember } from "@/lib/api/plataforma/platform-reseller.functions";
 
 export const Route = createFileRoute("/parceiro/equipe")({
   component: ParceiroEquipePage,

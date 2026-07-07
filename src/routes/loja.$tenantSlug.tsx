@@ -1,8 +1,8 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { fetchTenantBySlugServer } from "@/lib/api/tenant.functions";
+import { fetchTenantBySlugServer } from "@/lib/api/tenant/tenant.functions";
 import { TenantProvider } from "@/lib/tenant/tenant-context";
 import { TenantOperationalGate } from "@/components/tenant/tenant-operational-gate";
-import { AppAbelhaMel } from "@/components/app-abelha-mel";
+import { AppAbelhaMel } from "@/components/loja/app-abelha-mel";
 
 export const Route = createFileRoute("/loja/$tenantSlug")({
   beforeLoad: async ({ params }) => {

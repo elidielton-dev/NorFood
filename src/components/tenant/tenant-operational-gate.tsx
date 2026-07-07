@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { TenantSuspendedScreen } from "@/components/tenant/tenant-suspended-screen";
-import { getTenantAccessStatusServer } from "@/lib/api/platform-billing.functions";
+import { getTenantAccessStatusServer } from "@/lib/api/financeiro/platform-billing.functions";
 import { useTenantOptional } from "@/lib/tenant/tenant-context";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 type TenantOperationalGateProps = {
   children: React.ReactNode;

@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { fetchTenantAdminSettingsServer } from "@/lib/api/tenant-settings-admin.functions";
-import type { Pedido } from "@/lib/db";
+import { fetchTenantAdminSettingsServer } from "@/lib/api/tenant/tenant-settings-admin.functions";
+import type { Pedido } from "@/lib/shared/db";
 import { printKitchenQrOrder } from "@/lib/kitchen-order-print";
 import { DEFAULT_MESAS_SETTINGS } from "@/lib/mesas-settings";
 

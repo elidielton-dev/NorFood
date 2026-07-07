@@ -16,8 +16,10 @@ import {
   saveOperationalConfigServer,
   type BairroEntrega,
   type OperationalConfig,
-} from "@/lib/api/operational-config.functions";
+
+} from "@/lib/api/tenant/operational-config.functions";
 import { tenantPath } from "@/lib/tenant/painel-routes";
+
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
 import {
   GestaoAlert,
@@ -27,7 +29,7 @@ import {
   GestaoTable,
   GestaoTableHead,
   GestaoToolbar,
-} from "@/components/gestao-ui";
+} from "@/components/painel/gestao-ui";
 
 export const Route = createFileRoute("/_authenticated/painel/configuracoes/operacao")({
   component: ConfiguracaoOperacaoPage,

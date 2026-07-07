@@ -27,8 +27,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
-import { GestaoButton } from "@/components/gestao-ui";
-import { cn } from "@/lib/utils";
+import { GestaoButton } from "@/components/painel/gestao-ui";
+import { cn } from "@/lib/shared/utils";
 import {
   createWabaAutomationServer,
   deleteWabaAutomationServer,
@@ -36,8 +36,8 @@ import {
   fetchWabaAutomationsServer,
   setWabaAutomationActiveServer,
   updateWabaAutomationServer,
-} from "@/lib/api/waba.functions";
-import { fetchWabaAutomationLogsServer } from "@/lib/api/atendimento.functions";
+} from "@/lib/api/atendimento/waba.functions";
+import { fetchWabaAutomationLogsServer } from "@/lib/api/atendimento/atendimento.functions";
 import type { WabaAutomation } from "@/lib/waba/types";
 import { WABA_TRIGGER_LABELS_PT } from "@/lib/waba/types";
 import {

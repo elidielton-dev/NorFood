@@ -8,13 +8,13 @@ import {
   getOrderNeighborhood,
   type Pedido,
   type PedidoItem,
-} from "@/lib/db";
+} from "@/lib/shared/db";
 import {
   fetchKitchenOrdersServer,
   fetchKdsOrderItemsServer,
-} from "@/lib/api/delivery-panel.functions";
-import { fetchOperationalStatusServer } from "@/lib/api/operational-config.functions";
-import { resolveProductImage } from "@/lib/cardapio";
+} from "@/lib/api/delivery/delivery-panel.functions";
+import { fetchOperationalStatusServer } from "@/lib/api/tenant/operational-config.functions";
+import { resolveProductImage } from "@/lib/loja/cardapio";
 import { useMesaQrKitchenAutoPrint } from "@/hooks/use-mesa-qr-kitchen-auto-print";
 import {
   Bell,
@@ -30,8 +30,8 @@ import {
   extractMesaQrNumero,
 } from "@/lib/mesas-settings";
 import { getKitchenStage, isKitchenOrderChannel } from "@/lib/kitchen-stage";
-import { isDemoSession } from "@/lib/runtime";
-import { cn } from "@/lib/utils";
+import { isDemoSession } from "@/lib/shared/runtime";
+import { cn } from "@/lib/shared/utils";
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
 import { usePainelNavigate } from "@/lib/painel/use-painel-navigate";
 

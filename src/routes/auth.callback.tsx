@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
 import { NorfoodLogo } from "@/components/brand/norfood-logo";
-import { sanitizeLoginRedirect, followInternalRedirect } from "@/lib/login-redirect";
-import { resolvePostLoginRoute } from "@/lib/auth-roles";
+import { sanitizeLoginRedirect, followInternalRedirect } from "@/lib/auth/login-redirect";
+import { resolvePostLoginRoute } from "@/lib/auth/auth-roles";
 
 export const Route = createFileRoute("/auth/callback")({
   ssr: false,

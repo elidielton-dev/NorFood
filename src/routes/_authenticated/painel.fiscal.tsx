@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { fetchFiscalSettingsServer } from "@/lib/api/fiscal.functions";
-import { FiscalAmbienteToggle } from "@/components/fiscal-ambiente-toggle";
+import { fetchFiscalSettingsServer } from "@/lib/api/fiscal/fiscal.functions";
+import { FiscalAmbienteToggle } from "@/components/fiscal/fiscal-ambiente-toggle";
 
 export const Route = createFileRoute("/_authenticated/painel/fiscal")({
   component: FiscalLayout,

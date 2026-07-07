@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AdminCard, AdminPage } from "@/routes/admin";
 import { parsePlatformAdminEmails } from "@/lib/platform-admin/emails";
 import { getPlatformCapacityConfig } from "@/lib/platform/platform-limits";
-import { isBrowserDemoEnabled, isProductionMode } from "@/lib/runtime";
+import { isBrowserDemoEnabled, isProductionMode } from "@/lib/shared/runtime";
 
 export const Route = createFileRoute("/admin/configuracoes")({
   component: AdminConfiguracoesPage,

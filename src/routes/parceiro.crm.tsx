@@ -11,8 +11,8 @@ import {
   fetchResellerLeads,
   updateResellerLeadStatus,
 } from "@/lib/reseller/client";
-import type { ResellerLeadRow, ResellerLeadStatus } from "@/lib/api/platform-reseller.functions";
-import { cn } from "@/lib/utils";
+import type { ResellerLeadRow, ResellerLeadStatus } from "@/lib/api/plataforma/platform-reseller.functions";
+import { cn } from "@/lib/shared/utils";
 
 export const Route = createFileRoute("/parceiro/crm")({
   component: ParceiroCrmPage,

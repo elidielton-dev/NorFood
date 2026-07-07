@@ -7,8 +7,8 @@ import { PlanPicker } from "@/components/billing/plan-picker";
 import { createAdminTenant } from "@/lib/platform-admin/client";
 import type { BillingModel, BillingPlanId } from "@/lib/platform/billing-plans";
 import { slugifyTenantName } from "@/lib/platform-admin/slug";
-import { suggestTenantSlugServer } from "@/lib/api/platform-admin.functions";
-import { isBrowserDemoEnabled } from "@/lib/runtime";
+import { suggestTenantSlugServer } from "@/lib/api/plataforma/platform-admin.functions";
+import { isBrowserDemoEnabled } from "@/lib/shared/runtime";
 import type { TenantStatus } from "@/lib/tenant/types";
 
 export const Route = createFileRoute("/admin/nova")({

@@ -1,5 +1,5 @@
 import { BalcaoPos, type BalcaoOmnichannelPrefill } from "@/components/balcao/balcao-pos";
-import type { ModoVenda, OrigemVenda } from "@/lib/api/omnichannel-order.functions";
+import type { ModoVenda, OrigemVenda } from "@/lib/api/pedidos/omnichannel-order.functions";
 import { usePainelSearch } from "@/lib/painel/use-painel-search";
 
 function parsePdvSearch(search: Record<string, unknown> | null | undefined): BalcaoOmnichannelPrefill | null {

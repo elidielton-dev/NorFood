@@ -11,7 +11,7 @@ import {
   saveFiscalConfigServer,
   uploadFiscalCertificateServer,
   emitNfceHomologacaoTestServer,
-} from "@/lib/api/fiscal.functions";
+} from "@/lib/api/fiscal/fiscal.functions";
 import type { EmpresaFiscal, FiscalAmbiente } from "@/lib/fiscal/fiscal-types";
 import { CRT_OPTIONS, UF_OPTIONS } from "@/lib/fiscal/fiscal-types";
 import { formatCep, formatCnpj, isValidCnpj, onlyDigits, validateEmpresaFiscal } from "@/lib/fiscal/fiscal-validation";
@@ -22,13 +22,15 @@ import {
   GestaoInput,
   GestaoSelect,
   GestaoUnderlineTabs,
-} from "@/components/gestao-ui";
+
+} from "@/components/painel/gestao-ui";
 import {
   ConfigSection,
   ConfigSettingRow,
   ConfigSwitchRow,
   ConfiguracoesPageFrame,
 } from "@/components/configuracoes/configuracoes-page-frame";
+
 
 export const Route = createFileRoute("/_authenticated/painel/fiscal/configuracoes")({
   component: FiscalConfiguracoesPage,

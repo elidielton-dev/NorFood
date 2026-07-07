@@ -6,9 +6,9 @@ import {
   getPlanUpgradeLabel,
   planFeatureForRoute,
 } from "@/lib/platform/plan-features";
-import { getTenantPlanFeaturesServer } from "@/lib/api/platform-billing.functions";
+import { getTenantPlanFeaturesServer } from "@/lib/api/financeiro/platform-billing.functions";
 import { tenantPath } from "@/lib/tenant/painel-routes";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 type TenantPlanGateProps = {
   tenantSlug: string;

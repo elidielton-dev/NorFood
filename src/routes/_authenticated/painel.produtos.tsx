@@ -41,8 +41,8 @@ import {
   fetchProdutosModuleStoreServer,
   saveProductRecordServer,
   saveProdutosModuleStoreServer,
-} from "@/lib/api/produtos-module.functions";
-import { formatBRL, listarProdutos } from "@/lib/db";
+} from "@/lib/api/produtos/produtos-module.functions";
+import { formatBRL, listarProdutos } from "@/lib/shared/db";
 import {
   blankProduct,
   buildSeedModuleStore,
@@ -61,8 +61,8 @@ import {
   type PromotionType,
   type SellChannel,
   type StockAction,
-} from "@/lib/produtos-module";
-import { hasBrowserSupabaseConfig } from "@/lib/runtime";
+} from "@/lib/produtos/produtos-module";
+import { hasBrowserSupabaseConfig } from "@/lib/shared/runtime";
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
 import { usePainelNavigate } from "@/lib/painel/use-painel-navigate";
 import { usePainelSearch } from "@/lib/painel/use-painel-search";
@@ -71,10 +71,10 @@ import {
   labelMotivoModuloNaoSincronizado,
   partitionProdutosBySync,
   PRODUTOS_MODULE_PRODUCTS_QUERY_KEY,
-} from "@/lib/produtos-sync";
+} from "@/lib/produtos/produtos-sync";
 import { toast } from "sonner";
 import { isValidNcm } from "@/lib/fiscal/fiscal-validation";
-import { ProductFormModal } from "@/components/product-form-modal";
+import { ProductFormModal } from "@/components/loja/product-form-modal";
 import {
   GestaoAlert,
   GestaoButton,
@@ -89,7 +89,7 @@ import {
   GestaoTabs,
   GestaoToolbar,
   StatusPill,
-} from "@/components/gestao-ui";
+} from "@/components/painel/gestao-ui";
 
 type TabId =
   | "visao-geral"

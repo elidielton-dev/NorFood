@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 import { NORFOOD_BRAND_NAME, NORFOOD_LOGO_URL, NORFOOD_TAGLINE, norfoodLogoSrc } from "@/lib/brand/norfood";
 
 type NorfoodLogoProps = {

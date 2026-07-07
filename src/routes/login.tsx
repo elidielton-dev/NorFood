@@ -1,15 +1,15 @@
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
-import { getAuthenticatedUser } from "@/lib/auth-session";
+import { getAuthenticatedUser } from "@/lib/auth/auth-session";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
-import { resolveLoginDestination } from "@/lib/auth-roles";
+import { resolveLoginDestination } from "@/lib/auth/auth-roles";
 import {
   followInternalRedirect,
   internalPathToRouterRedirect,
   sanitizeLoginRedirect,
-} from "@/lib/login-redirect";
+} from "@/lib/auth/login-redirect";
 import { NORFOOD_DEMO_TENANT_SLUG } from "@/lib/tenant/constants";
 import { NorfoodLogo } from "@/components/brand/norfood-logo";
 

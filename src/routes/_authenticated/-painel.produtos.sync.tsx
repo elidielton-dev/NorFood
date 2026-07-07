@@ -1,16 +1,16 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Package, Pencil } from "lucide-react";
-import { CHANNEL_LABELS } from "@/lib/produtos-module";
-import { resolveProductImage } from "@/lib/cardapio";
-import { formatBRL } from "@/lib/db";
+import { CHANNEL_LABELS } from "@/lib/produtos/produtos-module";
+import { resolveProductImage } from "@/lib/loja/cardapio";
+import { formatBRL } from "@/lib/shared/db";
 import {
   fetchModuleProducts,
   isModuleProductSincronizado,
   labelMotivoModuloNaoSincronizado,
   partitionProdutosBySync,
   PRODUTOS_MODULE_PRODUCTS_QUERY_KEY,
-} from "@/lib/produtos-sync";
+} from "@/lib/produtos/produtos-sync";
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
 import {
   GestaoButton,
@@ -19,7 +19,7 @@ import {
   GestaoTable,
   GestaoTableHead,
   StatusPill,
-} from "@/components/gestao-ui";
+} from "@/components/painel/gestao-ui";
 
 export function ProdutosSyncPage({ mode }: { mode: "sincronizados" | "pendentes" }) {
   const tenantSlug = useTenantSlug();

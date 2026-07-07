@@ -1,8 +1,10 @@
+
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { AppAbelhaMel } from "@/components/app-abelha-mel";
-import { resolveMesaByToken } from "@/lib/api/mesa-order.functions";
-import { fetchTenantBySlugServer } from "@/lib/api/tenant.functions";
+import { AppAbelhaMel } from "@/components/loja/app-abelha-mel";
+import { resolveMesaByToken } from "@/lib/api/pedidos/mesa-order.functions";
+import { fetchTenantBySlugServer } from "@/lib/api/tenant/tenant.functions";
 import { TenantProvider } from "@/lib/tenant/tenant-context";
+
 
 /**
  * Cardapio QR Code: cliente escaneia o QR da mesa e pede direto da mesa.

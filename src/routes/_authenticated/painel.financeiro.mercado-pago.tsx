@@ -1,22 +1,24 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+
 import { ExternalLink, RefreshCw } from "lucide-react";
 import {
   ConfigSection,
   ConfigSettingRow,
   ConfiguracoesPageFrame,
 } from "@/components/configuracoes/configuracoes-page-frame";
-import { fetchMercadoPagoPanelServer } from "@/lib/api/mercado-pago-panel.functions";
-import { formatBRL } from "@/lib/db";
+import { fetchMercadoPagoPanelServer } from "@/lib/api/financeiro/mercado-pago-panel.functions";
+import { formatBRL } from "@/lib/shared/db";
 import { tenantPath } from "@/lib/tenant/painel-routes";
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
+
 import {
   GestaoAlert,
   GestaoButton,
   GestaoTable,
   GestaoTableHead,
   StatusPill,
-} from "@/components/gestao-ui";
+} from "@/components/painel/gestao-ui";
 
 export const Route = createFileRoute("/_authenticated/painel/financeiro/mercado-pago")({
   component: MercadoPagoContaPage,

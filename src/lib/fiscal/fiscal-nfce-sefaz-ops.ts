@@ -1,5 +1,5 @@
 import type { SefazSecrets } from "@/lib/fiscal/fiscal-sefaz.types";
-import type { SefazCertificateData } from "@/lib/api/fiscal-certificate.server";
+import type { SefazCertificateData } from "@/lib/api/fiscal/fiscal-certificate.server";
 import {
   getSefazUrlForNfce,
   ibgeToUfFromChave,

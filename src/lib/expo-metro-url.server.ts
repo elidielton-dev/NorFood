@@ -1,4 +1,4 @@
-import { isUnreachableDirectMetroUrl } from "@/lib/entregador-expo-go-url";
+import { isUnreachableDirectMetroUrl } from "@/lib/entregador/entregador-expo-go-url";
 
 type ExpoManifest = {
   extra?: {

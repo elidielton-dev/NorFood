@@ -4,7 +4,7 @@ import { Building2, Mail, Phone } from "lucide-react";
 import { ParceiroCard, ParceiroPage } from "@/routes/parceiro";
 import { fetchResellerProfile } from "@/lib/reseller/client";
 import { BILLING_PLANS } from "@/lib/platform/billing-plans";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 export const Route = createFileRoute("/parceiro/configuracoes")({
   component: ParceiroConfiguracoesPage,

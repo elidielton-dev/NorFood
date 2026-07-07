@@ -14,20 +14,22 @@ import {
   WifiOff,
 } from "lucide-react";
 import { toast } from "sonner";
+
 import {
   ConfigSection,
   ConfigSettingRow,
   ConfigSwitchRow,
   ConfiguracoesPageFrame,
 } from "@/components/configuracoes/configuracoes-page-frame";
-import { GestaoAlert, GestaoButton, GestaoInput } from "@/components/gestao-ui";
-import { cn } from "@/lib/utils";
+import { GestaoAlert, GestaoButton, GestaoInput } from "@/components/painel/gestao-ui";
+import { cn } from "@/lib/shared/utils";
+
 import {
   formatPhoneInput,
   formatPairingCodeDisplay,
   formatPairingCodePlain,
   PAIRING_CODE_TTL_SECONDS,
-} from "@/lib/whatsapp";
+} from "@/lib/atendimento/whatsapp";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,7 +53,7 @@ import {
   setAtendimentoProviderServer,
   syncWabaTemplatesServer,
   triggerWabaCoexistenceSyncServer,
-} from "@/lib/api/atendimento.functions";
+} from "@/lib/api/atendimento/atendimento.functions";
 import { playAtendimentoInboundChime } from "@/lib/atendimento/inbound-chime";
 import {
   requestAtendimentoDesktopNotificationPermission,

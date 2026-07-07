@@ -3,22 +3,24 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, UserCog } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+
 import {
   ConfigSection,
   ConfiguracoesPageFrame,
 } from "@/components/configuracoes/configuracoes-page-frame";
-import { ColaboradorFormModal } from "@/components/colaborador-form-modal";
+import { ColaboradorFormModal } from "@/components/colaboradores/colaborador-form-modal";
+
 import {
   fetchColaboradorServer,
   fetchColaboradoresServer,
   saveColaboradorServer,
-} from "@/lib/api/colaboradores.functions";
+} from "@/lib/api/tenant/colaboradores.functions";
 import {
   colaboradorToFormState,
   createEmptyColaboradorForm,
   formatStaffRoleLabel,
   type ColaboradorFormState,
-} from "@/lib/colaboradores";
+} from "@/lib/colaboradores/colaboradores";
 import {
   GestaoButton,
   GestaoEmptyState,
@@ -26,9 +28,9 @@ import {
   GestaoTable,
   GestaoTableHead,
   StatusPill,
-} from "@/components/gestao-ui";
+} from "@/components/painel/gestao-ui";
 import { useTenantId, useTenantSlug } from "@/lib/tenant/tenant-context";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 export const Route = createFileRoute("/_authenticated/painel/colaboradores")({
   component: () => <ColaboradoresPage />,

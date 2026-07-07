@@ -26,19 +26,19 @@ import {
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { GestaoButton, GestaoInput, gestao } from "@/components/gestao-ui";
+import { GestaoButton, GestaoInput, gestao } from "@/components/painel/gestao-ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 import {
   isDirectPlayableMediaUrl,
   normalizeWhatsAppPhone,
   phonesMatchLoosely,
-} from "@/lib/whatsapp";
+} from "@/lib/atendimento/whatsapp";
 import {
   fetchAtendimentoConfigServer,
   fetchContactTagsIndexServer,
@@ -52,7 +52,7 @@ import {
   sendAtendimentoMessageServer,
   syncAtendimentoInboxServer,
   updateAtendimentoConversationStatusServer,
-} from "@/lib/api/atendimento.functions";
+} from "@/lib/api/atendimento/atendimento.functions";
 import { supabase } from "@/integrations/supabase/client";
 import type {
   WabaConversation,

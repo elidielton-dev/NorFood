@@ -206,4 +206,4 @@ export {
   sidebarHomeItem,
   getAllSidebarItems,
   isSidebarItemActive,
-} from "@/lib/painel-sidebar";
+} from "@/lib/painel/painel-sidebar";

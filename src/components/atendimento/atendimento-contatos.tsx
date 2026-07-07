@@ -27,16 +27,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { GestaoButton } from "@/components/gestao-ui";
-import { cn } from "@/lib/utils";
+import { GestaoButton } from "@/components/painel/gestao-ui";
+import { cn } from "@/lib/shared/utils";
 import {
   deleteWabaContactServer,
   fetchWabaContactsServer,
   openAtendimentoConversationServer,
   upsertWabaContactServer,
-} from "@/lib/api/atendimento.functions";
+} from "@/lib/api/atendimento/atendimento.functions";
 import type { WabaContact, WabaConversation } from "@/lib/waba/types";
-import { normalizeWhatsAppPhone } from "@/lib/whatsapp";
+import { normalizeWhatsAppPhone } from "@/lib/atendimento/whatsapp";
 import {
   AtendimentoPageHeader,
   AtendimentoSearchInput,

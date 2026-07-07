@@ -1,5 +1,5 @@
 import { sendPlatformEmail } from "@/lib/notifications/platform-email.server";
-import { buildAppUrl } from "@/lib/app-url";
+import { buildAppUrl } from "@/lib/shared/app-url";
 import { formatBrazilPhone } from "@/lib/signup/signup-phone";
 import { tenantPath } from "@/lib/tenant/painel-routes";
 
@@ -8,8 +8,10 @@ async function sendPlatformWhatsApp(phone: string, text: string) {
     const { getActiveProvider } = await import("@/lib/atendimento/atendimento-provider.server");
     const provider = await getActiveProvider();
 
+
     if (provider === "baileys") {
-      const { sendBaileysText } = await import("@/lib/api/whatsapp-baileys.server");
+      const { sendBaileysText } = await import("@/lib/api/atendimento/whatsapp-baileys.server");
+
       const digits = phone.replace(/\D/g, "");
       await sendBaileysText(digits, text);
       return { ok: true as const, channel: "baileys" as const };

@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, redirect, useLocation } from "@tanstack/react-router";
-import { getAuthenticatedUser } from "@/lib/auth-session";
+import { getAuthenticatedUser } from "@/lib/auth/auth-session";
 import { checkCurrentUserPlatformAdmin } from "@/lib/platform-admin/client";
 import { checkResellerAccess } from "@/lib/reseller/client";
 import { ParceiroLayoutShell } from "@/components/parceiro/parceiro-layout-shell";

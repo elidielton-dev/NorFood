@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { usePainelNavigate } from "@/lib/painel/use-painel-navigate";
 import { toast } from "sonner";
-import { fetchColaboradoresServer } from "@/lib/api/colaboradores.functions";
+import { fetchColaboradoresServer } from "@/lib/api/tenant/colaboradores.functions";
 import {
   createOmnichannelOrderServer,
   fetchBairrosEntregaPdvServer,
@@ -31,13 +31,13 @@ import {
   type ClienteOmnichannelResult,
   type ModoVenda,
   type OrigemVenda,
-} from "@/lib/api/omnichannel-order.functions";
+} from "@/lib/api/pedidos/omnichannel-order.functions";
 import {
   addMesaOrderItemsServer,
   finalizeMesaOrderServer,
   listMesaPedidoItensServer,
   openMesaOrderServer,
-} from "@/lib/api/mesas.functions";
+} from "@/lib/api/pedidos/mesas.functions";
 import {
   formatBRL,
   listarClientes,
@@ -46,10 +46,10 @@ import {
   type Pedido,
   type PedidoItem,
   type Produto,
-} from "@/lib/db";
+} from "@/lib/shared/db";
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
 import { tenantQueryKey } from "@/lib/tenant/query-keys";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 type CarrinhoItem = {
   produto: Produto;

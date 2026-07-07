@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { listarClientes } from "@/lib/db";
+import { listarClientes } from "@/lib/shared/db";
 import {
   GestaoAlert,
   GestaoEmptyState,
   GestaoPage,
   GestaoTable,
   GestaoTableHead,
-} from "@/components/gestao-ui";
+} from "@/components/painel/gestao-ui";
 
 export const Route = createFileRoute("/_authenticated/painel/clientes")({
   component: Clientes,

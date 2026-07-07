@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
-import { GestaoButton } from "@/components/gestao-ui";
+import { GestaoButton } from "@/components/painel/gestao-ui";
 import { useTenantOptional } from "@/lib/tenant/tenant-context";
 import { mapLegacyPainelPath } from "@/lib/tenant/painel-routes";
 

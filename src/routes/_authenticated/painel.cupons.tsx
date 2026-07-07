@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { criarCupom, listarCupons } from "@/lib/db";
+import { criarCupom, listarCupons } from "@/lib/shared/db";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Plus, Ticket } from "lucide-react";
@@ -14,7 +14,7 @@ import {
   GestaoSectionTitle,
   GestaoSelect,
   StatusPill,
-} from "@/components/gestao-ui";
+} from "@/components/painel/gestao-ui";
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
 import { tenantQueryKey } from "@/lib/tenant/query-keys";
 

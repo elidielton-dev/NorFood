@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Server } from "lucide-react";
 import { AdminCard, AdminPage, AdminStatCard } from "@/routes/admin";
 import { fetchPlatformCapacity } from "@/lib/platform-admin/client";
-import { getAdminDashboardServer } from "@/lib/api/platform-admin.functions";
+import { getAdminDashboardServer } from "@/lib/api/plataforma/platform-admin.functions";
 import { useAdminTenantsSource } from "@/lib/platform-admin/client";
 
 export const Route = createFileRoute("/admin/sistema")({

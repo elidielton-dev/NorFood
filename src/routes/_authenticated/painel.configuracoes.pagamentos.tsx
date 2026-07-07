@@ -8,18 +8,18 @@ import {
   ConfigSwitchRow,
   ConfiguracoesPageFrame,
 } from "@/components/configuracoes/configuracoes-page-frame";
-import { getIntegrationStatus } from "@/lib/api/integrations.functions";
+import { getIntegrationStatus } from "@/lib/api/tenant/integrations.functions";
 import {
   fetchTenantAdminSettingsServer,
   savePaymentMethodsServer,
-} from "@/lib/api/tenant-settings-admin.functions";
+} from "@/lib/api/tenant/tenant-settings-admin.functions";
 import {
   PAYMENT_METHOD_DEFS,
   type PaymentMethodId,
 } from "@/lib/payment-methods";
 import { tenantPath } from "@/lib/tenant/painel-routes";
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
-import { GestaoAlert, GestaoButton, StatusPill } from "@/components/gestao-ui";
+import { GestaoAlert, GestaoButton, StatusPill } from "@/components/painel/gestao-ui";
 
 const PAYMENT_DESCRIPTIONS: Record<PaymentMethodId, string> = {
   dinheiro: "Permite que o cliente pague em dinheiro no balcão ou na entrega.",

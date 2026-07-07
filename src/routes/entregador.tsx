@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { EntregadorGate } from "@/components/entregador-gate";
+import { EntregadorGate } from "@/components/entregador/entregador-gate";
 
 export const Route = createFileRoute("/entregador")({
   ssr: false,

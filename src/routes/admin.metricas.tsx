@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { AdminCard, AdminPage, AdminStatCard } from "@/routes/admin";
-import { getAdminDashboardServer } from "@/lib/api/platform-admin.functions";
+import { getAdminDashboardServer } from "@/lib/api/plataforma/platform-admin.functions";
 import { fetchAdminTenants } from "@/lib/platform-admin/client";
 import { BILLING_PLAN_LIST, formatPlanPrice } from "@/lib/platform/billing-plans";
 

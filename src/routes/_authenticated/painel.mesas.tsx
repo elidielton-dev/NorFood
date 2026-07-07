@@ -9,22 +9,26 @@ import {
   listarPedidos,
   type Mesa,
   type Pedido,
-} from "@/lib/db";
-import { mergeMesasServer, updateMesaStatusServer } from "@/lib/api/mesas.functions";
-import { printHtmlReceipt } from "@/lib/print";
+
+} from "@/lib/shared/db";
+import { mergeMesasServer, updateMesaStatusServer } from "@/lib/api/pedidos/mesas.functions";
+import { printHtmlReceipt } from "@/lib/shared/print";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Link2, Printer } from "lucide-react";
+
 import { toast } from "sonner";
 import {
   GestaoButton,
   GestaoEmptyState,
   GestaoPage,
   GestaoStat,
-} from "@/components/gestao-ui";
+
+} from "@/components/painel/gestao-ui";
 import { BalcaoPos } from "@/components/balcao/balcao-pos";
+
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
 import { tenantQueryKey } from "@/lib/tenant/query-keys";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 export const Route = createFileRoute("/_authenticated/painel/mesas")({
   component: MesasPage,

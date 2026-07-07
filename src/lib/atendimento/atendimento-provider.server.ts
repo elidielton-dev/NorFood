@@ -16,11 +16,13 @@ import {
   refreshWhatsAppPairingCode,
   startWhatsAppConnection,
   startWhatsAppConnectionWithPhone,
+
   runLightInboxCatchUp,
   maybeRunLightInboxCatchUpInBackground,
-} from "@/lib/api/whatsapp.server";
-import { isBaileysConfigured } from "@/lib/api/whatsapp-baileys.server";
-import { markChatAsRead } from "@/lib/api/whatsapp-store.server";
+} from "@/lib/api/atendimento/whatsapp.server";
+import { isBaileysConfigured } from "@/lib/api/atendimento/whatsapp-baileys.server";
+import { markChatAsRead } from "@/lib/api/atendimento/whatsapp-store.server";
+
 import {
   getWabaConfigStatus,
   listWabaConversations,
@@ -40,7 +42,7 @@ import {
   type WabaMessage,
 } from "@/lib/waba/types";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import type { WhatsAppChat, WhatsAppMessage } from "@/lib/whatsapp";
+import type { WhatsAppChat, WhatsAppMessage } from "@/lib/atendimento/whatsapp";
 import {
   formatWhatsAppPhone,
   isChatPhoneTrusted,
@@ -50,8 +52,10 @@ import {
   phoneToJid,
   looksLikeWhatsAppPhoneDigits,
   phonesMatchLoosely,
+
   toWhatsAppSendDigits,
-} from "@/lib/whatsapp";
+} from "@/lib/atendimento/whatsapp";
+
 import { listWabaContacts } from "@/lib/waba/waba.server";
 import type { WabaContact } from "@/lib/waba/types";
 
@@ -154,7 +158,7 @@ async function syncAgendaPhoneToChat(chat: WhatsAppChat, wabaContact: WabaContac
   const withPhone = applyWabaContactPhone(chat, wabaContact);
   if (withPhone.phone === chat.phone) return withPhone;
 
-  const { updateChatIdentityInPlace } = await import("@/lib/api/whatsapp-store.server");
+  const { updateChatIdentityInPlace } = await import("@/lib/api/atendimento/whatsapp-store.server");
   await updateChatIdentityInPlace(chat.id, { phone: withPhone.phone });
   return withPhone;
 }
@@ -401,7 +405,7 @@ export async function connectAtendimentoBaileys(options?: { phone?: string; rene
       ? await refreshWhatsAppPairingCode(options.phone)
       : await startWhatsAppConnectionWithPhone(options.phone)
     : await startWhatsAppConnection();
-  const { runFullOrphanLidConsolidation } = await import("@/lib/api/whatsapp-store.server");
+  const { runFullOrphanLidConsolidation } = await import("@/lib/api/atendimento/whatsapp-store.server");
   void runFullOrphanLidConsolidation().catch(console.error);
   return result;
 }
@@ -453,7 +457,7 @@ async function hydrateProfilePicturesForChats(chats: WhatsAppChat[]): Promise<Wh
   });
   if (needsPic.length === 0) return chats;
 
-  const { refreshWhatsAppChatProfilePicture } = await import("@/lib/api/whatsapp.server");
+  const { refreshWhatsAppChatProfilePicture } = await import("@/lib/api/atendimento/whatsapp.server");
   const refreshed = new Map<string, string>();
 
   for (const chat of needsPic.slice(0, 8)) {
@@ -544,8 +548,10 @@ export async function listAtendimentoMessages(
   if (provider === "baileys") {
     const SESSION_ANCHOR_TOLERANCE_MS = 2000;
     const { getWhatsAppChatById, getWhatsAppMessageHistoryMeta } =
-      await import("@/lib/api/whatsapp-store.server");
+
+      await import("@/lib/api/atendimento/whatsapp-store.server");
     const { resolveAttendanceSessionAnchor, reconcileAtendimentoSessionFromRecentMessages } =
+
       await import("@/lib/atendimento/atendimento-hours.server");
     let chat = await getWhatsAppChatById(conversationId);
     let sessionAt = chat?.attendanceOpenedAt ?? null;
@@ -695,8 +701,10 @@ export async function updateAtendimentoConversationStatus(
   status: WabaConversationStatus,
 ) {
   const provider = await getActiveProvider();
+
   if (provider === "baileys") {
-    const { updateWhatsAppChatInboxStatus } = await import("@/lib/api/whatsapp-store.server");
+    const { updateWhatsAppChatInboxStatus } = await import("@/lib/api/atendimento/whatsapp-store.server");
+
     await updateWhatsAppChatInboxStatus(conversationId, status);
     return;
   }
@@ -721,8 +729,10 @@ export async function updateAtendimentoConversationStatus(
   if (error) throw new Error(error.message);
 }
 
+
 export async function consolidateBaileysInbox() {
-  const { runFullOrphanLidConsolidation } = await import("@/lib/api/whatsapp-store.server");
+  const { runFullOrphanLidConsolidation } = await import("@/lib/api/atendimento/whatsapp-store.server");
+
   await runFullOrphanLidConsolidation();
   return { ok: true };
 }
@@ -734,7 +744,7 @@ export async function syncAtendimentoInbox() {
 export const consolidateEvolutionInbox = consolidateBaileysInbox;
 
 export async function linkAtendimentoConversationPhone(conversationId: string, phone: string) {
-  const { getWhatsAppChatById } = await import("@/lib/api/whatsapp-store.server");
+  const { getWhatsAppChatById } = await import("@/lib/api/atendimento/whatsapp-store.server");
   const chat = await getWhatsAppChatById(conversationId);
   if (!chat) throw new Error("Conversa nao encontrada.");
 
@@ -749,7 +759,7 @@ export async function linkAtendimentoConversationPhone(conversationId: string, p
     throw new Error("Nao foi possivel vincular o telefone a esta conversa.");
   }
 
-  const { refreshWhatsAppChatProfilePicture } = await import("@/lib/api/whatsapp.server");
+  const { refreshWhatsAppChatProfilePicture } = await import("@/lib/api/atendimento/whatsapp.server");
   await refreshWhatsAppChatProfilePicture(conversationId, { force: true });
 
   return { ok: true as const, phone: result.phone };
@@ -764,7 +774,7 @@ export async function saveAtendimentoConversationContact(input: {
   contactId?: string;
   userId: string;
 }) {
-  const { getWhatsAppChatById } = await import("@/lib/api/whatsapp-store.server");
+  const { getWhatsAppChatById } = await import("@/lib/api/atendimento/whatsapp-store.server");
   const { upsertWabaContact } = await import("@/lib/waba/waba.server");
   const chat = await getWhatsAppChatById(input.conversationId);
   if (!chat) throw new Error("Conversa nao encontrada.");
@@ -789,7 +799,7 @@ export async function saveAtendimentoConversationContact(input: {
     userId: input.userId,
   });
 
-  const { refreshWhatsAppChatProfilePicture } = await import("@/lib/api/whatsapp.server");
+  const { refreshWhatsAppChatProfilePicture } = await import("@/lib/api/atendimento/whatsapp.server");
   const avatarUrl = await refreshWhatsAppChatProfilePicture(input.conversationId, { force: true });
 
   return { ok: true as const, phone: result.phone, contact, avatarUrl };
@@ -805,14 +815,16 @@ export async function openAtendimentoConversationFromContact(input: {
   const targetDigits = normalizeWhatsAppPhone(input.phone);
   if (!targetDigits) throw new Error("Telefone invalido.");
 
+
   if (provider === "baileys") {
-    const { createWhatsAppChatByPhone } = await import("@/lib/api/whatsapp.server");
+    const { createWhatsAppChatByPhone } = await import("@/lib/api/atendimento/whatsapp.server");
+
     const {
       findWhatsAppChatByPhoneDigits,
       getWhatsAppChatById,
       mergeChatByIdentity,
       updateChatIdentityInPlace,
-    } = await import("@/lib/api/whatsapp-store.server");
+    } = await import("@/lib/api/atendimento/whatsapp-store.server");
 
     const formattedPhone = jidToPhone(phoneToJid(input.phone)) ?? input.phone;
     const phoneJid = phoneToJid(input.phone);
@@ -879,8 +891,10 @@ export async function assignAtendimentoConversationAgent(
   const provider = await getActiveProvider();
   const now = new Date().toISOString();
 
+
   if (provider === "baileys") {
-    const { updateChatIdentityInPlace } = await import("@/lib/api/whatsapp-store.server");
+    const { updateChatIdentityInPlace } = await import("@/lib/api/atendimento/whatsapp-store.server");
+
     await updateChatIdentityInPlace(conversationId, { assigned_agent_id: agentUserId });
     return { ok: true as const };
   }
@@ -898,6 +912,6 @@ export async function mergeAtendimentoConversationDuplicates(conversationId: str
   if (provider !== "baileys") {
     return { merged: 0, targetId: conversationId };
   }
-  const { mergeDuplicatesForChat } = await import("@/lib/api/whatsapp-store.server");
+  const { mergeDuplicatesForChat } = await import("@/lib/api/atendimento/whatsapp-store.server");
   return mergeDuplicatesForChat(conversationId);
 }

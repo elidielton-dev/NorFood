@@ -4,7 +4,7 @@ import { CheckCircle2, Clock3, Mail, MessageCircle } from "lucide-react";
 import { useEffect } from "react";
 import { NorfoodLogo } from "@/components/brand/norfood-logo";
 import { Toaster } from "@/components/ui/sonner";
-import { getTenantAccessStatusServer } from "@/lib/api/platform-billing.functions";
+import { getTenantAccessStatusServer } from "@/lib/api/financeiro/platform-billing.functions";
 import { tenantPath } from "@/lib/tenant/painel-routes";
 
 export const Route = createFileRoute("/cadastro/aguardando/$slug")({

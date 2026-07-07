@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { cn } from "@/lib/utils";
-import { gestao } from "@/components/gestao-ui";
+import { cn } from "@/lib/shared/utils";
+import { gestao } from "@/components/painel/gestao-ui";
 
 /** Layout wacrm adaptado ao tema claro Abelha (sage / mel). */
 export const atendimento = {

@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
+
   AlertTriangle,
   ArrowUpRight,
   Building2,
@@ -10,9 +11,10 @@ import {
   Wallet,
 } from "lucide-react";
 import { AdminCard, AdminPage, AdminStatCard } from "@/routes/admin";
-import { getAdminDashboardServer } from "@/lib/api/platform-admin.functions";
+import { getAdminDashboardServer } from "@/lib/api/plataforma/platform-admin.functions";
 import { formatPlanPrice } from "@/lib/platform/billing-plans";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
+
 
 export const Route = createFileRoute("/admin/")({
   component: AdminDashboardPage,

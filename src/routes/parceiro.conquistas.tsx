@@ -3,7 +3,7 @@ import { Lock } from "lucide-react";
 import { ParceiroCard, ParceiroPage } from "@/routes/parceiro";
 import { useParceiroInsights } from "@/lib/parceiro/use-parceiro-insights";
 import { getAchievementTierColor } from "@/lib/parceiro/achievements";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 export const Route = createFileRoute("/parceiro/conquistas")({
   component: ParceiroConquistasPage,

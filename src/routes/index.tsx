@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ClientAfterHydration } from "@/components/shared/client-after-hydration";
 import { NorfoodLanding } from "@/components/landing/norfood-landing";
 
 export const Route = createFileRoute("/")({
@@ -27,5 +28,17 @@ export const Route = createFileRoute("/")({
 });
 
 function HomePage() {
-  return <NorfoodLanding />;
+  return (
+    <ClientAfterHydration
+      fallback={
+        <div
+          className="norfood-landing min-h-screen overflow-x-hidden bg-[#FFF8F0] text-[#1A1A1A]"
+          aria-busy="true"
+          suppressHydrationWarning
+        />
+      }
+    >
+      <NorfoodLanding />
+    </ClientAfterHydration>
+  );
 }

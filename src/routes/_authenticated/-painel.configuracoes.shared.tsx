@@ -3,20 +3,22 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Save } from "lucide-react";
 import { toast } from "sonner";
-import { StatusBadge } from "@/components/painel-configuracoes-ui";
+import { StatusBadge } from "@/components/painel/painel-configuracoes-ui";
 import {
+
   ConfigSection,
   ConfigSettingRow,
   ConfigSwitchRow,
   ConfiguracoesPageFrame,
 } from "@/components/configuracoes/configuracoes-page-frame";
-import { GestaoButton, GestaoInput } from "@/components/gestao-ui";
-import { getIntegrationStatus } from "@/lib/api/integrations.functions";
+import { GestaoButton, GestaoInput } from "@/components/painel/gestao-ui";
+import { getIntegrationStatus } from "@/lib/api/tenant/integrations.functions";
+
 import {
   fetchTenantAdminSettingsServer,
   savePrinterSettingsServer,
   type PrinterSettings,
-} from "@/lib/api/tenant-settings-admin.functions";
+} from "@/lib/api/tenant/tenant-settings-admin.functions";
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
 import { tenantPath } from "@/lib/tenant/painel-routes";
 import {
@@ -24,7 +26,7 @@ import {
   PrinterPanelKey,
   getIntegrationConfig,
   getPrinterPanelConfig,
-} from "@/lib/painel-configuracoes";
+} from "@/lib/painel/painel-configuracoes";
 
 export function ConfiguracaoImpressoraDetalhePage({ panelKey }: { panelKey: PrinterPanelKey }) {
   const tenantSlug = useTenantSlug();

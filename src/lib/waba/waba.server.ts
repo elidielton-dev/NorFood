@@ -23,7 +23,7 @@ import {
   metaSendTargetPhone,
   sanitizePhoneForMeta,
 } from "@/lib/waba/phone-utils";
-import { normalizeWhatsAppPhone, phonesMatchLoosely } from "@/lib/whatsapp";
+import { normalizeWhatsAppPhone, phonesMatchLoosely } from "@/lib/atendimento/whatsapp";
 import { runWabaAutomations } from "@/lib/waba/automations-engine.server";
 import { DEFAULT_WABA_VERIFY_TOKEN, META_DEVELOPER_APP } from "@/lib/meta/developer-app";
 import {
@@ -637,13 +637,13 @@ export async function upsertWabaContact(input: {
     if (error) throw new Error(error.message);
     const contact = data as WabaContact;
     if (input.name?.trim()) {
-      void import("@/lib/api/whatsapp-store.server")
+      void import("@/lib/api/atendimento/whatsapp-store.server")
         .then(({ syncAgendaNameToWhatsAppChats }) =>
           syncAgendaNameToWhatsAppChats(phone, input.name!.trim()),
         )
         .catch(console.error);
     }
-    void import("@/lib/api/whatsapp-store.server")
+    void import("@/lib/api/atendimento/whatsapp-store.server")
       .then(({ syncAgendaPhoneToWhatsAppChats }) => syncAgendaPhoneToWhatsAppChats(phone))
       .catch(console.error);
     return contact;
@@ -663,7 +663,7 @@ export async function upsertWabaContact(input: {
 
   const contact = data as WabaContact;
   if (input.name?.trim()) {
-    void import("@/lib/api/whatsapp-store.server")
+    void import("@/lib/api/atendimento/whatsapp-store.server")
       .then(({ syncAgendaNameToWhatsAppChats }) =>
         syncAgendaNameToWhatsAppChats(phone, input.name!.trim()),
       )

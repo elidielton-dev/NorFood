@@ -14,7 +14,7 @@ import {
 import { NORFOOD_DEMO_TENANT_ID } from "@/lib/tenant/constants";
 import { lojaPath, tenantPath } from "@/lib/tenant/painel-routes";
 import type { TenantStatus } from "@/lib/tenant/types";
-import { isBrowserDemoEnabled } from "@/lib/runtime";
+import { isBrowserDemoEnabled } from "@/lib/shared/runtime";
 
 export const Route = createFileRoute("/admin/empresas")({
   validateSearch: (search: Record<string, unknown>) => ({

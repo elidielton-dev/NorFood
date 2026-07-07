@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 const tones = {
   default: "bg-[#F6F7F9] text-[#6B7280]",

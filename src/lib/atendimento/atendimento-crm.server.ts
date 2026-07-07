@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { normalizeWhatsAppPhone, phonesMatchLoosely } from "@/lib/whatsapp";
+import { normalizeWhatsAppPhone, phonesMatchLoosely } from "@/lib/atendimento/whatsapp";
 
 export type AtendimentoContactCrm = {
   clienteId: string | null;

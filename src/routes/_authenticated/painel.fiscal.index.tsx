@@ -1,11 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { FileText, Download, Send, Settings2 } from "lucide-react";
-import { FiscalNotasPanel } from "@/components/fiscal-notas-panel";
-import { getIntegrationStatus } from "@/lib/api/integrations.functions";
-import { fetchFiscalSettingsServer, fetchNotasFiscaisServer } from "@/lib/api/fiscal.functions";
+import { FiscalNotasPanel } from "@/components/fiscal/fiscal-notas-panel";
+import { getIntegrationStatus } from "@/lib/api/tenant/integrations.functions";
+import { fetchFiscalSettingsServer, fetchNotasFiscaisServer } from "@/lib/api/fiscal/fiscal.functions";
 import type { NotaFiscalRow } from "@/lib/fiscal/fiscal-nota-utils";
-import { GestaoAlert, GestaoCard, GestaoPage } from "@/components/gestao-ui";
+import { GestaoAlert, GestaoCard, GestaoPage } from "@/components/painel/gestao-ui";
 
 export const Route = createFileRoute("/_authenticated/painel/fiscal/")({
   component: FiscalIndexPage,

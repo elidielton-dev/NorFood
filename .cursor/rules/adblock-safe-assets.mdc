@@ -1,0 +1,45 @@
+---
+description: Evitar bloqueio por adblock/rastreadores em assets e rotas do frontend
+globs: src/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Nomenclatura segura contra bloqueadores
+
+Bloqueadores (uBlock, AdGuard, Firefox ETP, Brave) barram URLs com termos de rastreamento/anúncios. Isso quebra `import()` dinâmico e impede o app de carregar.
+
+## Nunca use estes termos em nomes de arquivo, pasta ou rota API
+
+`cookie`, `consent`, `gdpr`, `tracking`, `analytics`, `pixel`, `beacon`, `ads`, `advert`, `gtm`, `tag-manager`, `fingerprint`
+
+Prefira termos neutros: `site-notice`, `live-status`, `live-map`, `metrics`, `insights`.
+
+Banners de privacidade/cookies devem ficar **inline** no componente pai (ex.: `norfood-landing.tsx`), nunca em arquivo separado — listas anti-GDPR bloqueiam `*consent*` e `*cookie*` no path.
+
+## Imports dinâmicos
+
+- Não importe estaticamente módulos pesados/lazy no topo de rotas críticas (`/`, `/login`, `/loja`).
+- Use `lazy()` + carregue só quando o usuário abrir a funcionalidade.
+- Envolva chunks opcionais em `LazyChunkBoundary` (`@/components/lazy-chunk-boundary`).
+- Use `isChunkLoadError` (`@/lib/safe-dynamic-import`) para mensagens amigáveis.
+
+## Build (Vite)
+
+Chunks de produção usam hash neutro (`assets/c-[hash].js`) — não reintroduza nomes semânticos em `chunkFileNames`.
+
+## Exemplos
+
+```tsx
+// ❌ import estático na loja
+import { OrderLiveMap } from "@/components/order-live-map-lazy";
+
+// ✅ lazy só quando necessário
+const OrderLiveMap = lazy(() =>
+  import("@/components/order-live-map-lazy").then((m) => ({ default: m.OrderLiveMap })),
+);
+```
+
+```ts
+// ❌ arquivo: order-tracking-map.tsx
+// ✅ arquivo: order-live-map.tsx
+```

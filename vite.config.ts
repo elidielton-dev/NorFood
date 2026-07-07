@@ -28,6 +28,16 @@ export default defineConfig({
         ignored: ["**/.vercel/**"],
       },
     },
+    build: {
+      rollupOptions: {
+        output: {
+          // Nomes neutros evitam bloqueio por listas de adblock (cookie, tracking, etc.).
+          chunkFileNames: "assets/c-[hash].js",
+          entryFileNames: "assets/e-[hash].js",
+          assetFileNames: "assets/a-[hash][extname]",
+        },
+      },
+    },
     plugins: [
       nitro({
         preset: nitroPreset,

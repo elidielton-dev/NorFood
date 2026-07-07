@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { TenantSuspendedScreen } from "@/components/tenant/tenant-suspended-screen";
 import { Toaster } from "@/components/ui/sonner";
-import { getTenantAccessStatusServer } from "@/lib/api/platform-billing.functions";
+import { getTenantAccessStatusServer } from "@/lib/api/financeiro/platform-billing.functions";
 import { tenantPath } from "@/lib/tenant/painel-routes";
 
 export const Route = createFileRoute("/conta-suspensa/$slug")({

@@ -33,7 +33,7 @@ import {
   ParceiroProgressDots,
   ParceiroSectionCard,
 } from "@/components/parceiro/parceiro-ui";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 const PARCEIRO_BANNER_IMAGES = {
   "quero-delivery": "/parceiro/banner-integracao-quero-delivery.png?v=2",

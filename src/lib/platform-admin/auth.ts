@@ -1,4 +1,4 @@
-import { isBrowserDemoEnabled, hasBrowserSupabaseConfig } from "@/lib/runtime";
+import { isBrowserDemoEnabled, hasBrowserSupabaseConfig } from "@/lib/shared/runtime";
 
 export function isClientPlatformAdminMode(): boolean {
   if (isBrowserDemoEnabled()) return true;

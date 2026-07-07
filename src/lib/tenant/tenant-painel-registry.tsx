@@ -1,23 +1,41 @@
 import { lazy, Suspense, type ComponentType } from "react";
 import { PainelDashboardPage } from "@/components/painel/painel-dashboard-page";
+
 import { wrapConfigPainelPage } from "@/lib/configuracoes/wrap-config-page";
+
 
 function painelPageSkeleton() {
   return <div className="animate-pulse rounded-xl bg-[#E5E7EB] p-8" />;
 }
 
-function painelPageUnavailable(title: string) {
+function painelPageUnavailable(title: string, blocked = false) {
   return function PainelPageUnavailable() {
     return (
       <div className="rounded-xl border border-[#E5E7EB] bg-white p-6 text-sm text-[#6B7280]">
-        Não foi possível carregar <strong className="text-[#111111]">{title}</strong> no modo demo
-        local.
+        {blocked ? (
+          <>
+            <p className="font-medium text-[#111111]">Recurso bloqueado pelo navegador</p>
+            <p className="mt-2">
+              Seu bloqueador de anuncios ou protecao contra rastreadores impediu o carregamento de{" "}
+              <strong className="text-[#111111]">{title}</strong>. Desative o bloqueio para este site
+              ou adicione uma excecao.
+            </p>
+          </>
+        ) : (
+          <>
+            Não foi possível carregar <strong className="text-[#111111]">{title}</strong> no modo demo
+            local.
+          </>
+        )}
       </div>
     );
   };
 }
 
-function painelPage(loader: () => Promise<Record<string, unknown>>): ComponentType {
+function painelPage(
+  loader: () => Promise<Record<string, unknown>>,
+  title = "esta pagina",
+): ComponentType {
   const LazyPage = lazy(async () => {
     try {
       const mod = await loader();
@@ -26,8 +44,11 @@ function painelPage(loader: () => Promise<Record<string, unknown>>): ComponentTy
       if (Comp) return { default: Comp };
     } catch (error) {
       console.warn("[painel] Falha ao carregar rota:", error);
+      if (isChunkLoadError(error)) {
+        return { default: painelPageUnavailable(title, true) };
+      }
     }
-    return { default: painelPageUnavailable("pagina") };
+    return { default: painelPageUnavailable(title) };
   });
 
   return function RegistryRoutePage() {
@@ -55,7 +76,7 @@ export const TENANT_PAINEL_REGISTRY: Record<string, ComponentType> = {
     })),
   ),
   mesas: painelPage(() => import("@/routes/_authenticated/painel.mesas")),
-  delivery: painelPage(() => import("@/routes/_authenticated/painel.delivery")),
+  delivery: painelPage(() => import("@/routes/_authenticated/painel.delivery"), "Delivery"),
 
   // Produtos
   produtos: painelPage(() => import("@/routes/_authenticated/painel.produtos")),
@@ -185,7 +206,7 @@ export const TENANT_PAINEL_REGISTRY: Record<string, ComponentType> = {
   "configuracoes/aparencia": configPage(() => import("@/routes/_authenticated/painel.configuracoes.loja")),
   caixa: painelPage(() => import("@/routes/_authenticated/painel.financeiro.index")),
   fidelidade: painelPage(() => import("@/routes/_authenticated/painel.clientes")),
-  entregador: painelPage(() => import("@/routes/_authenticated/painel.delivery")),
+  entregador: painelPage(() => import("@/routes/_authenticated/painel.delivery"), "Delivery"),
 };
 
 export function resolveTenantPainelPage(splat: string | undefined) {

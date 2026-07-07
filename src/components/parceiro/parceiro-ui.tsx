@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 /** Card de destaque no topo — padrão Hiperador (label, conteúdo, ilustração). */
 export function ParceiroHeroCard({

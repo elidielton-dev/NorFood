@@ -1,13 +1,13 @@
 import { createFileRoute, redirect, Outlet, useLocation } from "@tanstack/react-router";
-import { getAuthenticatedSession } from "@/lib/auth-session";
-import { fetchCurrentUserRoles, isStaffRole } from "@/lib/auth-roles";
-import { fetchTenantBySlugServer, fetchUserTenantsServer } from "@/lib/api/tenant.functions";
+import { getAuthenticatedSession } from "@/lib/auth/auth-session";
+import { fetchCurrentUserRoles, isStaffRole } from "@/lib/auth/auth-roles";
+import { fetchTenantBySlugServer, fetchUserTenantsServer } from "@/lib/api/tenant/tenant.functions";
 import { TenantProvider } from "@/lib/tenant/tenant-context";
 import { PainelShell } from "@/components/painel/painel-shell";
 import { isTenantStaffRole } from "@/lib/tenant/tenant-permissions";
 import type { TenantRole } from "@/lib/tenant/types";
-import { isBrowserDemoEnabled, hasBrowserSupabaseConfig } from "@/lib/runtime";
-import { currentPathForLoginRedirect } from "@/lib/login-redirect";
+import { isBrowserDemoEnabled, hasBrowserSupabaseConfig } from "@/lib/shared/runtime";
+import { currentPathForLoginRedirect } from "@/lib/auth/login-redirect";
 import { checkCurrentUserPlatformAdmin } from "@/lib/platform-admin/client";
 
 export const Route = createFileRoute("/t/$tenantSlug")({

@@ -1,6 +1,6 @@
 import { getActiveTenantId } from "@/lib/tenant/active-tenant";
 import { NORFOOD_DEMO_TENANT_ID } from "@/lib/tenant/constants";
-import { isBrowserDemoEnabled } from "@/lib/runtime";
+import { isBrowserDemoEnabled } from "@/lib/shared/runtime";
 
 export function resolveTenantIdForQuery(): string {
   const id = getActiveTenantId();

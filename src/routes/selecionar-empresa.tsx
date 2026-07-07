@@ -1,11 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { fetchUserTenantsServer } from "@/lib/api/tenant.functions";
+import { fetchUserTenantsServer } from "@/lib/api/tenant/tenant.functions";
 import { tenantPath, lojaPath } from "@/lib/tenant/painel-routes";
 import { isTenantStaffRole } from "@/lib/tenant/tenant-permissions";
 import { listAllDemoTenants } from "@/lib/platform-admin/demo-tenants-store";
 import { listFallbackTenants } from "@/lib/tenant/tenants-fallback";
-import { isBrowserDemoEnabled } from "@/lib/runtime";
+import { isBrowserDemoEnabled } from "@/lib/shared/runtime";
 import { NorfoodLogo } from "@/components/brand/norfood-logo";
 
 export const Route = createFileRoute("/selecionar-empresa")({

@@ -6,12 +6,12 @@ import {
   ConfigSettingRow,
   ConfiguracoesPageFrame,
 } from "@/components/configuracoes/configuracoes-page-frame";
-import { EntregadorExpoGoQrPanel } from "@/components/entregador-expo-go-qr";
-import { fetchOperationalAdminServer } from "@/lib/api/operational-config.functions";
-import { fetchTenantAdminSettingsServer } from "@/lib/api/tenant-settings-admin.functions";
+import { EntregadorExpoGoQrPanel } from "@/components/entregador/entregador-expo-go-qr";
+import { fetchOperationalAdminServer } from "@/lib/api/tenant/operational-config.functions";
+import { fetchTenantAdminSettingsServer } from "@/lib/api/tenant/tenant-settings-admin.functions";
 import { tenantPath } from "@/lib/tenant/painel-routes";
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
-import { GestaoButton } from "@/components/gestao-ui";
+import { GestaoButton } from "@/components/painel/gestao-ui";
 
 export const Route = createFileRoute("/_authenticated/painel/configuracoes/delivery")({
   component: ConfiguracoesDeliveryPage,

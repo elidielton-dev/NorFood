@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Smile } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { GestaoButton } from "@/components/gestao-ui";
+import { GestaoButton } from "@/components/painel/gestao-ui";
 
 const QUICK_EMOJIS = [
   "😀",

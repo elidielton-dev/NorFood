@@ -4,8 +4,8 @@ import { AlertTriangle, ExternalLink } from "lucide-react";
 import { ParceiroDataTable, type ParceiroTableColumn } from "@/components/parceiro/parceiro-data-table";
 import { ParceiroPage } from "@/routes/parceiro";
 import { fetchResellerPendencias } from "@/lib/reseller/client";
-import type { ResellerPendenciaRow } from "@/lib/api/platform-reseller.functions";
-import { cn } from "@/lib/utils";
+import type { ResellerPendenciaRow } from "@/lib/api/plataforma/platform-reseller.functions";
+import { cn } from "@/lib/shared/utils";
 
 export const Route = createFileRoute("/parceiro/pendencias")({
   component: ParceiroPendenciasPage,

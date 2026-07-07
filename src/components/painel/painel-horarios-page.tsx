@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Clock, Copy, PauseCircle, PlayCircle, RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
-import { fetchHorariosPainelServer, saveHorariosPainelServer } from "@/lib/api/horarios.functions";
+import { fetchHorariosPainelServer, saveHorariosPainelServer } from "@/lib/api/tenant/horarios.functions";
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
 import {
   DIAS_SEMANA,
@@ -13,7 +13,7 @@ import {
   STORE_TIMEZONE,
   type HorarioDia,
   type HorariosConfig,
-} from "@/lib/horarios";
+} from "@/lib/shared/horarios";
 import {
   GestaoAlert,
   GestaoButton,
@@ -21,7 +21,7 @@ import {
   GestaoTable,
   GestaoTableHead,
   StatusPill,
-} from "@/components/gestao-ui";
+} from "@/components/painel/gestao-ui";
 import {
   ConfigSection,
   ConfigSwitchRow,

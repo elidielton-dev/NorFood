@@ -2,8 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { TrendingUp, ShoppingBag, Users, Wallet, Clock, Truck } from "lucide-react";
-import { formatBRL, listarEntregas } from "@/lib/db";
-import { fetchPainelDashboardServer } from "@/lib/api/painel-data.functions";
+
+import { formatBRL, listarEntregas } from "@/lib/shared/db";
+import { fetchPainelDashboardServer } from "@/lib/api/tenant/painel-data.functions";
+
 import { MetricCard } from "@/components/design-system/metric-card";
 import { PageHeader } from "@/components/design-system/page-header";
 import { StatusBadge } from "@/components/design-system/status-badge";

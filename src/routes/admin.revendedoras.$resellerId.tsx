@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AdminPage } from "@/routes/admin";
 import { fetchResellerAdmin } from "@/lib/reseller/client";
-import { listResellerTenantsAdminServer } from "@/lib/api/platform-reseller.functions";
+import { listResellerTenantsAdminServer } from "@/lib/api/plataforma/platform-reseller.functions";
 
 export const Route = createFileRoute("/admin/revendedoras/$resellerId")({
   component: AdminRevendedoraDetailPage,

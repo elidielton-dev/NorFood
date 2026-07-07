@@ -12,7 +12,7 @@ import {
   GestaoButton,
   GestaoPage,
   StatusPill,
-} from "@/components/gestao-ui";
+} from "@/components/painel/gestao-ui";
 import { supabase } from "@/integrations/supabase/client";
 import {
   deleteOwnRestaurantServer,
@@ -21,7 +21,7 @@ import {
   payBillingInvoiceCheckoutServer,
   payBillingInvoicePixServer,
   refreshBillingInvoicePixServer,
-} from "@/lib/api/platform-billing.functions";
+} from "@/lib/api/financeiro/platform-billing.functions";
 import {
   formatPlanPrice,
   getBillingModelLabel,

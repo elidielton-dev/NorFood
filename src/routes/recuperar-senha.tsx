@@ -3,7 +3,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
-import { buildAppUrl } from "@/lib/app-url";
+import { buildAppUrl } from "@/lib/shared/app-url";
 import { NorfoodLogo } from "@/components/brand/norfood-logo";
 
 export const Route = createFileRoute("/recuperar-senha")({

@@ -6,7 +6,7 @@ import {
   syncMercadoPagoPayment,
   syncMercadoPagoPaymentToOrder,
   validateMercadoPagoWebhook,
-} from "@/lib/api/mercado-pago.server";
+} from "@/lib/api/financeiro/mercado-pago.server";
 
 export const Route = createFileRoute("/api/mercado-pago/webhook")({
   server: {

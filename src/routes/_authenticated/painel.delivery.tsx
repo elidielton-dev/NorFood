@@ -17,11 +17,11 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
-import { DeliveryFleetMap } from "@/components/delivery-fleet-map-lazy";
+import { DeliveryFleetMap } from "@/components/delivery/delivery-fleet-map-lazy";
 import {
   EntregadorExpoGoQrDialog,
   EntregadorExpoGoQrPanel,
-} from "@/components/entregador-expo-go-qr";
+} from "@/components/entregador/entregador-expo-go-qr";
 import {
   GestaoButton,
   GestaoCard,
@@ -31,14 +31,16 @@ import {
   GestaoTable,
   GestaoTableHead,
   StatusPill,
-} from "@/components/gestao-ui";
-import { formatBRL, getOrderMetadataValue, getOrderNeighborhood } from "@/lib/db";
+
+} from "@/components/painel/gestao-ui";
+import { formatBRL, getOrderMetadataValue, getOrderNeighborhood } from "@/lib/shared/db";
+
 import {
   fetchDeliveryPanelDataServer,
   reassignDeliveryServer,
   toggleRiderOnlineServer,
   type DeliveryPanelData,
-} from "@/lib/api/delivery-panel.functions";
+} from "@/lib/api/delivery/delivery-panel.functions";
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
 
 export const Route = createFileRoute("/_authenticated/painel/delivery")({

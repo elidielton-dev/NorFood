@@ -1,7 +1,7 @@
 import {
   loadCertificateDataForSefaz,
   type SefazCertificateData,
-} from "@/lib/api/fiscal-certificate.server";
+} from "@/lib/api/fiscal/fiscal-certificate.server";
 
 /** Provedor A1 sem openssl CLI — usa node-forge (compativel com Vercel/serverless). */
 export class ForgeA1CertificateProvider {

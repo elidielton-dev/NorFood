@@ -6,10 +6,10 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
 import { Bell, Building2, ChevronDown, LogOut, Menu, Search, X } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
-import { cn } from "@/lib/utils";
-import { fetchOperationalStatusServer } from "@/lib/api/operational-config.functions";
-import { getTenantPlanFeaturesServer } from "@/lib/api/platform-billing.functions";
-import { fetchUserTenantsServer } from "@/lib/api/tenant.functions";
+import { cn } from "@/lib/shared/utils";
+import { fetchOperationalStatusServer } from "@/lib/api/tenant/operational-config.functions";
+import { getTenantPlanFeaturesServer } from "@/lib/api/financeiro/platform-billing.functions";
+import { fetchUserTenantsServer } from "@/lib/api/tenant/tenant.functions";
 import { useTenant } from "@/lib/tenant/tenant-context";
 import { TenantBrandLogo } from "@/components/brand/norfood-logo";
 import { getTenantInitials } from "@/lib/tenant/tenant-branding";
@@ -19,7 +19,7 @@ import {
   getTenantSidebarSections,
   isTenantSidebarItemActive,
 } from "@/lib/tenant/tenant-sidebar";
-import { isBrowserDemoEnabled } from "@/lib/runtime";
+import { isBrowserDemoEnabled } from "@/lib/shared/runtime";
 import type { TenantRole } from "@/lib/tenant/types";
 import type { BillingPlanId } from "@/lib/platform/billing-plans";
 import { tenantPath } from "@/lib/tenant/painel-routes";

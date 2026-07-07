@@ -7,7 +7,7 @@ import {
   createResellerTenant,
   fetchResellerDashboard,
 } from "@/lib/reseller/client";
-import { suggestRestaurantSlugServer } from "@/lib/api/platform-billing.functions";
+import { suggestRestaurantSlugServer } from "@/lib/api/financeiro/platform-billing.functions";
 import type { BillingPlanId } from "@/lib/platform/billing-plans";
 import { BILLING_PLANS } from "@/lib/platform/billing-plans";
 

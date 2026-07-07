@@ -1,5 +1,5 @@
 import type { WabaContentType, WabaMessage } from "@/lib/waba/types";
-import type { WhatsAppMessage, WhatsAppMessageType } from "@/lib/whatsapp";
+import type { WhatsAppMessage, WhatsAppMessageType } from "@/lib/atendimento/whatsapp";
 
 export function mediaTypeLabel(type: WabaContentType | WhatsAppMessageType): string {
   if (type === "image" || type === "sticker") return "Imagem";

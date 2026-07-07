@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, type ReactNode } from "r
 import { useQuery } from "@tanstack/react-query";
 import { setActiveTenant } from "@/lib/tenant/active-tenant";
 import { applyTenantBranding, clearTenantBranding } from "@/lib/tenant/tenant-branding";
-import { fetchTenantBySlugServer, fetchTenantSettingsServer } from "@/lib/api/tenant.functions";
+import { fetchTenantBySlugServer, fetchTenantSettingsServer } from "@/lib/api/tenant/tenant.functions";
 import { resolveTenantBySlug } from "@/lib/platform-admin/demo-tenants-store";
 import { FALLBACK_TENANT_SETTINGS } from "@/lib/tenant/tenants-fallback";
 import type { Tenant, TenantSettings } from "@/lib/tenant/types";

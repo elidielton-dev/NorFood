@@ -20,10 +20,12 @@ async function sendAutomationReply(phone: string, message: string) {
   const provider = await getActiveProvider();
   const digits = canonicalContactPhone(phone).replace(/\D/g, "");
 
+
   if (provider === "baileys") {
-    const { sendBaileysText } = await import("@/lib/api/whatsapp-baileys.server");
+    const { sendBaileysText } = await import("@/lib/api/atendimento/whatsapp-baileys.server");
     await sendBaileysText(digits, message);
     return "baileys" as const;
+
   }
 
   const db = supabaseAdmin as Db;
@@ -55,7 +57,7 @@ async function logAutomationReply(input: {
 
   if (input.channel === "baileys" || input.channel === "evolution") {
     const { getWhatsAppChatById, insertWhatsAppMessage } =
-      await import("@/lib/api/whatsapp-store.server");
+      await import("@/lib/api/atendimento/whatsapp-store.server");
     const chat = await getWhatsAppChatById(input.conversationId);
     if (!chat) return;
     await insertWhatsAppMessage({

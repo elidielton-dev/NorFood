@@ -64,8 +64,8 @@ import {
   GestaoTable,
   GestaoTableHead,
   StatusPill,
-} from "@/components/gestao-ui";
-import { VendaDetalheModal } from "@/components/venda-detalhe-modal";
+} from "@/components/painel/gestao-ui";
+import { VendaDetalheModal } from "@/components/pedidos/venda-detalhe-modal";
 import {
   aplicarFiltros,
   carregarRelatorioDataset,
@@ -78,17 +78,17 @@ import {
   type RelatorioDataset,
   type RelatorioFinanceiro,
   type RelatorioPedido,
-} from "@/lib/relatorios-inteligencia";
-import { formatBRL } from "@/lib/db";
+} from "@/lib/relatorios/relatorios-inteligencia";
+import { formatBRL } from "@/lib/shared/db";
 import {
   labelStatusVenda,
   relatorioPedidoToVendaDetalhe,
   statusVendaTone,
-} from "@/lib/venda-detalhe";
-import { fetchRelatorioDatasetServer } from "@/lib/api/relatorios.functions";
+} from "@/lib/pedidos/venda-detalhe";
+import { fetchRelatorioDatasetServer } from "@/lib/api/relatorios/relatorios.functions";
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
-import { fetchAtendimentoStatsServer } from "@/lib/api/atendimento.functions";
-import { hasBrowserSupabaseConfig } from "@/lib/runtime";
+import { fetchAtendimentoStatsServer } from "@/lib/api/atendimento/atendimento.functions";
+import { hasBrowserSupabaseConfig } from "@/lib/shared/runtime";
 
 export const Route = createFileRoute("/_authenticated/painel/relatorios")({
   component: RelatoriosInteligencia,

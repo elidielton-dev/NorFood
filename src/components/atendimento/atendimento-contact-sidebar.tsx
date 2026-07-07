@@ -2,10 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { GitMerge, Loader2, Pencil, Save, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
-import { GestaoButton, GestaoInput, gestao } from "@/components/gestao-ui";
-import { cn } from "@/lib/utils";
+
+import { GestaoButton, GestaoInput, gestao } from "@/components/painel/gestao-ui";
+import { cn } from "@/lib/shared/utils";
 import { usePainelNavigate } from "@/lib/painel/use-painel-navigate";
 import { useTenantOptional } from "@/lib/tenant/tenant-context";
+
 import {
   assignAtendimentoConversationAgentServer,
   fetchAtendimentoContactCrmServer,
@@ -15,7 +17,7 @@ import {
   mergeAtendimentoDuplicatesServer,
   saveAtendimentoConversationContactServer,
   setContactTagsServer,
-} from "@/lib/api/atendimento.functions";
+} from "@/lib/api/atendimento/atendimento.functions";
 import type { WabaConversation, WabaConversationStatus } from "@/lib/waba/types";
 import { ContactAvatar } from "@/components/atendimento/atendimento-ui";
 

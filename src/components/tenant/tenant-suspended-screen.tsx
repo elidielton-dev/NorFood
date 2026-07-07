@@ -3,7 +3,7 @@ import { CreditCard, Mail, ShieldOff, Store, XCircle } from "lucide-react";
 import { NorfoodLogo } from "@/components/brand/norfood-logo";
 import type { TenantAccessReason } from "@/lib/tenant/tenant-access.server";
 import { tenantPath } from "@/lib/tenant/painel-routes";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 const SUPPORT_EMAIL = "suporte@norfood.com.br";
 

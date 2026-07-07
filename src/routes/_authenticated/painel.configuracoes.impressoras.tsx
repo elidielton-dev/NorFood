@@ -1,12 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+
 import { ChevronRight } from "lucide-react";
-import { StatusBadge } from "@/components/painel-configuracoes-ui";
+import { StatusBadge } from "@/components/painel/painel-configuracoes-ui";
 import {
   ConfigSection,
   ConfigSwitchRow,
   ConfiguracoesPageFrame,
 } from "@/components/configuracoes/configuracoes-page-frame";
-import { printerPanels } from "@/lib/painel-configuracoes";
+import { printerPanels } from "@/lib/painel/painel-configuracoes";
+
 
 export const Route = createFileRoute("/_authenticated/painel/configuracoes/impressoras")({
   component: ConfiguracoesImpressorasPage,

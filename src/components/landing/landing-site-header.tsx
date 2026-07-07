@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { NorfoodLogo } from "@/components/brand/norfood-logo";
 import { NORFOOD_DEMO_TENANT_SLUG } from "@/lib/tenant/constants";
 import { lojaPath } from "@/lib/tenant/painel-routes";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 type LandingSiteHeaderProps = {
   /** Destaca o item ativo no menu */

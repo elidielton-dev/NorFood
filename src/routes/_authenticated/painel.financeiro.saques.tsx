@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, Landmark } from "lucide-react";
-import { fetchMercadoPagoPanelServer } from "@/lib/api/mercado-pago-panel.functions";
-import { formatBRL } from "@/lib/db";
+import { fetchMercadoPagoPanelServer } from "@/lib/api/financeiro/mercado-pago-panel.functions";
+import { formatBRL } from "@/lib/shared/db";
 import {
   GestaoAlert,
   GestaoButton,
@@ -10,7 +10,7 @@ import {
   GestaoPage,
   GestaoSectionTitle,
   GestaoStat,
-} from "@/components/gestao-ui";
+} from "@/components/painel/gestao-ui";
 
 export const Route = createFileRoute("/_authenticated/painel/financeiro/saques")({
   component: FinanceiroSaquesPage,

@@ -1,4 +1,4 @@
-import type { AdminTenantRow } from "@/lib/api/platform-admin.functions";
+import type { AdminTenantRow } from "@/lib/api/plataforma/platform-admin.functions";
 import {
   createDemoAdminTenant,
   deleteDemoAdminTenant,
@@ -7,8 +7,8 @@ import {
   updateDemoAdminTenant,
   updateDemoAdminTenantStatus,
 } from "@/lib/platform-admin/demo-tenants-store";
-import { isBrowserDemoEnabled, isProductionMode } from "@/lib/runtime";
-import { getAuthenticatedUser, getAccessToken } from "@/lib/auth-session";
+import { isBrowserDemoEnabled, isProductionMode } from "@/lib/shared/runtime";
+import { getAuthenticatedUser, getAccessToken } from "@/lib/auth/auth-session";
 import { isPlatformAdminEmail } from "@/lib/platform-admin/emails";
 import {
   approveTenantAdminServer,
@@ -20,8 +20,8 @@ import {
   reactivateTenantAdminServer,
   rejectTenantAdminServer,
   updateTenantAdminServer,
-} from "@/lib/api/platform-admin.functions";
-import { fetchPlatformCapacityServer } from "@/lib/api/platform-capacity.functions";
+} from "@/lib/api/plataforma/platform-admin.functions";
+import { fetchPlatformCapacityServer } from "@/lib/api/plataforma/platform-capacity.functions";
 import type { TenantStatus } from "@/lib/tenant/types";
 import type { BillingModel, BillingPlanId } from "@/lib/platform/billing-plans";
 

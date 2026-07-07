@@ -1,7 +1,7 @@
-import { fetchKdsOrderItemsServer } from "@/lib/api/delivery-panel.functions";
-import { formatBRL, type Pedido } from "@/lib/db";
+import { fetchKdsOrderItemsServer } from "@/lib/api/delivery/delivery-panel.functions";
+import { formatBRL, type Pedido } from "@/lib/shared/db";
 import { extractMesaQrCustomerName, extractMesaQrNumero } from "@/lib/mesas-settings";
-import { printHtmlReceipt } from "@/lib/print";
+import { printHtmlReceipt } from "@/lib/shared/print";
 
 type KitchenOrderItem = {
   quantidade: number;

@@ -11,15 +11,15 @@ import {
   hasPendingMercadoPagoPayment,
   type Pedido,
   type PedidoItem,
-} from "@/lib/db";
+} from "@/lib/shared/db";
 import {
   fetchGestaoDeliveryOrdersServer,
   fetchPanelOrderItemsServer,
   updateGestaoDeliveryKitchenStageServer,
   updateGestaoDeliveryOrderStatusServer,
-} from "@/lib/api/delivery-panel.functions";
-import { fetchOperationalStatusServer } from "@/lib/api/operational-config.functions";
-import { resolveProductImage } from "@/lib/cardapio";
+} from "@/lib/api/delivery/delivery-panel.functions";
+import { fetchOperationalStatusServer } from "@/lib/api/tenant/operational-config.functions";
+import { resolveProductImage } from "@/lib/loja/cardapio";
 import { getKitchenStage } from "@/lib/kitchen-stage";
 import {
   ArrowRight,
@@ -42,13 +42,13 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { GestaoButton } from "@/components/gestao-ui";
-import { KdsOrderDetailModal } from "@/components/kds-order-detail-modal";
+import { GestaoButton } from "@/components/painel/gestao-ui";
+import { KdsOrderDetailModal } from "@/components/pedidos/kds-order-detail-modal";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { printHtmlReceipt } from "@/lib/print";
+import { printHtmlReceipt } from "@/lib/shared/print";
 import { extractMesaQrCustomerName } from "@/lib/mesas-settings";
-import { isDemoSession } from "@/lib/runtime";
-import { cn } from "@/lib/utils";
+import { isDemoSession } from "@/lib/shared/runtime";
+import { cn } from "@/lib/shared/utils";
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
 
 export const Route = createFileRoute("/_authenticated/painel/gestao-delivery")({

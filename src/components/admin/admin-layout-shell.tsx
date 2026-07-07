@@ -5,14 +5,14 @@ import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, ExternalLink, LogOut, Menu, Search, X } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
 import { NorfoodLogo } from "@/components/brand/norfood-logo";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
 import {
   ADMIN_SIDEBAR_SECTIONS,
   getAdminBreadcrumb,
   isAdminSidebarItemActive,
 } from "@/lib/admin/admin-sidebar";
-import { getAdminDashboardServer } from "@/lib/api/platform-admin.functions";
+import { getAdminDashboardServer } from "@/lib/api/plataforma/platform-admin.functions";
 
 export function AdminLayoutShell({ children }: { children: ReactNode }) {
   const location = useLocation();

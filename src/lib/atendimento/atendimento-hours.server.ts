@@ -1,5 +1,5 @@
-import { getAttendanceClosingBoundary, resolveStoreOpenStatus } from "@/lib/horarios";
-import { fetchHorariosConfigFromDb, fetchHorariosFromDb } from "@/lib/api/horarios.server";
+import { getAttendanceClosingBoundary, resolveStoreOpenStatus } from "@/lib/shared/horarios";
+import { fetchHorariosConfigFromDb, fetchHorariosFromDb } from "@/lib/api/tenant/horarios.server";
 import { WABA_WORKSPACE_ID } from "@/lib/waba/types";
 
 type AttendanceCloseMarkerRow = {
@@ -43,17 +43,17 @@ async function setAttendanceCloseMarker(marker: string | null) {
 }
 
 async function closeEvolutionChatsForStoreClosed(boundaryIso: string) {
-  const { closeAtendimentoChatsForStoreClosed } = await import("@/lib/api/whatsapp-store.server");
+  const { closeAtendimentoChatsForStoreClosed } = await import("@/lib/api/atendimento/whatsapp-store.server");
   return closeAtendimentoChatsForStoreClosed(boundaryIso);
 }
 
 async function closeEvolutionChatsFromPreviousDays(reference: Date) {
-  const { closeAtendimentoChatsFromPreviousDays } = await import("@/lib/api/whatsapp-store.server");
+  const { closeAtendimentoChatsFromPreviousDays } = await import("@/lib/api/atendimento/whatsapp-store.server");
   return closeAtendimentoChatsFromPreviousDays(reference);
 }
 
 async function countActiveEvolutionChats() {
-  const { countActiveAtendimentoChats } = await import("@/lib/api/whatsapp-store.server");
+  const { countActiveAtendimentoChats } = await import("@/lib/api/atendimento/whatsapp-store.server");
   return countActiveAtendimentoChats();
 }
 
@@ -94,7 +94,7 @@ async function closeWabaConversationsForStoreClosed(boundaryIso: string) {
 }
 
 async function closeWabaConversationsFromPreviousDays(reference: Date) {
-  const { isMessageBeforeCalendarDay, STORE_TIMEZONE } = await import("@/lib/horarios");
+  const { isMessageBeforeCalendarDay, STORE_TIMEZONE } = await import("@/lib/shared/horarios");
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const now = new Date().toISOString();
 
@@ -183,7 +183,7 @@ export async function isAfterHoursCustomerActivity(activityAt: string | Date, no
 
 /** Ancora da sessao atual: primeira mensagem apos o ultimo fechamento, nao "agora". */
 export async function resolveAttendanceSessionAnchor(chatId: string, activityAt: string) {
-  const { findChatIdsForMessageHistory } = await import("@/lib/api/whatsapp-store.server");
+  const { findChatIdsForMessageHistory } = await import("@/lib/api/atendimento/whatsapp-store.server");
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const chatIds = await findChatIdsForMessageHistory(chatId);
   const boundary = await getEffectiveClosingBoundary();
@@ -216,7 +216,7 @@ export async function resolveAttendanceSessionAnchor(chatId: string, activityAt:
 export async function syncAtendimentoSessionOnActivity(chatId: string, activityAt?: string) {
   const sessionAt = activityAt ?? new Date().toISOString();
   const activityMs = new Date(sessionAt).getTime();
-  const { updateWhatsAppChatInboxStatus } = await import("@/lib/api/whatsapp-store.server");
+  const { updateWhatsAppChatInboxStatus } = await import("@/lib/api/atendimento/whatsapp-store.server");
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   const { data: row, error: readError } = await supabaseAdmin
@@ -326,7 +326,7 @@ export async function ensureCustomerInboundKeepsConversationOpen(
 
   if (error) {
     if (/attendance_opened_at|does not exist|schema cache|PGRST20/i.test(error.message)) {
-      const { updateWhatsAppChatInboxStatus } = await import("@/lib/api/whatsapp-store.server");
+      const { updateWhatsAppChatInboxStatus } = await import("@/lib/api/atendimento/whatsapp-store.server");
       await updateWhatsAppChatInboxStatus(chatId, "open");
       return;
     }
@@ -352,7 +352,7 @@ export async function maybeRepairAtendimentoInboxState() {
   if (Date.now() - lastAtendimentoInboxRepairAt < ATENDIMENTO_INBOX_REPAIR_MS) return;
   lastAtendimentoInboxRepairAt = Date.now();
 
-  const { repairDuplicateAtendimentoChats } = await import("@/lib/api/whatsapp-store.server");
+  const { repairDuplicateAtendimentoChats } = await import("@/lib/api/atendimento/whatsapp-store.server");
 
   await repairDuplicateAtendimentoChats();
   await repairClosedAtendimentoChatsWithRecentInbound();

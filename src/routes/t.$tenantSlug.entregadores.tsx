@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { EntregadorExpoGoQrPanel } from "@/components/entregador-expo-go-qr";
+import { EntregadorExpoGoQrPanel } from "@/components/entregador/entregador-expo-go-qr";
 import { TenantBrandLogo } from "@/components/brand/norfood-logo";
 import { useTenant } from "@/lib/tenant/tenant-context";
 

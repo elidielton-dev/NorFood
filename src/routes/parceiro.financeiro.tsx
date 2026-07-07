@@ -4,7 +4,7 @@ import { Eye, Wallet } from "lucide-react";
 import { ParceiroDataTable, type ParceiroTableColumn } from "@/components/parceiro/parceiro-data-table";
 import { ParceiroCard, ParceiroPage } from "@/routes/parceiro";
 import { fetchResellerDashboard, fetchResellerInvoices, fetchResellerProfile } from "@/lib/reseller/client";
-import type { ResellerInvoiceRow } from "@/lib/api/platform-reseller.functions";
+import type { ResellerInvoiceRow } from "@/lib/api/plataforma/platform-reseller.functions";
 
 export const Route = createFileRoute("/parceiro/financeiro")({
   component: ParceiroFinanceiroPage,

@@ -2,8 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle } from "lucide-react";
 import { AdminCard, AdminPage } from "@/routes/admin";
-import { getAdminDashboardServer } from "@/lib/api/platform-admin.functions";
-import { cn } from "@/lib/utils";
+import { getAdminDashboardServer } from "@/lib/api/plataforma/platform-admin.functions";
+import { cn } from "@/lib/shared/utils";
 
 export const Route = createFileRoute("/admin/alertas")({
   component: AdminAlertasPage,

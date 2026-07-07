@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { HelpCircle, LogOut, Menu, X } from "lucide-react";
 import { NorfoodLogo } from "@/components/brand/norfood-logo";
 import { Toaster } from "@/components/ui/sonner";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
 import {
   PARCEIRO_SIDEBAR_PRIORITY_ITEMS,

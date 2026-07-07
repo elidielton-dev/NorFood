@@ -1,13 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+
 import { ChevronRight } from "lucide-react";
-import { getIntegrationStatus } from "@/lib/api/integrations.functions";
-import { StatusBadge } from "@/components/painel-configuracoes-ui";
+import { getIntegrationStatus } from "@/lib/api/tenant/integrations.functions";
+import { StatusBadge } from "@/components/painel/painel-configuracoes-ui";
 import {
   ConfigSection,
   ConfiguracoesPageFrame,
 } from "@/components/configuracoes/configuracoes-page-frame";
-import { integrationConfigs } from "@/lib/painel-configuracoes";
+import { integrationConfigs } from "@/lib/painel/painel-configuracoes";
+
 
 export const Route = createFileRoute("/_authenticated/painel/configuracoes/integracoes")({
   component: ConfiguracoesIntegracoesPage,

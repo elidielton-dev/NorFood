@@ -1,4 +1,4 @@
-import type { AdminBillingTenantRow, BillingInvoiceRow } from "@/lib/api/platform-billing.functions";
+import type { AdminBillingTenantRow, BillingInvoiceRow } from "@/lib/api/financeiro/platform-billing.functions";
 import {
   adminPayBillingInvoiceCheckoutServer,
   adminPayBillingInvoicePixServer,
@@ -7,14 +7,14 @@ import {
   listAdminBillingServer,
   listBillingInvoicesServer,
   updateBillingInvoiceStatusServer,
-} from "@/lib/api/platform-billing.functions";
+} from "@/lib/api/financeiro/platform-billing.functions";
 import { supabase } from "@/integrations/supabase/client";
 import {
   formatPlanPrice,
   getBillingModelLabel,
   getPlanLabel,
 } from "@/lib/platform/billing-plans";
-import { isBrowserDemoEnabled, isProductionMode } from "@/lib/runtime";
+import { isBrowserDemoEnabled, isProductionMode } from "@/lib/shared/runtime";
 
 export function formatBRL(value: number) {
   return formatPlanPrice(value);
@@ -155,7 +155,7 @@ export async function createAdminBillingPix(invoiceId: string) {
 
 export async function generateResellerInvoices(year: number, month: number) {
   if (isBillingDemoBlocked()) throw new Error("Indisponível no modo demo.");
-  const { generateResellerInvoicesServer } = await import("@/lib/api/platform-reseller.functions");
+  const { generateResellerInvoicesServer } = await import("@/lib/api/plataforma/platform-reseller.functions");
   return generateResellerInvoicesServer({ data: { year, month } });
 }
 

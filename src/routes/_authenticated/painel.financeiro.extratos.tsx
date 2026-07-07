@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { listarLancamentosFinanceiros, formatBRL, type LancamentoFinanceiro } from "@/lib/db";
-import { fetchMercadoPagoPanelServer } from "@/lib/api/mercado-pago-panel.functions";
-import { GestaoCard, GestaoPage, GestaoTable, GestaoTableHead } from "@/components/gestao-ui";
-import { VendaDetalheModal } from "@/components/venda-detalhe-modal";
+import { listarLancamentosFinanceiros, formatBRL, type LancamentoFinanceiro } from "@/lib/shared/db";
+import { fetchMercadoPagoPanelServer } from "@/lib/api/financeiro/mercado-pago-panel.functions";
+import { GestaoCard, GestaoPage, GestaoTable, GestaoTableHead } from "@/components/painel/gestao-ui";
+import { VendaDetalheModal } from "@/components/pedidos/venda-detalhe-modal";
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
 import { tenantQueryKey } from "@/lib/tenant/query-keys";
 

@@ -1,10 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { formatBRL, criarLancamentoFinanceiro, listarLancamentosFinanceiros, type LancamentoFinanceiro } from "@/lib/db";
+import { formatBRL, criarLancamentoFinanceiro, listarLancamentosFinanceiros, type LancamentoFinanceiro } from "@/lib/shared/db";
 import { toast } from "sonner";
 import { Plus, ArrowUp, ArrowDown, Landmark, QrCode } from "lucide-react";
-import { getIntegrationStatus } from "@/lib/api/integrations.functions";
-import { VendaDetalheModal } from "@/components/venda-detalhe-modal";
+import { getIntegrationStatus } from "@/lib/api/tenant/integrations.functions";
+import { VendaDetalheModal } from "@/components/pedidos/venda-detalhe-modal";
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
 import { tenantQueryKey } from "@/lib/tenant/query-keys";
 import {
@@ -19,7 +19,7 @@ import {
   GestaoTable,
   GestaoTableHead,
   GestaoToolbar,
-} from "@/components/gestao-ui";
+} from "@/components/painel/gestao-ui";
 
 function isVendaLancamento(lancamento: LancamentoFinanceiro) {
   return Boolean(lancamento.pedido_id) || /pedido\s*#/i.test(lancamento.descricao);

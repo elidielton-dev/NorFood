@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { isSupabaseConfigured } from "@/integrations/supabase/client";
-import { getAuthenticatedUser } from "@/lib/auth-session";
-import { isBrowserDemoEnabled } from "@/lib/runtime";
+import { getAuthenticatedUser } from "@/lib/auth/auth-session";
+import { isBrowserDemoEnabled } from "@/lib/shared/runtime";
 import { checkCurrentUserPlatformAdmin } from "@/lib/platform-admin/client";
 import { AdminLayoutShell, AdminPage, AdminCard, AdminStatCard } from "@/components/admin/admin-layout-shell";
 

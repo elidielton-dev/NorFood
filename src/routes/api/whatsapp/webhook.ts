@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { isBaileysWebhookAuthorized } from "@/lib/api/whatsapp-baileys.server";
-import { handleWhatsAppWebhook } from "@/lib/api/whatsapp.server";
+
+import { isBaileysWebhookAuthorized } from "@/lib/api/atendimento/whatsapp-baileys.server";
+import { handleWhatsAppWebhook } from "@/lib/api/atendimento/whatsapp.server";
+
 
 export const Route = createFileRoute("/api/whatsapp/webhook")({
   server: {

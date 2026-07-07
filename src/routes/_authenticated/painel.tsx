@@ -13,17 +13,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { LogOut, Menu, X } from "lucide-react";
 import logo from "@/assets/logo-norfood.png";
 import { Toaster } from "@/components/ui/sonner";
-import { cn } from "@/lib/utils";
-import { fetchCurrentUserRoles, isStaffRole } from "@/lib/auth-roles";
-import { fetchOperationalStatusServer } from "@/lib/api/operational-config.functions";
+import { cn } from "@/lib/shared/utils";
+import { fetchCurrentUserRoles, isStaffRole } from "@/lib/auth/auth-roles";
+import { fetchOperationalStatusServer } from "@/lib/api/tenant/operational-config.functions";
 import {
   getAllSidebarItems,
   isSidebarItemActive,
   sidebarHomeItem,
   sidebarSections,
   type SidebarItem,
-} from "@/lib/painel-sidebar";
-import { isBrowserDemoEnabled, isProductionMode } from "@/lib/runtime";
+} from "@/lib/painel/painel-sidebar";
+import { isBrowserDemoEnabled, isProductionMode } from "@/lib/shared/runtime";
 
 export const Route = createFileRoute("/_authenticated/painel")({
   beforeLoad: async ({ location }) => {

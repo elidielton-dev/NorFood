@@ -1,5 +1,7 @@
-import type { BaileysQuotedMessage } from "@/lib/api/whatsapp-baileys.server";
-import type { WhatsAppMessage } from "@/lib/whatsapp";
+
+import type { BaileysQuotedMessage } from "@/lib/api/atendimento/whatsapp-baileys.server";
+import type { WhatsAppMessage } from "@/lib/atendimento/whatsapp";
+
 import { mediaTypeLabel } from "@/lib/atendimento/message-reply";
 
 export function buildEvolutionQuotedFromWhatsAppMessage(

@@ -7,12 +7,12 @@ import { PlanPicker, PlanSummary } from "@/components/billing/plan-picker";
 import {
   registerRestaurantServer,
   suggestRestaurantSlugServer,
-} from "@/lib/api/platform-billing.functions";
-import { lookupCnpjPublicServer } from "@/lib/api/fiscal.functions";
+} from "@/lib/api/financeiro/platform-billing.functions";
+import { lookupCnpjPublicServer } from "@/lib/api/fiscal/fiscal.functions";
 import type { BillingModel, BillingPlanId } from "@/lib/platform/billing-plans";
-import type { DocumentType } from "@/lib/document-validation";
-import { formatDocument, validateDocument } from "@/lib/document-validation";
-import { fetchAddressByCep, formatCep, normalizeCep } from "@/lib/viacep";
+import type { DocumentType } from "@/lib/shared/document-validation";
+import { formatDocument, validateDocument } from "@/lib/shared/document-validation";
+import { fetchAddressByCep, formatCep, normalizeCep } from "@/lib/shared/viacep";
 import { formatBrazilPhone, validateBrazilMobilePhone } from "@/lib/signup/signup-phone";
 import {
   clearSignupDraft,
@@ -21,10 +21,12 @@ import {
   signupResumeUrl,
   type SignupDraft,
 } from "@/lib/signup/signup-draft";
-import { fetchUserTenantsServer } from "@/lib/api/tenant.functions";
+import { fetchUserTenantsServer } from "@/lib/api/tenant/tenant.functions";
 import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
-import { resolveActivationTokenServer } from "@/lib/api/platform-reseller.functions";
-import { cn } from "@/lib/utils";
+
+import { resolveActivationTokenServer } from "@/lib/api/plataforma/platform-reseller.functions";
+import { cn } from "@/lib/shared/utils";
+
 
 export const Route = createFileRoute("/cadastro")({
   ssr: false,

@@ -25,7 +25,7 @@ import {
   getResellerLeadStatsServer,
   createResellerLeadServer,
   updateResellerLeadStatusServer,
-} from "@/lib/api/platform-reseller.functions";
+} from "@/lib/api/plataforma/platform-reseller.functions";
 
 export async function checkResellerAccess() {
   return checkResellerAccessServer();

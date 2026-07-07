@@ -6,7 +6,7 @@ import {
   TRIAL_DAYS,
   formatPlanPrice,
 } from "@/lib/platform/billing-plans";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 import { Check, Percent, Receipt } from "lucide-react";
 
 type PlanPickerProps = {

@@ -19,3 +19,7 @@ is `src/routes/__root.tsx`.
 | `__root.tsx` | app shell — wraps every page; preserve `<Outlet />` |
 
 `routeTree.gen.ts` is auto-generated. Don't edit it by hand.
+
+## Arquitetura
+
+Convenções de pastas, domínios e onde colocar código novo: [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md).

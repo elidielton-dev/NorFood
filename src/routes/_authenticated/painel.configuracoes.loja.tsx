@@ -6,10 +6,10 @@ import {
   ConfigSettingRow,
   ConfiguracoesPageFrame,
 } from "@/components/configuracoes/configuracoes-page-frame";
-import { fetchTenantAdminSettingsServer } from "@/lib/api/tenant-settings-admin.functions";
+import { fetchTenantAdminSettingsServer } from "@/lib/api/tenant/tenant-settings-admin.functions";
 import { lojaPath } from "@/lib/tenant/painel-routes";
 import { useTenant, useTenantSlug } from "@/lib/tenant/tenant-context";
-import { GestaoButton } from "@/components/gestao-ui";
+import { GestaoButton } from "@/components/painel/gestao-ui";
 
 export const Route = createFileRoute("/_authenticated/painel/configuracoes/loja")({
   component: ConfiguracoesLojaPage,
