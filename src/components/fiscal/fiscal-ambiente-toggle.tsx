@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { tenantQueryKey } from "@/lib/tenant/query-keys";
 import { FlaskConical, Loader2, Store } from "lucide-react";
 import { toast } from "sonner";
 import { setFiscalAmbienteServer } from "@/lib/api/fiscal/fiscal.functions";
@@ -7,6 +8,7 @@ import { cn } from "@/lib/shared/utils";
 
 type Props = {
   ambiente: FiscalAmbiente;
+  tenantSlug: string;
   compact?: boolean;
 };
 
@@ -14,11 +16,12 @@ function ambienteLabel(ambiente: FiscalAmbiente) {
   return ambiente === "producao" ? "Producao" : "Homologacao";
 }
 
-export function FiscalAmbienteToggle({ ambiente, compact }: Props) {
+export function FiscalAmbienteToggle({ ambiente, tenantSlug, compact }: Props) {
   const qc = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: (next: FiscalAmbiente) => setFiscalAmbienteServer({ data: { ambiente: next } }),
+    mutationFn: (next: FiscalAmbiente) =>
+      setFiscalAmbienteServer({ data: { tenantSlug, ambiente: next } }),
     onMutate: (next) => {
       toast.loading(`Alterando para ${ambienteLabel(next)}...`, { id: "fiscal-ambiente" });
     },
@@ -29,8 +32,8 @@ export function FiscalAmbienteToggle({ ambiente, compact }: Props) {
           : "Ambiente SEFAZ: Homologacao — notas de teste.",
         { id: "fiscal-ambiente" },
       );
-      void qc.invalidateQueries({ queryKey: ["fiscal-settings"] });
-      void qc.invalidateQueries({ queryKey: ["integration-status"] });
+      void qc.invalidateQueries({ queryKey: tenantQueryKey("fiscal-settings", tenantSlug) });
+      void qc.invalidateQueries({ queryKey: tenantQueryKey("integration-status", tenantSlug) });
     },
     onError: (error: unknown) => {
       const message = error instanceof Error ? error.message : "Nao foi possivel alterar o ambiente.";

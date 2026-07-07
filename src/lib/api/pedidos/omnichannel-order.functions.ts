@@ -359,6 +359,7 @@ export const createOmnichannelOrderServer = createServerFn({ method: "POST" })
 
     const { itens, subtotal } = await validateAndPriceOrderItems(data.itens, {
       checkStock: true,
+      tenantId,
     });
 
     const desconto = Math.max(0, Number(data.desconto ?? 0));

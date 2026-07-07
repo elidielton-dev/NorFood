@@ -34,19 +34,10 @@ export const createBalcaoOrderServer = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { itens, subtotal } = await validateAndPriceOrderItems(data.itens, {
       checkStock: true,
+      tenantId,
     });
 
-    const { resolveTenantIdFromProductId, assertCanCreateTenantOrder } = await import(
-      "@/lib/tenant/tenant-plan.server"
-    );
-
-    if (data.itens[0]?.produto_id) {
-      const productTenantId = await resolveTenantIdFromProductId(data.itens[0].produto_id);
-      if (productTenantId && productTenantId !== tenantId) {
-        throw new Error("Produto não pertence a este restaurante.");
-      }
-    }
-
+    const { assertCanCreateTenantOrder } = await import("@/lib/tenant/tenant-plan.server");
     await assertCanCreateTenantOrder(tenantId);
 
     if (subtotal < Number(config.pedido_minimo)) {

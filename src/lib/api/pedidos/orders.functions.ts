@@ -74,6 +74,7 @@ export const createDeliveryOrder = createServerFn({ method: "POST" })
 
     const { itens, subtotal } = await validateAndPriceOrderItems(data.itens, {
       checkStock: true,
+      tenantId,
     });
 
     const taxaEntrega = await resolveDeliveryFeeFromDb(data.bairro, tenantId);

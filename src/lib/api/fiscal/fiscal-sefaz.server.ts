@@ -38,12 +38,10 @@ async function createNFeCore(secrets: SefazSecrets, options?: { nfceEmission?: b
   };
 
   if (options?.nfceEmission) {
-    const { fetchFiscalSettings } = await import("@/lib/api/fiscal/fiscal-store.server");
-    const settings = await fetchFiscalSettings();
     const { buildInfRespTecXml, createNfceXmlBuilder, resolveRespTecFromEnv } = await import(
       "@/lib/fiscal/fiscal-resptec"
     );
-    const respTecXml = buildInfRespTecXml(resolveRespTecFromEnv(settings.empresa));
+    const respTecXml = buildInfRespTecXml(resolveRespTecFromEnv(secrets.respTecEmpresa));
     const Builder = await createNfceXmlBuilder(respTecXml);
     config.xmlBuilder = new Builder();
   }

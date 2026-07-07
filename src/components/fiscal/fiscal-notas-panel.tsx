@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { tenantQueryKey } from "@/lib/tenant/query-keys";
 import { Ban, Loader2, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -31,6 +32,7 @@ import {
 
 type FiscalNotasPanelProps = {
   notas: NotaFiscalRow[];
+  tenantSlug: string;
   seriePadrao?: number;
 };
 
@@ -40,7 +42,7 @@ function mutationErrorMessage(error: unknown) {
   return "Nao foi possivel concluir a acao fiscal.";
 }
 
-export function FiscalNotasPanel({ notas, seriePadrao = 1 }: FiscalNotasPanelProps) {
+export function FiscalNotasPanel({ notas, tenantSlug, seriePadrao = 1 }: FiscalNotasPanelProps) {
   const qc = useQueryClient();
   const [cancelNota, setCancelNota] = useState<NotaFiscalRow | null>(null);
   const [pedidoDetalheId, setPedidoDetalheId] = useState<string | null>(null);
@@ -52,10 +54,12 @@ export function FiscalNotasPanel({ notas, seriePadrao = 1 }: FiscalNotasPanelPro
     justificativa: "",
   });
 
-  const invalidate = () => void qc.invalidateQueries({ queryKey: ["notas-fiscais"] });
+  const invalidate = () =>
+    void qc.invalidateQueries({ queryKey: tenantQueryKey("notas-fiscais", tenantSlug) });
 
   const consultarMutation = useMutation({
-    mutationFn: (notaId: string) => consultarStatusNotaFiscalServer({ data: { notaId } }),
+    mutationFn: (notaId: string) =>
+      consultarStatusNotaFiscalServer({ data: { tenantSlug, notaId } }),
     onMutate: () => toast.loading("Consultando SEFAZ...", { id: "fiscal-consulta" }),
     onSuccess: (data) => {
       toast.success(
@@ -69,7 +73,7 @@ export function FiscalNotasPanel({ notas, seriePadrao = 1 }: FiscalNotasPanelPro
 
   const cancelarMutation = useMutation({
     mutationFn: (input: { notaId: string; justificativa: string }) =>
-      cancelarNotaFiscalServer({ data: input }),
+      cancelarNotaFiscalServer({ data: { tenantSlug, ...input } }),
     onMutate: () => toast.loading("Cancelando na SEFAZ...", { id: "fiscal-cancelar" }),
     onSuccess: () => {
       toast.success("NFC-e cancelada na SEFAZ.", { id: "fiscal-cancelar" });
@@ -81,7 +85,8 @@ export function FiscalNotasPanel({ notas, seriePadrao = 1 }: FiscalNotasPanelPro
   });
 
   const inutilizarMutation = useMutation({
-    mutationFn: () => inutilizarNumeracaoFiscalServer({ data: inutilForm }),
+    mutationFn: () =>
+      inutilizarNumeracaoFiscalServer({ data: { tenantSlug, ...inutilForm } }),
     onMutate: () => toast.loading("Inutilizando numeracao na SEFAZ...", { id: "fiscal-inutil" }),
     onSuccess: (data) => {
       toast.success(

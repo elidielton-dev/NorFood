@@ -30,6 +30,8 @@ import {
   ConfigSwitchRow,
   ConfiguracoesPageFrame,
 } from "@/components/configuracoes/configuracoes-page-frame";
+import { useTenantSlug } from "@/lib/tenant/tenant-context";
+import { tenantQueryKey } from "@/lib/tenant/query-keys";
 
 
 export const Route = createFileRoute("/_authenticated/painel/fiscal/configuracoes")({
@@ -54,6 +56,7 @@ function mutationErrorMessage(error: unknown) {
 }
 
 function FiscalConfiguracoesPage() {
+  const tenantSlug = useTenantSlug();
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const lastCnpjLookupRef = useRef<string>("");
@@ -76,8 +79,9 @@ function FiscalConfiguracoesPage() {
   });
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ["fiscal-settings"],
-    queryFn: () => fetchFiscalSettingsServer(),
+    queryKey: tenantQueryKey("fiscal-settings", tenantSlug),
+    queryFn: () => fetchFiscalSettingsServer({ data: tenantSlug! }),
+    enabled: Boolean(tenantSlug),
     retry: 1,
   });
 
@@ -103,12 +107,13 @@ function FiscalConfiguracoesPage() {
   }, [data]);
 
   const saveEmpresaMutation = useMutation({
-    mutationFn: (payload: EmpresaFiscal) => saveEmpresaFiscalServer({ data: payload }),
+    mutationFn: (payload: EmpresaFiscal) =>
+      saveEmpresaFiscalServer({ data: { tenantSlug: tenantSlug!, empresa: payload } }),
     onMutate: () => toast.loading("Salvando empresa...", { id: "fiscal-empresa" }),
     onSuccess: () => {
       toast.success("Dados da empresa salvos.", { id: "fiscal-empresa" });
       setFormErrors([]);
-      void qc.invalidateQueries({ queryKey: ["fiscal-settings"] });
+      void qc.invalidateQueries({ queryKey: tenantQueryKey("fiscal-settings", tenantSlug) });
     },
     onError: (err: unknown) => {
       toast.error(mutationErrorMessage(err), { id: "fiscal-empresa" });
@@ -171,14 +176,14 @@ function FiscalConfiguracoesPage() {
   }, [data]);
 
   const testHomologMutation = useMutation({
-    mutationFn: () => emitNfceHomologacaoTestServer(),
+    mutationFn: () => emitNfceHomologacaoTestServer({ data: tenantSlug! }),
     onMutate: () => toast.loading("Emitindo NFC-e de teste na SEFAZ...", { id: "fiscal-test" }),
     onSuccess: (result) => {
       toast.success(
         `NFC-e autorizada na SEFAZ. Chave: ${result.nota.chave_acesso?.slice(0, 12) ?? ""}...`,
         { id: "fiscal-test" },
       );
-      void qc.invalidateQueries({ queryKey: ["notas-fiscais"] });
+      void qc.invalidateQueries({ queryKey: tenantQueryKey("notas-fiscais", tenantSlug) });
     },
     onError: (err: unknown) => {
       toast.error(mutationErrorMessage(err), { id: "fiscal-test" });
@@ -189,8 +194,11 @@ function FiscalConfiguracoesPage() {
     mutationFn: () =>
       saveFiscalConfigServer({
         data: {
-          ...configForm,
-          cscToken: cscToken.trim() || undefined,
+          tenantSlug: tenantSlug!,
+          config: {
+            ...configForm,
+            cscToken: cscToken.trim() || undefined,
+          },
         },
       }),
     onMutate: () => toast.loading("Salvando NFC-e...", { id: "fiscal-nfce" }),
@@ -199,7 +207,7 @@ function FiscalConfiguracoesPage() {
         configForm.ambiente === "producao" ? "Producao (SEFAZ)" : "Homologacao (testes)";
       toast.success(`Configuracao NFC-e salva. Ambiente: ${ambienteLabel}.`, { id: "fiscal-nfce" });
       setCscToken("");
-      void qc.invalidateQueries({ queryKey: ["fiscal-settings"] });
+      void qc.invalidateQueries({ queryKey: tenantQueryKey("fiscal-settings", tenantSlug) });
     },
     onError: (err: unknown) => {
       toast.error(mutationErrorMessage(err), { id: "fiscal-nfce" });
@@ -208,14 +216,14 @@ function FiscalConfiguracoesPage() {
 
   const uploadCertMutation = useMutation({
     mutationFn: (input: { pfxBase64: string; password: string; empresaCnpj: string }) =>
-      uploadFiscalCertificateServer({ data: input }),
+      uploadFiscalCertificateServer({ data: { tenantSlug: tenantSlug!, ...input } }),
     onMutate: () => toast.loading("Instalando certificado...", { id: "fiscal-cert" }),
     onSuccess: (result) => {
       toast.success(`Certificado instalado: ${result.titular}`, { id: "fiscal-cert" });
       setCertPassword("");
       setSelectedCertFile(null);
       if (fileRef.current) fileRef.current.value = "";
-      void qc.invalidateQueries({ queryKey: ["fiscal-settings"] });
+      void qc.invalidateQueries({ queryKey: tenantQueryKey("fiscal-settings", tenantSlug) });
     },
     onError: (err: unknown) => {
       toast.error(mutationErrorMessage(err), { id: "fiscal-cert" });
@@ -223,11 +231,11 @@ function FiscalConfiguracoesPage() {
   });
 
   const removeCertMutation = useMutation({
-    mutationFn: () => removeFiscalCertificateServer(),
+    mutationFn: () => removeFiscalCertificateServer({ data: tenantSlug! }),
     onMutate: () => toast.loading("Removendo certificado...", { id: "fiscal-cert-rm" }),
     onSuccess: () => {
       toast.success("Certificado removido.", { id: "fiscal-cert-rm" });
-      void qc.invalidateQueries({ queryKey: ["fiscal-settings"] });
+      void qc.invalidateQueries({ queryKey: tenantQueryKey("fiscal-settings", tenantSlug) });
     },
     onError: (err: unknown) => {
       toast.error(mutationErrorMessage(err), { id: "fiscal-cert-rm" });

@@ -32,11 +32,14 @@ async function checkSefazStatus(secrets: SefazSecrets) {
   return check(secrets);
 }
 
-export async function installFiscalCertificate(input: {
-  pfxBase64: string;
-  password: string;
-  empresaCnpj: string;
-}) {
+export async function installFiscalCertificate(
+  tenantId: string,
+  input: {
+    pfxBase64: string;
+    password: string;
+    empresaCnpj: string;
+  },
+) {
   const buffer = Buffer.from(input.pfxBase64, "base64");
   if (buffer.length < 100) {
     throw new Error("Arquivo de certificado invalido ou vazio.");
@@ -48,7 +51,7 @@ export async function installFiscalCertificate(input: {
   const pfxEncrypted = encryptCertificatePfx(buffer);
   const senhaEncrypted = encryptSecret(parsed.resolvedPassword);
 
-  await saveEncryptedCertificate({
+  await saveEncryptedCertificate(tenantId, {
     pfxEncrypted,
     senhaEncrypted,
     titular: parsed.titular,
@@ -63,8 +66,8 @@ export async function installFiscalCertificate(input: {
   };
 }
 
-export async function assertFiscalReadyForEmission() {
-  const settings = await fetchFiscalSettings();
+export async function assertFiscalReadyForEmission(tenantId: string) {
+  const settings = await fetchFiscalSettings(tenantId);
   if (!settings.config.nfceHabilitada) {
     throw new Error("NFC-e nao esta habilitada nas configuracoes fiscais.");
   }
@@ -83,9 +86,12 @@ export async function assertFiscalReadyForEmission() {
   return settings;
 }
 
-async function loadSefazSecrets(ambiente: FiscalAmbiente): Promise<SefazSecrets> {
-  const settings = await fetchFiscalSettings();
-  const secrets = await getFiscalSecretsForEmission();
+async function loadSefazSecrets(
+  tenantId: string,
+  ambiente: FiscalAmbiente,
+): Promise<SefazSecrets> {
+  const settings = await fetchFiscalSettings(tenantId);
+  const secrets = await getFiscalSecretsForEmission(tenantId);
   const uf = settings.empresa.uf.trim().toUpperCase() || "PE";
 
   if (!secrets.cscToken || !settings.config.cscId.trim()) {
@@ -99,6 +105,12 @@ async function loadSefazSecrets(ambiente: FiscalAmbiente): Promise<SefazSecrets>
     cscToken: secrets.cscToken,
     uf,
     ambiente,
+    respTecEmpresa: {
+      cnpj: settings.empresa.cnpj,
+      razaoSocial: settings.empresa.razaoSocial,
+      email: settings.empresa.email,
+      telefone: settings.empresa.telefone,
+    },
   };
 }
 
@@ -141,20 +153,22 @@ function mapItensToNfceInput(itens: ItemEmissao[]): NfceItemInput[] {
 }
 
 export async function buildNfceForPedido(pedidoId: string, consumidorCpf?: string) {
-  const settings = await assertFiscalReadyForEmission();
-  const empresaErrors = validateEmpresaFiscal(settings.empresa);
-  if (empresaErrors.length > 0) {
-    throw new Error(empresaErrors.join(" "));
-  }
-
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   const { data: pedido, error: pedidoError } = await supabaseAdmin
     .from("pedidos")
-    .select("id, numero, total, taxa_entrega, forma_pagamento, canal")
+    .select("id, numero, total, taxa_entrega, forma_pagamento, canal, tenant_id")
     .eq("id", pedidoId)
     .single();
   if (pedidoError || !pedido) throw new Error("Pedido nao encontrado.");
+  if (!pedido.tenant_id) throw new Error("Pedido sem restaurante associado.");
+
+  const tenantId = pedido.tenant_id;
+  const settings = await assertFiscalReadyForEmission(tenantId);
+  const empresaErrors = validateEmpresaFiscal(settings.empresa);
+  if (empresaErrors.length > 0) {
+    throw new Error(empresaErrors.join(" "));
+  }
 
   const { data: itens, error: itensError } = await supabaseAdmin
     .from("pedido_itens")
@@ -170,7 +184,7 @@ export async function buildNfceForPedido(pedidoId: string, consumidorCpf?: strin
     throw new Error("Existem produtos sem NCM. Preencha na aba Fiscal do catalogo.");
   }
 
-  const numeroNota = await incrementNfceNumber();
+  const numeroNota = await incrementNfceNumber(tenantId);
   const ambiente = settings.config.ambiente;
 
   const nfeProps = buildNfceNFeProps({
@@ -191,10 +205,12 @@ export async function buildNfceForPedido(pedidoId: string, consumidorCpf?: strin
     numeroNota,
     ambiente,
     serie: settings.config.serieNfce,
+    tenantId,
   };
 }
 
 async function persistNotaFiscal(input: {
+  tenantId: string;
   pedidoId: string | null;
   status: string;
   response: SefazEmissionResult;
@@ -210,6 +226,7 @@ async function persistNotaFiscal(input: {
   const { data: nota, error } = await supabaseAdmin
     .from("notas_fiscais")
     .insert({
+      tenant_id: input.tenantId,
       pedido_id: input.pedidoId,
       tipo: "NFC-e",
       status: autorizada
@@ -258,18 +275,24 @@ export async function emitNfceForPedido(pedidoId: string, consumidorCpf?: string
     .maybeSingle();
 
   if (existing) {
-    return { nota: existing, ambiente: (await fetchFiscalSettings()).config.ambiente, sefaz: null };
+    const tenantId = pedidoRow?.tenant_id;
+    const ambiente =
+      tenantId != null
+        ? (await fetchFiscalSettings(tenantId)).config.ambiente
+        : "homologacao";
+    return { nota: existing, ambiente, sefaz: null };
   }
 
-  const { nfeProps, pedido, numeroNota, ambiente, serie } = await buildNfceForPedido(
+  const { nfeProps, pedido, numeroNota, ambiente, serie, tenantId } = await buildNfceForPedido(
     pedidoId,
     consumidorCpf,
   );
-  const secrets = await loadSefazSecrets(ambiente);
+  const secrets = await loadSefazSecrets(tenantId, ambiente);
   const response = await emitNfceViaSefaz(nfeProps, secrets);
 
   if (!response.autorizada) {
     const nota = await persistNotaFiscal({
+      tenantId,
       pedidoId,
       status: "rejeitada",
       response,
@@ -283,6 +306,7 @@ export async function emitNfceForPedido(pedidoId: string, consumidorCpf?: string
   }
 
   const nota = await persistNotaFiscal({
+    tenantId,
     pedidoId,
     status: "autorizada",
     response,
@@ -296,13 +320,14 @@ export async function emitNfceForPedido(pedidoId: string, consumidorCpf?: string
   return { nota, ambiente, sefaz: response };
 }
 
-export async function emitNfceHomologacaoTest() {
-  const settings = await assertFiscalReadyForEmission();
+export async function emitNfceHomologacaoTest(tenantId: string) {
+  const settings = await assertFiscalReadyForEmission(tenantId);
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   const { data: produto } = await supabaseAdmin
     .from("produtos")
     .select("id, nome, ncm, cfop, csosn, origem, gtin, unidade, preco")
+    .eq("tenant_id", tenantId)
     .not("ncm", "is", null)
     .limit(1)
     .maybeSingle();
@@ -311,7 +336,7 @@ export async function emitNfceHomologacaoTest() {
     throw new Error("Cadastre ao menos um produto com NCM para o teste de homologacao.");
   }
 
-  const numeroNota = await incrementNfceNumber();
+  const numeroNota = await incrementNfceNumber(tenantId);
   const valor = Number(produto.preco) || 1;
   const ambiente = settings.config.ambiente;
 
@@ -339,10 +364,11 @@ export async function emitNfceHomologacaoTest() {
     homologacao: true,
   });
 
-  const secrets = await loadSefazSecrets(ambiente);
+  const secrets = await loadSefazSecrets(tenantId, ambiente);
   const response = await emitNfceViaSefaz(nfeProps, secrets);
 
   const nota = await persistNotaFiscal({
+    tenantId,
     pedidoId: null,
     status: response.autorizada ? "autorizada_homologacao" : "rejeitada",
     response,
@@ -359,15 +385,15 @@ export async function emitNfceHomologacaoTest() {
   return { nota, sefaz: response };
 }
 
-export async function testSefazConnection() {
-  await assertFiscalReadyForEmission();
-  const settings = await fetchFiscalSettings();
-  const secrets = await loadSefazSecrets(settings.config.ambiente);
+export async function testSefazConnection(tenantId: string) {
+  await assertFiscalReadyForEmission(tenantId);
+  const settings = await fetchFiscalSettings(tenantId);
+  const secrets = await loadSefazSecrets(tenantId, settings.config.ambiente);
   return checkSefazStatus(secrets);
 }
 
-async function assertFiscalCertificateForSefazOps() {
-  const settings = await fetchFiscalSettings();
+async function assertFiscalCertificateForSefazOps(tenantId: string) {
+  const settings = await fetchFiscalSettings(tenantId);
   if (!settings.readiness.certificadoValido) {
     throw new Error("Certificado digital ausente ou vencido.");
   }
@@ -377,21 +403,26 @@ async function assertFiscalCertificateForSefazOps() {
   return settings;
 }
 
-async function getNotaFiscalOrThrow(notaId: string) {
+async function getNotaFiscalOrThrow(notaId: string, tenantId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin.from("notas_fiscais").select("*").eq("id", notaId).single();
+  const { data, error } = await supabaseAdmin
+    .from("notas_fiscais")
+    .select("*")
+    .eq("id", notaId)
+    .eq("tenant_id", tenantId)
+    .single();
   if (error || !data) throw new Error("Nota fiscal nao encontrada.");
   return data;
 }
 
-export async function consultarStatusNotaFiscal(notaId: string) {
-  const settings = await assertFiscalCertificateForSefazOps();
-  const nota = await getNotaFiscalOrThrow(notaId);
+export async function consultarStatusNotaFiscal(notaId: string, tenantId: string) {
+  const settings = await assertFiscalCertificateForSefazOps(tenantId);
+  const nota = await getNotaFiscalOrThrow(notaId, tenantId);
   if (!nota.chave_acesso?.trim()) {
     throw new Error("Nota sem chave de acesso para consulta na SEFAZ.");
   }
 
-  const secrets = await loadSefazSecrets(settings.config.ambiente);
+  const secrets = await loadSefazSecrets(tenantId, settings.config.ambiente);
   const { consultarProtocoloSefaz } = await import("@/lib/api/fiscal/fiscal-sefaz.server");
   const result = await consultarProtocoloSefaz(nota.chave_acesso, secrets);
 
@@ -403,14 +434,19 @@ export async function consultarStatusNotaFiscal(notaId: string) {
       motivo_rejeicao: result.sucesso ? null : result.motivo,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", notaId);
+    .eq("id", notaId)
+    .eq("tenant_id", tenantId);
 
   return { notaId, result };
 }
 
-export async function cancelarNotaFiscal(notaId: string, justificativa: string) {
-  const settings = await assertFiscalCertificateForSefazOps();
-  const nota = await getNotaFiscalOrThrow(notaId);
+export async function cancelarNotaFiscal(
+  notaId: string,
+  justificativa: string,
+  tenantId: string,
+) {
+  const settings = await assertFiscalCertificateForSefazOps(tenantId);
+  const nota = await getNotaFiscalOrThrow(notaId, tenantId);
 
   if (!["autorizada", "autorizada_homologacao"].includes(nota.status)) {
     throw new Error("Somente notas autorizadas podem ser canceladas.");
@@ -421,7 +457,7 @@ export async function cancelarNotaFiscal(notaId: string, justificativa: string) 
     throw new Error("Justificativa deve ter no minimo 15 caracteres.");
   }
 
-  const secrets = await loadSefazSecrets(settings.config.ambiente);
+  const secrets = await loadSefazSecrets(tenantId, settings.config.ambiente);
   const { cancelarNfceSefaz } = await import("@/lib/api/fiscal/fiscal-sefaz.server");
   const result = await cancelarNfceSefaz(
     {
@@ -448,6 +484,7 @@ export async function cancelarNotaFiscal(notaId: string, justificativa: string) 
       updated_at: new Date().toISOString(),
     })
     .eq("id", notaId)
+    .eq("tenant_id", tenantId)
     .select("*")
     .single();
 
@@ -455,14 +492,17 @@ export async function cancelarNotaFiscal(notaId: string, justificativa: string) 
   return { nota: updated, result };
 }
 
-export async function inutilizarNumeracaoFiscal(input: {
-  serie: number;
-  numeroInicial: number;
-  numeroFinal: number;
-  justificativa: string;
-  ano?: number;
-}) {
-  const settings = await assertFiscalCertificateForSefazOps();
+export async function inutilizarNumeracaoFiscal(
+  tenantId: string,
+  input: {
+    serie: number;
+    numeroInicial: number;
+    numeroFinal: number;
+    justificativa: string;
+    ano?: number;
+  },
+) {
+  const settings = await assertFiscalCertificateForSefazOps(tenantId);
   if (input.justificativa.trim().length < 15) {
     throw new Error("Justificativa deve ter no minimo 15 caracteres.");
   }
@@ -470,7 +510,7 @@ export async function inutilizarNumeracaoFiscal(input: {
     throw new Error("Faixa de numeracao invalida.");
   }
 
-  const secrets = await loadSefazSecrets(settings.config.ambiente);
+  const secrets = await loadSefazSecrets(tenantId, settings.config.ambiente);
   const { inutilizarNumeracaoSefaz } = await import("@/lib/api/fiscal/fiscal-sefaz.server");
   const result = await inutilizarNumeracaoSefaz(
     {
@@ -502,7 +542,16 @@ export {
 
 export async function tryAutoEmitNfceForPedido(pedidoId: string, canal: string) {
   try {
-    const settings = await fetchFiscalSettings();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: pedidoRow } = await supabaseAdmin
+      .from("pedidos")
+      .select("tenant_id")
+      .eq("id", pedidoId)
+      .maybeSingle();
+    if (!pedidoRow?.tenant_id) return null;
+
+    const tenantId = pedidoRow.tenant_id;
+    const settings = await fetchFiscalSettings(tenantId);
     if (!settings.config.nfceHabilitada) return null;
 
     const canalNorm = canal.toLowerCase();

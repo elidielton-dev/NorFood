@@ -4,21 +4,40 @@ import { assertStaffUserId } from "@/lib/api/auth/auth-helpers.server";
 import type { EmpresaFiscal, FiscalAmbiente } from "@/lib/fiscal/fiscal-types";
 import type { SaveFiscalConfigInput } from "@/lib/api/fiscal/fiscal-store.server";
 
+async function resolveFiscalTenantId(userId: string, tenantSlug: string) {
+  const { resolveStaffTenantId } = await import("@/lib/api/auth/auth-helpers.server");
+  await assertStaffUserId(userId);
+  return resolveStaffTenantId(userId, tenantSlug);
+}
+
+async function assertNotaBelongsToTenant(notaId: string, tenantId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("notas_fiscais")
+    .select("id")
+    .eq("id", notaId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Nota fiscal nao encontrada neste restaurante.");
+}
+
 export const fetchFiscalSettingsServer = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    await assertStaffUserId(context.userId);
+  .validator((tenantSlug: string) => tenantSlug)
+  .handler(async ({ context, data: tenantSlug }) => {
+    const tenantId = await resolveFiscalTenantId(context.userId, tenantSlug);
     const { fetchFiscalSettings } = await import("@/lib/api/fiscal/fiscal-store.server");
-    return fetchFiscalSettings();
+    return fetchFiscalSettings(tenantId);
   });
 
 export const saveEmpresaFiscalServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: EmpresaFiscal) => input)
+  .validator((input: { tenantSlug: string; empresa: EmpresaFiscal }) => input)
   .handler(async ({ context, data }) => {
-    await assertStaffUserId(context.userId);
+    const tenantId = await resolveFiscalTenantId(context.userId, data.tenantSlug);
     const { saveEmpresaFiscal } = await import("@/lib/api/fiscal/fiscal-store.server");
-    await saveEmpresaFiscal(data);
+    await saveEmpresaFiscal(tenantId, data.empresa);
     return { ok: true as const };
   });
 
@@ -33,74 +52,99 @@ export const lookupCnpjPublicServer = createServerFn({ method: "POST" })
 
 export const saveFiscalConfigServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: SaveFiscalConfigInput) => input)
+  .validator((input: { tenantSlug: string; config: SaveFiscalConfigInput }) => input)
   .handler(async ({ context, data }) => {
-    await assertStaffUserId(context.userId);
+    const tenantId = await resolveFiscalTenantId(context.userId, data.tenantSlug);
     const { saveFiscalConfig } = await import("@/lib/api/fiscal/fiscal-store.server");
-    await saveFiscalConfig(data);
+    await saveFiscalConfig(tenantId, data.config);
     return { ok: true as const };
   });
 
 export const setFiscalAmbienteServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { ambiente: FiscalAmbiente }) => input)
+  .validator((input: { tenantSlug: string; ambiente: FiscalAmbiente }) => input)
   .handler(async ({ context, data }) => {
-    await assertStaffUserId(context.userId);
+    const tenantId = await resolveFiscalTenantId(context.userId, data.tenantSlug);
     const { setFiscalAmbiente } = await import("@/lib/api/fiscal/fiscal-store.server");
-    return setFiscalAmbiente(data.ambiente);
+    return setFiscalAmbiente(tenantId, data.ambiente);
   });
 
 export const uploadFiscalCertificateServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { pfxBase64: string; password: string; empresaCnpj: string }) => input)
+  .validator(
+    (input: {
+      tenantSlug: string;
+      pfxBase64: string;
+      password: string;
+      empresaCnpj: string;
+    }) => input,
+  )
   .handler(async ({ context, data }) => {
-    await assertStaffUserId(context.userId);
+    const tenantId = await resolveFiscalTenantId(context.userId, data.tenantSlug);
     const { installFiscalCertificate } = await import("@/lib/api/fiscal/fiscal.server");
-    return installFiscalCertificate(data);
+    return installFiscalCertificate(tenantId, {
+      pfxBase64: data.pfxBase64,
+      password: data.password,
+      empresaCnpj: data.empresaCnpj,
+    });
   });
 
 export const removeFiscalCertificateServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    await assertStaffUserId(context.userId);
+  .validator((tenantSlug: string) => tenantSlug)
+  .handler(async ({ context, data: tenantSlug }) => {
+    const tenantId = await resolveFiscalTenantId(context.userId, tenantSlug);
     const { removeStoredCertificate } = await import("@/lib/api/fiscal/fiscal-store.server");
-    await removeStoredCertificate();
+    await removeStoredCertificate(tenantId);
     return { ok: true as const };
   });
 
 export const emitNfceForPedidoServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { pedidoId: string; consumidorCpf?: string }) => input)
+  .validator((input: { tenantSlug: string; pedidoId: string; consumidorCpf?: string }) => input)
   .handler(async ({ context, data }) => {
-    await assertStaffUserId(context.userId);
+    const tenantId = await resolveFiscalTenantId(context.userId, data.tenantSlug);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: pedido } = await supabaseAdmin
+      .from("pedidos")
+      .select("tenant_id")
+      .eq("id", data.pedidoId)
+      .maybeSingle();
+    if (!pedido || pedido.tenant_id !== tenantId) {
+      throw new Error("Pedido nao encontrado neste restaurante.");
+    }
     const { emitNfceForPedido } = await import("@/lib/api/fiscal/fiscal.server");
     return emitNfceForPedido(data.pedidoId, data.consumidorCpf);
   });
 
 export const emitNfceHomologacaoTestServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    await assertStaffUserId(context.userId);
+  .validator((tenantSlug: string) => tenantSlug)
+  .handler(async ({ context, data: tenantSlug }) => {
+    const tenantId = await resolveFiscalTenantId(context.userId, tenantSlug);
     const { emitNfceHomologacaoTest } = await import("@/lib/api/fiscal/fiscal.server");
-    return emitNfceHomologacaoTest();
+    return emitNfceHomologacaoTest(tenantId);
   });
 
 export const testSefazConnectionServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    await assertStaffUserId(context.userId);
+  .validator((tenantSlug: string) => tenantSlug)
+  .handler(async ({ context, data: tenantSlug }) => {
+    const tenantId = await resolveFiscalTenantId(context.userId, tenantSlug);
     const { testSefazConnection } = await import("@/lib/api/fiscal/fiscal.server");
-    return testSefazConnection();
+    return testSefazConnection(tenantId);
   });
 
 export const fetchNotasFiscaisServer = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    await assertStaffUserId(context.userId);
+  .validator((tenantSlug: string) => tenantSlug)
+  .handler(async ({ context, data: tenantSlug }) => {
+    const tenantId = await resolveFiscalTenantId(context.userId, tenantSlug);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
       .from("notas_fiscais")
       .select("*")
+      .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) throw error;
@@ -109,30 +153,39 @@ export const fetchNotasFiscaisServer = createServerFn({ method: "GET" })
 
 export const consultarStatusNotaFiscalServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { notaId: string }) => input)
+  .validator((input: { tenantSlug: string; notaId: string }) => input)
   .handler(async ({ context, data }) => {
-    await assertStaffUserId(context.userId);
+    const tenantId = await resolveFiscalTenantId(context.userId, data.tenantSlug);
+    await assertNotaBelongsToTenant(data.notaId, tenantId);
     const { consultarStatusNotaFiscal } = await import("@/lib/api/fiscal/fiscal.server");
-    return consultarStatusNotaFiscal(data.notaId);
+    return consultarStatusNotaFiscal(data.notaId, tenantId);
   });
 
 export const cancelarNotaFiscalServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { notaId: string; justificativa: string }) => input)
+  .validator((input: { tenantSlug: string; notaId: string; justificativa: string }) => input)
   .handler(async ({ context, data }) => {
-    await assertStaffUserId(context.userId);
+    const tenantId = await resolveFiscalTenantId(context.userId, data.tenantSlug);
+    await assertNotaBelongsToTenant(data.notaId, tenantId);
     const { cancelarNotaFiscal } = await import("@/lib/api/fiscal/fiscal.server");
-    return cancelarNotaFiscal(data.notaId, data.justificativa);
+    return cancelarNotaFiscal(data.notaId, data.justificativa, tenantId);
   });
 
 export const inutilizarNumeracaoFiscalServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator(
-    (input: { serie: number; numeroInicial: number; numeroFinal: number; justificativa: string; ano?: number }) =>
-      input,
+    (input: {
+      tenantSlug: string;
+      serie: number;
+      numeroInicial: number;
+      numeroFinal: number;
+      justificativa: string;
+      ano?: number;
+    }) => input,
   )
   .handler(async ({ context, data }) => {
-    await assertStaffUserId(context.userId);
+    const tenantId = await resolveFiscalTenantId(context.userId, data.tenantSlug);
     const { inutilizarNumeracaoFiscal } = await import("@/lib/api/fiscal/fiscal.server");
-    return inutilizarNumeracaoFiscal(data);
+    const { tenantSlug, ...payload } = data;
+    return inutilizarNumeracaoFiscal(tenantId, payload);
   });

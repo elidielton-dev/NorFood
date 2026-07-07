@@ -140,6 +140,7 @@ export const openMesaOrderServer = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { itens, subtotal } = await validateAndPriceOrderItems(data.itens, {
       checkStock: true,
+      tenantId,
     });
 
     const { data: mesa, error: mesaError } = await supabaseAdmin
@@ -220,6 +221,7 @@ export const addMesaOrderItemsServer = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { itens, subtotal: novoSubtotal } = await validateAndPriceOrderItems(data.itens, {
       checkStock: true,
+      tenantId,
     });
 
     if (!itens.length) {

@@ -1,5 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
+import { createClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
+import { assertAuthRateLimit, maskAuthIdentifier } from "@/lib/signup/auth-rate-limit.server";
 
 type CustomerAccountPayload = {
   name: string;
@@ -13,6 +16,7 @@ type CustomerAccountPayload = {
   city?: string;
   stateCode?: string;
   reference?: string;
+  clientIp?: string;
 };
 
 function normalizeEmail(value: string) {
@@ -40,6 +44,13 @@ function isStrongPassword(value: string) {
   return value.trim().length >= 6 && /[a-zA-Z]/.test(value) && /\d/.test(value);
 }
 
+function getSupabasePublishableKey() {
+  return process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "";
+}
+
+const ACCOUNT_LOOKUP_ERROR = "Nao encontramos uma conta com esse e-mail ou telefone.";
+const GENERIC_AUTH_ERROR = "E-mail/telefone ou senha invalidos.";
+
 async function resolveCustomerEmailFromIdentifier(identifier: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const trimmedIdentifier = identifier.trim();
@@ -55,7 +66,7 @@ async function resolveCustomerEmailFromIdentifier(identifier: string) {
   if (error) throw error;
 
   const profile = (profiles ?? []).find((item) => normalizePhone(item.telefone ?? "") === digits);
-  if (!profile?.id) throw new Error("Nao encontramos uma conta com esse e-mail ou telefone.");
+  if (!profile?.id) throw new Error(ACCOUNT_LOOKUP_ERROR);
 
   const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(
     profile.id,
@@ -63,7 +74,7 @@ async function resolveCustomerEmailFromIdentifier(identifier: string) {
   if (authError) throw authError;
 
   const email = authUser.user?.email;
-  if (!email) throw new Error("Nao encontramos um e-mail associado a esse telefone.");
+  if (!email) throw new Error(ACCOUNT_LOOKUP_ERROR);
 
   return { email: normalizeEmail(email) };
 }
@@ -82,6 +93,7 @@ export const createCustomerAccount = createServerFn({ method: "POST" })
   .validator((input: CustomerAccountPayload) => input)
   .handler(async ({ data }) => {
     validatePayload(data);
+    await assertAuthRateLimit(data.clientIp?.trim() || "unknown", "signup", data.email);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const email = normalizeEmail(data.email);
@@ -137,28 +149,119 @@ export const createCustomerAccount = createServerFn({ method: "POST" })
     return { ok: true, userId };
   });
 
-export const resolveCustomerEmailByIdentifier = createServerFn({ method: "POST" })
-  .validator((input: { identifier: string }) => input)
-  .handler(async ({ data }) => resolveCustomerEmailFromIdentifier(data.identifier));
-
-export const generateCustomerPasswordRecoveryCode = createServerFn({ method: "POST" })
-  .validator((input: { identifier: string }) => input)
+export const signInCustomerServer = createServerFn({ method: "POST" })
+  .validator((input: { identifier: string; password: string; clientIp?: string }) => input)
   .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const resolved = await resolveCustomerEmailFromIdentifier(data.identifier);
+    const identifier = data.identifier?.trim();
+    const password = data.password ?? "";
+    if (!identifier || !password) {
+      throw new Error(GENERIC_AUTH_ERROR);
+    }
 
-    const redirectTo =
-      process.env.VITE_APP_URL?.trim()?.replace(/\/$/, "") + "/recuperar-senha" ||
-      "https://abelhaemel.vercel.app/recuperar-senha";
+    await assertAuthRateLimit(data.clientIp?.trim() || "unknown", "sign_in", identifier);
 
-    const { error } = await supabaseAdmin.auth.resetPasswordForEmail(resolved.email, {
-      redirectTo,
+    let email: string;
+    try {
+      ({ email } = await resolveCustomerEmailFromIdentifier(identifier));
+    } catch {
+      throw new Error(GENERIC_AUTH_ERROR);
+    }
+
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const SUPABASE_PUBLISHABLE_KEY = getSupabasePublishableKey();
+    if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+      throw new Error("Autenticacao indisponivel no momento.");
+    }
+
+    const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
     });
-    if (error) throw error;
+
+    const { data: sessionData, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error || !sessionData.session) {
+      throw new Error(GENERIC_AUTH_ERROR);
+    }
 
     return {
-      email: resolved.email,
+      access_token: sessionData.session.access_token,
+      refresh_token: sessionData.session.refresh_token,
+      expires_at: sessionData.session.expires_at,
+    };
+  });
+
+export const startCustomerPasswordResetServer = createServerFn({ method: "POST" })
+  .validator((input: { identifier: string; clientIp?: string }) => input)
+  .handler(async ({ data }) => {
+    const identifier = data.identifier?.trim();
+    if (!identifier) {
+      throw new Error("Informe o e-mail ou telefone da conta.");
+    }
+
+    await assertAuthRateLimit(data.clientIp?.trim() || "unknown", "password_reset", identifier);
+
+    try {
+      const resolved = await resolveCustomerEmailFromIdentifier(identifier);
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const redirectTo =
+        process.env.VITE_APP_URL?.trim()?.replace(/\/$/, "") + "/recuperar-senha" ||
+        "https://abelhaemel.vercel.app/recuperar-senha";
+
+      const { error } = await supabaseAdmin.auth.resetPasswordForEmail(resolved.email, {
+        redirectTo,
+      });
+      if (error) throw error;
+    } catch (error) {
+      if (error instanceof Error && error.message === ACCOUNT_LOOKUP_ERROR) {
+        // Resposta uniforme para nao revelar se a conta existe.
+      } else if (error instanceof Error) {
+        throw error;
+      }
+    }
+
+    return {
       sent: true as const,
+      maskedIdentifier: maskAuthIdentifier(identifier),
+    };
+  });
+
+export const verifyCustomerPasswordResetOtpServer = createServerFn({ method: "POST" })
+  .validator((input: { identifier: string; code: string; clientIp?: string }) => input)
+  .handler(async ({ data }) => {
+    const identifier = data.identifier?.trim();
+    const code = data.code?.trim();
+    if (!identifier || code.length < 6) {
+      throw new Error("Codigo de recuperacao invalido.");
+    }
+
+    await assertAuthRateLimit(data.clientIp?.trim() || "unknown", "password_verify", identifier);
+
+    const resolved = await resolveCustomerEmailFromIdentifier(identifier);
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const SUPABASE_PUBLISHABLE_KEY = getSupabasePublishableKey();
+    if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+      throw new Error("Recuperacao indisponivel no momento.");
+    }
+
+    const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    const { data: otpData, error } = await supabase.auth.verifyOtp({
+      email: resolved.email,
+      token: code,
+      type: "recovery",
+    });
+    if (error || !otpData.session) {
+      throw new Error("Codigo de recuperacao invalido ou expirado.");
+    }
+
+    return {
+      access_token: otpData.session.access_token,
+      refresh_token: otpData.session.refresh_token,
+      expires_at: otpData.session.expires_at,
     };
   });
 

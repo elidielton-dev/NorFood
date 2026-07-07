@@ -6,24 +6,29 @@ import { getIntegrationStatus } from "@/lib/api/tenant/integrations.functions";
 import { fetchFiscalSettingsServer, fetchNotasFiscaisServer } from "@/lib/api/fiscal/fiscal.functions";
 import type { NotaFiscalRow } from "@/lib/fiscal/fiscal-nota-utils";
 import { GestaoAlert, GestaoCard, GestaoPage } from "@/components/painel/gestao-ui";
+import { useTenantSlug } from "@/lib/tenant/tenant-context";
+import { tenantQueryKey } from "@/lib/tenant/query-keys";
 
 export const Route = createFileRoute("/_authenticated/painel/fiscal/")({
   component: FiscalIndexPage,
 });
 
 function FiscalIndexPage() {
+  const tenantSlug = useTenantSlug();
   const { data: integrations } = useQuery({
-    queryKey: ["integration-status"],
+    queryKey: tenantQueryKey("integration-status", tenantSlug),
     queryFn: () => getIntegrationStatus(),
   });
   const { data: fiscalSettings } = useQuery({
-    queryKey: ["fiscal-settings"],
-    queryFn: () => fetchFiscalSettingsServer(),
+    queryKey: tenantQueryKey("fiscal-settings", tenantSlug),
+    queryFn: () => fetchFiscalSettingsServer({ data: tenantSlug! }),
+    enabled: Boolean(tenantSlug),
     retry: false,
   });
   const { data: notas = [] } = useQuery({
-    queryKey: ["notas-fiscais"],
-    queryFn: () => fetchNotasFiscaisServer(),
+    queryKey: tenantQueryKey("notas-fiscais", tenantSlug),
+    queryFn: () => fetchNotasFiscaisServer({ data: tenantSlug! }),
+    enabled: Boolean(tenantSlug),
   });
 
   const readiness = fiscalSettings?.readiness;
@@ -96,6 +101,7 @@ function FiscalIndexPage() {
       <FiscalNotasPanel
         notas={notas as NotaFiscalRow[]}
         seriePadrao={fiscalSettings?.config.serieNfce ?? 1}
+        tenantSlug={tenantSlug ?? ""}
       />
     </GestaoPage>
   );

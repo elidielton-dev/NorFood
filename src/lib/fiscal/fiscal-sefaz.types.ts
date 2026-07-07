@@ -31,4 +31,10 @@ export type SefazSecrets = {
   cscToken: string;
   uf: string;
   ambiente: FiscalAmbiente;
+  respTecEmpresa: {
+    cnpj: string;
+    razaoSocial: string;
+    email: string;
+    telefone: string;
+  };
 };

@@ -9,14 +9,8 @@ export const getIntegrationStatus = createServerFn({ method: "GET" })
     const fiscalProvider = process.env.FISCAL_PROVIDER ?? "sefaz";
 
     let fiscalEnvironment: "homologacao" | "producao" = "homologacao";
-    try {
-      const { fetchFiscalSettings } = await import("@/lib/api/fiscal/fiscal-store.server");
-      const settings = await fetchFiscalSettings();
-      fiscalEnvironment = settings.config.ambiente;
-    } catch {
-      fiscalEnvironment =
-        process.env.FISCAL_ENVIRONMENT === "producao" ? "producao" : "homologacao";
-    }
+    fiscalEnvironment =
+      process.env.FISCAL_ENVIRONMENT === "producao" ? "producao" : "homologacao";
 
     return {
       inter: {

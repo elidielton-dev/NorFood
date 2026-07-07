@@ -112,3 +112,4 @@ URLs canônicas do painel: `/t/:tenantSlug/*` (legado `/painel/*` redireciona).
 
 - [Convenções de rotas](../src/routes/README.md)
 - [Deploy em produção](../deploy/PRODUCTION.md)
+- [Remediação de segurança](./SECURITY-REMEDIATION.md)

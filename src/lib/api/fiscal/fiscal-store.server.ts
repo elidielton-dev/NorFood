@@ -120,19 +120,26 @@ function mapConfigPublic(row: DbFiscalConfig | null): FiscalConfigPublic {
   };
 }
 
-async function ensureFiscalRows() {
+async function ensureFiscalRows(tenantId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  await supabaseAdmin.from("empresa_fiscal").upsert({ id: "default" }, { onConflict: "id" });
-  await supabaseAdmin.from("fiscal_config").upsert({ id: "default" }, { onConflict: "id" });
+  const now = new Date().toISOString();
+  await supabaseAdmin.from("empresa_fiscal").upsert(
+    { id: tenantId, tenant_id: tenantId, updated_at: now },
+    { onConflict: "id" },
+  );
+  await supabaseAdmin.from("fiscal_config").upsert(
+    { id: tenantId, tenant_id: tenantId, updated_at: now },
+    { onConflict: "id" },
+  );
 }
 
-export async function fetchFiscalSettings(): Promise<FiscalSettings> {
+export async function fetchFiscalSettings(tenantId: string): Promise<FiscalSettings> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  await ensureFiscalRows();
+  await ensureFiscalRows(tenantId);
 
   const [empresaResult, configResult] = await Promise.all([
-    supabaseAdmin.from("empresa_fiscal").select("*").eq("id", "default").maybeSingle(),
-    supabaseAdmin.from("fiscal_config").select("*").eq("id", "default").maybeSingle(),
+    supabaseAdmin.from("empresa_fiscal").select("*").eq("tenant_id", tenantId).maybeSingle(),
+    supabaseAdmin.from("fiscal_config").select("*").eq("tenant_id", tenantId).maybeSingle(),
   ]);
 
   if (empresaResult.error?.code === "42P01" || configResult.error?.code === "42P01") {
@@ -157,15 +164,16 @@ export async function fetchFiscalSettings(): Promise<FiscalSettings> {
   };
 }
 
-export async function saveEmpresaFiscal(empresa: EmpresaFiscal) {
+export async function saveEmpresaFiscal(tenantId: string, empresa: EmpresaFiscal) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  await ensureFiscalRows();
+  await ensureFiscalRows(tenantId);
 
   const { error } = await supabaseAdmin
     .from("empresa_fiscal")
     .upsert(
       {
-        id: "default",
+        id: tenantId,
+        tenant_id: tenantId,
         cnpj: onlyDigits(empresa.cnpj),
         razao_social: empresa.razaoSocial.trim(),
         nome_fantasia: empresa.nomeFantasia.trim(),
@@ -204,22 +212,23 @@ export type SaveFiscalConfigInput = {
   emitirAutomaticoMesas: boolean;
 };
 
-export async function saveFiscalConfig(input: SaveFiscalConfigInput) {
+export async function saveFiscalConfig(tenantId: string, input: SaveFiscalConfigInput) {
   const { encryptSecret } = await import("@/lib/api/fiscal/fiscal-certificate.server");
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  await ensureFiscalRows();
+  await ensureFiscalRows(tenantId);
 
   const { data: currentConfig } = await supabaseAdmin
     .from("fiscal_config")
     .select("ambiente")
-    .eq("id", "default")
+    .eq("tenant_id", tenantId)
     .maybeSingle();
 
   const ambienteAtual: FiscalAmbiente =
     currentConfig?.ambiente === "producao" ? "producao" : "homologacao";
 
   const payload: Record<string, unknown> = {
-    id: "default",
+    id: tenantId,
+    tenant_id: tenantId,
     nfce_habilitada: input.nfceHabilitada,
     nfe_habilitada: input.nfeHabilitada,
     ambiente: ambienteAtual,
@@ -249,9 +258,9 @@ export async function saveFiscalConfig(input: SaveFiscalConfigInput) {
   if (error) throw error;
 }
 
-export async function setFiscalAmbiente(ambiente: FiscalAmbiente) {
+export async function setFiscalAmbiente(tenantId: string, ambiente: FiscalAmbiente) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  await ensureFiscalRows();
+  await ensureFiscalRows(tenantId);
 
   const { error } = await supabaseAdmin
     .from("fiscal_config")
@@ -259,27 +268,31 @@ export async function setFiscalAmbiente(ambiente: FiscalAmbiente) {
       ambiente,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", "default");
+    .eq("tenant_id", tenantId);
 
   if (error) throw error;
   return { ambiente };
 }
 
-export async function saveEncryptedCertificate(input: {
-  pfxEncrypted: string;
-  senhaEncrypted: string;
-  titular: string;
-  cnpj: string | null;
-  validoAte: Date;
-}) {
+export async function saveEncryptedCertificate(
+  tenantId: string,
+  input: {
+    pfxEncrypted: string;
+    senhaEncrypted: string;
+    titular: string;
+    cnpj: string | null;
+    validoAte: Date;
+  },
+) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  await ensureFiscalRows();
+  await ensureFiscalRows(tenantId);
 
   const { error } = await supabaseAdmin
     .from("fiscal_config")
     .upsert(
       {
-        id: "default",
+        id: tenantId,
+        tenant_id: tenantId,
         certificado_pfx_encrypted: input.pfxEncrypted,
         certificado_senha_encrypted: input.senhaEncrypted,
         certificado_titular: input.titular,
@@ -294,7 +307,7 @@ export async function saveEncryptedCertificate(input: {
   if (error) throw error;
 }
 
-export async function removeStoredCertificate() {
+export async function removeStoredCertificate(tenantId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { error } = await supabaseAdmin
     .from("fiscal_config")
@@ -307,11 +320,11 @@ export async function removeStoredCertificate() {
       certificado_instalado_em: null,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", "default");
+    .eq("tenant_id", tenantId);
   if (error) throw error;
 }
 
-export async function getFiscalSecretsForEmission() {
+export async function getFiscalSecretsForEmission(tenantId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { decryptSecret, decryptCertificatePfx } = await import(
     "@/lib/api/fiscal/fiscal-certificate.server"
@@ -320,7 +333,7 @@ export async function getFiscalSecretsForEmission() {
   const { data, error } = await supabaseAdmin
     .from("fiscal_config")
     .select("*")
-    .eq("id", "default")
+    .eq("tenant_id", tenantId)
     .single();
   if (error) throw error;
 
@@ -337,14 +350,14 @@ export async function getFiscalSecretsForEmission() {
   };
 }
 
-export async function incrementNfceNumber() {
+export async function incrementNfceNumber(tenantId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   for (let attempt = 0; attempt < 8; attempt++) {
     const { data, error } = await supabaseAdmin
       .from("fiscal_config")
       .select("proximo_numero_nfce")
-      .eq("id", "default")
+      .eq("tenant_id", tenantId)
       .single();
     if (error) throw error;
 
@@ -355,7 +368,7 @@ export async function incrementNfceNumber() {
         proximo_numero_nfce: numero + 1,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", "default")
+      .eq("tenant_id", tenantId)
       .eq("proximo_numero_nfce", numero)
       .select("proximo_numero_nfce")
       .maybeSingle();

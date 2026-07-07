@@ -127,22 +127,34 @@ export async function validateAndPriceOrderItems(
   const [produtosResult, variacoesResult, adicionaisResult, promocoesResult] = await Promise.all([
     produtosQuery,
     variacaoIds.length
-      ? supabaseAdmin
-          .from("produto_variacoes")
-          .select("id, produto_id, nome, preco, estoque, status")
-          .in("id", variacaoIds)
+      ? (() => {
+          let query = supabaseAdmin
+            .from("produto_variacoes")
+            .select("id, produto_id, nome, preco, estoque, status")
+            .in("id", variacaoIds);
+          if (options?.tenantId) query = query.eq("tenant_id", options.tenantId);
+          return query;
+        })()
       : Promise.resolve({ data: [], error: null }),
     adicionalIds.length
-      ? supabaseAdmin
-          .from("produto_adicionais")
-          .select("id, nome, preco, estoque, minimo, maximo")
-          .in("id", adicionalIds)
+      ? (() => {
+          let query = supabaseAdmin
+            .from("produto_adicionais")
+            .select("id, nome, preco, estoque, minimo, maximo")
+            .in("id", adicionalIds);
+          if (options?.tenantId) query = query.eq("tenant_id", options.tenantId);
+          return query;
+        })()
       : Promise.resolve({ data: [], error: null }),
-    supabaseAdmin
-      .from("produto_promocoes")
-      .select("produto_id, tipo, valor, ativa")
-      .in("produto_id", productIds)
-      .eq("ativa", true),
+    (() => {
+      let query = supabaseAdmin
+        .from("produto_promocoes")
+        .select("produto_id, tipo, valor, ativa")
+        .in("produto_id", productIds)
+        .eq("ativa", true);
+      if (options?.tenantId) query = query.eq("tenant_id", options.tenantId);
+      return query;
+    })(),
   ]);
 
   if (produtosResult.error) throw produtosResult.error;

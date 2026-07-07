@@ -10,8 +10,9 @@ import {
 } from "@/lib/demo/demo-credentials";
 import {
   createCustomerAccount,
-  generateCustomerPasswordRecoveryCode,
-  resolveCustomerEmailByIdentifier,
+  signInCustomerServer,
+  startCustomerPasswordResetServer,
+  verifyCustomerPasswordResetOtpServer,
   syncCustomerProfile,
 } from "@/lib/api/auth/customer-auth.functions";
 
@@ -531,13 +532,13 @@ export async function signInCustomerAccount(identifier: string, password: string
   }
 
   try {
-    const resolved = await resolveCustomerEmailByIdentifier({
-      data: { identifier },
+    const session = await signInCustomerServer({
+      data: { identifier, password },
     });
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: resolved.email,
-      password,
+    const { error } = await supabase.auth.setSession({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
     });
     if (error) throw error;
 
@@ -649,17 +650,13 @@ export async function startCustomerPasswordReset(
     };
   }
 
-  const resolved = await resolveCustomerEmailByIdentifier({
-    data: { identifier },
-  });
-
-  await generateCustomerPasswordRecoveryCode({
+  const result = await startCustomerPasswordResetServer({
     data: { identifier },
   });
 
   return {
     method: "email",
-    maskedIdentifier: maskEmail(resolved.email),
+    maskedIdentifier: result.maskedIdentifier,
   };
 }
 
@@ -672,18 +669,17 @@ export async function verifyCustomerPasswordResetCode(identifier: string, code: 
   }
 
   if (canUseSupabaseCustomerAuth()) {
-    const resolved = await resolveCustomerEmailByIdentifier({
-      data: { identifier },
+    const session = await verifyCustomerPasswordResetOtpServer({
+      data: { identifier, code: normalizedCode },
     });
 
-    const { error } = await supabase.auth.verifyOtp({
-      email: resolved.email,
-      token: normalizedCode,
-      type: "recovery",
+    const { error } = await supabase.auth.setSession({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
     });
     if (error) throw error;
 
-    return { method: "email" as const, identifier: resolved.email };
+    return { method: "email" as const, identifier: maskEmail(identifier) };
   }
 
   const record = readResetRecord();
