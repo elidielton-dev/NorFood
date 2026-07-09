@@ -1,4 +1,4 @@
-import { QueroDeliveryClient, type QueroOrderEvent } from "@/lib/integrations/quero-delivery/quero-delivery.client";
+import { QueroDeliveryClient, type QueroOrderEvent } from "@/lib/integrations/quero-delivery/quero-delivery.api.server";
 
 type TenantIntegrationRow = {
   tenant_id: string;

@@ -1,4 +1,4 @@
-import { QueroDeliveryClient } from "@/lib/integrations/quero-delivery/quero-delivery.client";
+import { QueroDeliveryClient } from "@/lib/integrations/quero-delivery/quero-delivery.api.server";
 import { getTenantQueroIntegration } from "@/lib/integrations/quero-delivery/quero-delivery.sync.server";
 
 function normalizeProducts(
