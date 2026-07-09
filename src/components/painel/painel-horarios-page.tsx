@@ -7,6 +7,7 @@ import { fetchHorariosPainelServer, saveHorariosPainelServer } from "@/lib/api/t
 import { useTenantSlug } from "@/lib/tenant/tenant-context";
 import {
   DIAS_SEMANA,
+  buildDefaultHorariosPainelState,
   ensureFullWeek,
   isValidHorarioDia,
   resolveStoreOpenStatus,
@@ -42,14 +43,22 @@ export function HorariosPage(_props: { backTo?: string } = {}) {
   const [config, setConfig] = useState<HorariosConfig | null>(null);
   const [horarios, setHorarios] = useState<HorarioDia[] | null>(null);
 
-  const activeConfig = config ?? data?.config ?? null;
-  const activeHorarios = horarios ?? data?.horarios ?? [];
+  const panelData =
+    data ??
+    (isLoading
+      ? null
+      : buildDefaultHorariosPainelState({
+          warning: error instanceof Error ? error.message : "Nao foi possivel carregar os horarios.",
+        }));
+
+  const activeConfig = config ?? panelData?.config ?? null;
+  const activeHorarios = horarios ?? panelData?.horarios ?? [];
 
   const status = useMemo(() => {
-    if (data?.status && !config && !horarios) return data.status;
+    if (panelData?.status && !config && !horarios) return panelData.status;
     if (!activeConfig) return null;
     return resolveStoreOpenStatus(activeConfig, ensureFullWeek(activeHorarios));
-  }, [activeConfig, activeHorarios, config, data?.status, horarios]);
+  }, [activeConfig, activeHorarios, config, panelData?.status, horarios]);
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -118,7 +127,7 @@ export function HorariosPage(_props: { backTo?: string } = {}) {
     saveMutation.mutate();
   }
 
-  if (isLoading && !data) {
+  if (isLoading && !panelData) {
     return (
       <ConfiguracoesPageFrame title="Horários de funcionamento" description="Carregando...">
         <p className="text-sm text-muted-foreground">Carregando horários...</p>
@@ -126,7 +135,7 @@ export function HorariosPage(_props: { backTo?: string } = {}) {
     );
   }
 
-  if ((isError || !activeConfig || !status) && !data) {
+  if ((isError || !activeConfig || !status) && !panelData) {
     return (
       <ConfiguracoesPageFrame
         title="Horários de funcionamento"
@@ -168,8 +177,8 @@ export function HorariosPage(_props: { backTo?: string } = {}) {
         </div>
       }
     >
-      {data?.warning ? <GestaoAlert tone="warning">{data.warning}</GestaoAlert> : null}
-      {!data?.schemaReady ? (
+      {panelData?.warning ? <GestaoAlert tone="warning">{panelData.warning}</GestaoAlert> : null}
+      {!panelData?.schemaReady ? (
         <GestaoAlert tone="info">
           Para persistir horarios no banco, aplique a migration{" "}
           <code className="rounded bg-sky-100 px-1">20260617300000_horarios_funcionamento.sql</code>{" "}

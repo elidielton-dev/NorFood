@@ -15,6 +15,7 @@ import {
 } from "@/lib/shared/horarios";
 
 const DEFAULT_TENANT_ID = "a0000000-0000-4000-8000-000000000001";
+const bootstrappingTenants = new Set<string>();
 
 type DbHorarioRow = {
   dia_semana: number;
@@ -49,61 +50,68 @@ function isMissingHorariosSchema(message: string) {
 }
 
 export async function bootstrapTenantOperationalData(tenantId: string) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  if (bootstrappingTenants.has(tenantId)) return;
+  bootstrappingTenants.add(tenantId);
 
-  const { data: configRow } = await supabaseAdmin
-    .from("config_operacional")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-  if (!configRow) {
-    const { data: settings } = await supabaseAdmin
-      .from("tenant_settings")
-      .select("pedido_minimo, delivery_fee_default, loja_aberta, pontos_por_real")
+    const { data: configRow } = await supabaseAdmin
+      .from("config_operacional")
+      .select("id")
       .eq("tenant_id", tenantId)
       .maybeSingle();
 
-    await supabaseAdmin.from("config_operacional").upsert({
-      id: tenantId,
-      tenant_id: tenantId,
-      pedido_minimo: Number(settings?.pedido_minimo ?? 0),
-      valor_padrao_entrega: Number(settings?.delivery_fee_default ?? 5),
-      loja_aberta: settings?.loja_aberta ?? true,
-      pontos_por_real: Number(settings?.pontos_por_real ?? 1),
-      horario_automatico: true,
-      pausa_imediata: false,
-      fuso_horario: STORE_TIMEZONE,
-      updated_at: new Date().toISOString(),
-    });
+    if (!configRow) {
+      const { data: settings } = await supabaseAdmin
+        .from("tenant_settings")
+        .select("pedido_minimo, delivery_fee_default, loja_aberta, pontos_por_real")
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+
+      await supabaseAdmin.from("config_operacional").upsert({
+        id: tenantId,
+        tenant_id: tenantId,
+        pedido_minimo: Number(settings?.pedido_minimo ?? 0),
+        valor_padrao_entrega: Number(settings?.delivery_fee_default ?? 5),
+        loja_aberta: settings?.loja_aberta ?? true,
+        pontos_por_real: Number(settings?.pontos_por_real ?? 1),
+        horario_automatico: true,
+        pausa_imediata: false,
+        fuso_horario: STORE_TIMEZONE,
+        updated_at: new Date().toISOString(),
+      });
+    }
+
+    const { data: horariosRows } = await supabaseAdmin
+      .from("horarios_funcionamento")
+      .select("dia_semana")
+      .eq("tenant_id", tenantId);
+
+    if ((horariosRows ?? []).length >= 7) return;
+
+    let source = DEFAULT_HORARIOS;
+    const { data: templateRows } = await supabaseAdmin
+      .from("horarios_funcionamento")
+      .select("dia_semana, ativo, abre, fecha")
+      .eq("tenant_id", DEFAULT_TENANT_ID)
+      .order("dia_semana");
+
+    if (templateRows?.length) {
+      source = templateRows.map((row) =>
+        normalizeHorarioDia({
+          dia_semana: row.dia_semana,
+          ativo: row.ativo,
+          abre: String(row.abre).slice(0, 5),
+          fecha: String(row.fecha).slice(0, 5),
+        }),
+      );
+    }
+
+    await saveHorariosGradeToDb(source, tenantId, { skipSync: true });
+  } finally {
+    bootstrappingTenants.delete(tenantId);
   }
-
-  const { data: horariosRows } = await supabaseAdmin
-    .from("horarios_funcionamento")
-    .select("dia_semana")
-    .eq("tenant_id", tenantId);
-
-  if ((horariosRows ?? []).length >= 7) return;
-
-  let source = DEFAULT_HORARIOS;
-  const { data: templateRows } = await supabaseAdmin
-    .from("horarios_funcionamento")
-    .select("dia_semana, ativo, abre, fecha")
-    .eq("tenant_id", DEFAULT_TENANT_ID)
-    .order("dia_semana");
-
-  if (templateRows?.length) {
-    source = templateRows.map((row) =>
-      normalizeHorarioDia({
-        dia_semana: row.dia_semana,
-        ativo: row.ativo,
-        abre: String(row.abre).slice(0, 5),
-        fecha: String(row.fecha).slice(0, 5),
-      }),
-    );
-  }
-
-  await saveHorariosGradeToDb(source, tenantId, { skipSync: true });
 }
 
 export async function fetchHorariosFromDb(tenantId?: string): Promise<{
@@ -313,10 +321,6 @@ export async function saveHorariosGradeToDb(
 ) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const resolvedTenantId = tenantId ?? DEFAULT_TENANT_ID;
-
-  if (tenantId) {
-    await bootstrapTenantOperationalData(tenantId);
-  }
 
   const payload = ensureFullWeek(horarios).map((horario) => ({
     tenant_id: resolvedTenantId,
