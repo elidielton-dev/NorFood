@@ -1,4 +1,5 @@
 import { PropsWithChildren, useEffect, useMemo, useRef, useState } from "react";
+import { Text, View } from "react-native";
 import { LocationTrackingService } from "./LocationTrackingService";
 import { useAppData } from "../context/AppDataContext";
 import type { RiderRealtimeLocation } from "../types";
@@ -11,6 +12,7 @@ export function LocationProvider({ children }: PropsWithChildren) {
   const pushLocationPingRef = useRef(pushLocationPing);
   const [currentLocation, setCurrentLocation] = useState<RiderRealtimeLocation | null>(null);
   const [trackingActive, setTrackingActive] = useState(false);
+  const [usingMockTracking, setUsingMockTracking] = useState(false);
   const [permissionsGranted, setPermissionsGranted] = useState(false);
   const [backgroundPermissionsGranted, setBackgroundPermissionsGranted] = useState(false);
 
@@ -75,13 +77,22 @@ export function LocationProvider({ children }: PropsWithChildren) {
         },
       });
 
-      if (mounted) setTrackingActive(true);
+      if (mounted) {
+        setTrackingActive(true);
+        setUsingMockTracking(service.isUsingMockTracking());
+      }
     };
 
     void start();
 
+    const mockInterval = setInterval(() => {
+      if (!mounted) return;
+      setUsingMockTracking(serviceRef.current.isUsingMockTracking());
+    }, 3000);
+
     return () => {
       mounted = false;
+      clearInterval(mockInterval);
       void service.stop();
     };
   }, [state.loggedIn, state.rider.id, state.rider.online]);
@@ -91,13 +102,25 @@ export function LocationProvider({ children }: PropsWithChildren) {
       currentLocation,
       routeHistory: serviceRef.current.getHistory(),
       trackingActive,
+      usingMockTracking,
       permissionsGranted,
       backgroundPermissionsGranted,
       requestPermissions,
       stopTracking,
     }),
-    [backgroundPermissionsGranted, currentLocation, permissionsGranted, trackingActive],
+    [backgroundPermissionsGranted, currentLocation, permissionsGranted, trackingActive, usingMockTracking],
   );
 
-  return <LocationContext.Provider value={value}>{children}</LocationContext.Provider>;
+  return (
+    <LocationContext.Provider value={value}>
+      {usingMockTracking ? (
+        <View style={{ backgroundColor: "#F59E0B", paddingHorizontal: 12, paddingVertical: 8 }}>
+          <Text style={{ color: "#111", fontSize: 12, fontWeight: "600", textAlign: "center" }}>
+            GPS simulado ativo — posicao no mapa pode nao refletir o local real.
+          </Text>
+        </View>
+      ) : null}
+      {children}
+    </LocationContext.Provider>
+  );
 }

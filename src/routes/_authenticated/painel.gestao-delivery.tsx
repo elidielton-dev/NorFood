@@ -15,10 +15,14 @@ import {
 import {
   fetchGestaoDeliveryOrdersServer,
   fetchPanelOrderItemsServer,
+  resolveDeliveryOrderChatServer,
   updateGestaoDeliveryKitchenStageServer,
   updateGestaoDeliveryOrderStatusServer,
 } from "@/lib/api/delivery/delivery-panel.functions";
 import { fetchOperationalStatusServer } from "@/lib/api/tenant/operational-config.functions";
+import { fetchTenantAdminSettingsServer } from "@/lib/api/tenant/tenant-settings-admin.functions";
+import { printDeliveryLabel } from "@/lib/delivery/delivery-label-print";
+import { tenantPath } from "@/lib/tenant/painel-routes";
 import { resolveProductImage } from "@/lib/loja/cardapio";
 import { getKitchenStage } from "@/lib/kitchen-stage";
 import {
@@ -223,7 +227,9 @@ function DeliveryFlowPage() {
             <KdsTopButton
               icon={<MessageCircle className="size-3.5" />}
               label="Chat"
-              onClick={() => toast.info("Chat em breve")}
+              onClick={() =>
+                navigate({ to: tenantPath(tenantSlug, "atendimento/conversas") as "/painel/atendimento/conversas" })
+              }
             />
             <KdsTopButton
               icon={<X className="size-3.5" />}
@@ -412,6 +418,7 @@ function KdsOrderCard({
   onOpenDetail: (pedido: Pedido) => void;
 }) {
   const qc = useQueryClient();
+  const navigate = usePainelNavigate();
   const { data: itens = [] } = useQuery({
     queryKey: ["itens", tenantSlug, pedido.id],
     queryFn: () =>
@@ -427,6 +434,12 @@ function KdsOrderCard({
   const acaoPrincipal = getPrimaryAction(pedido);
   const PaymentIcon = getPaymentIcon(pedido.forma_pagamento);
 
+  const { data: printerSettings } = useQuery({
+    queryKey: ["tenant-admin-settings", tenantSlug, "delivery-print"],
+    queryFn: () => fetchTenantAdminSettingsServer({ data: tenantSlug }),
+    staleTime: 60_000,
+  });
+
   async function avancar(status: "em_preparo" | "pronto" | "em_entrega" | "entregue") {
     try {
       setUpdating(true);
@@ -438,6 +451,15 @@ function KdsOrderCard({
         },
       });
       toast.success(`Pedido #${pedido.numero} atualizado.`);
+      if (status === "pronto" && printerSettings?.settings.printers.delivery?.autoPrint) {
+        try {
+          await printDeliveryLabel(pedido, tenantSlug);
+        } catch (printError) {
+          toast.error(
+            printError instanceof Error ? printError.message : "Falha ao imprimir etiqueta automatica.",
+          );
+        }
+      }
       qc.invalidateQueries({ queryKey: ["gestao-delivery-pedidos", tenantSlug] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Nao foi possivel atualizar o pedido.");
@@ -532,12 +554,42 @@ function KdsOrderCard({
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
-                toast.info("Etiqueta em breve");
+                void (async () => {
+                  try {
+                    await printDeliveryLabel(pedido, tenantSlug);
+                    toast.success("Etiqueta enviada para impressao.");
+                  } catch (error) {
+                    toast.error(error instanceof Error ? error.message : "Falha ao imprimir etiqueta.");
+                  }
+                })();
               }}
               className="grid size-8 place-items-center rounded-lg text-[color:var(--gestao-gold-deep)] transition hover:bg-[color:var(--gestao-cream)]"
               aria-label="Etiqueta"
             >
               <Tag className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                void (async () => {
+                  try {
+                    const result = await resolveDeliveryOrderChatServer({
+                      data: { tenantSlug, orderId: pedido.id },
+                    });
+                    navigate({
+                      to: tenantPath(tenantSlug, "atendimento/conversas") as "/painel/atendimento/conversas",
+                      search: { c: result.chatId },
+                    });
+                  } catch (error) {
+                    toast.error(error instanceof Error ? error.message : "Nao foi possivel abrir o chat.");
+                  }
+                })();
+              }}
+              className="grid size-8 place-items-center rounded-lg text-[color:var(--gestao-green)] transition hover:bg-[color:var(--gestao-cream)]"
+              aria-label="Chat cliente"
+            >
+              <MessageCircle className="size-4" />
             </button>
           </div>
         </div>

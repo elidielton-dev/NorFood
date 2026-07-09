@@ -322,6 +322,13 @@ async function applyGestaoDeliveryStatusUpdate(
       void tryAutoEmitNfceForPedido(orderId, pedidoRow.canal);
     }
   }
+
+  if (status === "em_entrega" || status === "entregue") {
+    const { syncQueroStatusForPedido } = await import(
+      "@/lib/integrations/quero-delivery/quero-delivery.sync.server"
+    );
+    void syncQueroStatusForPedido(tenantId, orderId, status).catch(console.error);
+  }
 }
 
 export const updateGestaoDeliveryOrderStatusServer = createServerFn({ method: "POST" })
@@ -619,4 +626,58 @@ export const updateKitchenMarkReadyServer = createServerFn({ method: "POST" })
       .eq("tenant_id", tenantId);
     if (error) throw error;
     return { ok: true as const };
+  });
+
+export const resolveDeliveryOrderChatServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: TenantScopedInput & { orderId: string }) => input)
+  .handler(async ({ context, data }) => {
+    await assertStaffUserId(context.userId, "Acesso restrito ao Gestao delivery.");
+    const tenantId = await resolveStaffTenantId(context.userId, data.tenantSlug);
+    await assertPedidoBelongsToTenant(tenantId, data.orderId);
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { getOrderMetadataValue } = await import("@/lib/shared/db");
+
+    const { data: pedido, error: pedidoError } = await supabaseAdmin
+      .from("pedidos")
+      .select("id, cliente_id, observacoes")
+      .eq("id", data.orderId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+
+    if (pedidoError) throw pedidoError;
+    if (!pedido) throw new Error("Pedido nao encontrado.");
+
+    let phone = getOrderMetadataValue(pedido.observacoes, "phone");
+    if (pedido.cliente_id) {
+      const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("telefone")
+        .eq("id", pedido.cliente_id)
+        .maybeSingle();
+      phone = profile?.telefone ?? phone;
+    }
+
+    if (!phone?.trim()) {
+      throw new Error("Telefone do cliente nao encontrado. Configure o WhatsApp em Integracoes.");
+    }
+
+    const digits = phone.replace(/\D/g, "").slice(-8);
+    const { data: chats, error: chatError } = await supabaseAdmin
+      .from("whatsapp_chats")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .or(`phone.ilike.%${digits}%`)
+      .order("last_message_at", { ascending: false })
+      .limit(1);
+
+    if (chatError) throw chatError;
+    if (!chats?.length) {
+      throw new Error(
+        "Nenhuma conversa WhatsApp encontrada para este cliente. Abra o Atendimento para iniciar.",
+      );
+    }
+
+    return { chatId: chats[0].id as string, channel: "whatsapp" as const };
   });

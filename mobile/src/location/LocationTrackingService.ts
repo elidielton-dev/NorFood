@@ -29,6 +29,11 @@ export class LocationTrackingService {
   private watcher: Location.LocationSubscription | null = null;
   private mockTimer: ReturnType<typeof setInterval> | null = null;
   private history: RiderRealtimeLocation[] = [];
+  private mockMode = false;
+
+  isUsingMockTracking() {
+    return this.mockMode;
+  }
 
   async requestPermissions(): Promise<PermissionResult> {
     const foreground = await Location.requestForegroundPermissionsAsync();
@@ -52,6 +57,7 @@ export class LocationTrackingService {
 
   async startTracking(options: StartTrackingOptions): Promise<TrackerHandle> {
     await this.stop();
+    this.mockMode = false;
 
     if (mobileSupabaseEnabled()) {
       try {
@@ -84,6 +90,7 @@ export class LocationTrackingService {
           "[mobile] Falha ao iniciar rastreamento real. Mantendo app ativo sem interromper a sessao.",
           error,
         );
+        this.startMockTracking(options);
       }
     } else {
       this.startMockTracking(options);
@@ -109,6 +116,7 @@ export class LocationTrackingService {
       clearInterval(this.mockTimer);
       this.mockTimer = null;
     }
+    this.mockMode = false;
   }
 
   private pushLocation(location: RiderRealtimeLocation, onLocation: LocationListener) {
@@ -146,6 +154,7 @@ export class LocationTrackingService {
   }
 
   private startMockTracking(options: StartTrackingOptions) {
+    this.mockMode = true;
     const path = buildMockPath(options.deliveries);
     let cursor = 0;
 

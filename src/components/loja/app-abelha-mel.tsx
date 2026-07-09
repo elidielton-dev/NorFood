@@ -51,7 +51,8 @@ import {
   useCarrinho,
 } from "@/lib/loja/carrinho";
 import { fetchCatalogExtrasServer, type CatalogExtras } from "@/lib/api/produtos/catalog-extras.functions";
-import { fetchOperationalStatusServer } from "@/lib/api/tenant/operational-config.functions";
+import { fetchOperationalStatusServer, fetchBairrosPublicServer } from "@/lib/api/tenant/operational-config.functions";
+import { fetchStoreOpenStatusPublicServer } from "@/lib/api/tenant/horarios.functions";
 import { ProductCustomizerSheet } from "@/components/loja/product-customizer-sheet";
 import {
   getMercadoPagoCheckoutUrlFromOrder,
@@ -85,6 +86,7 @@ import { getDeliveryFeeForNeighborhood } from "@/lib/delivery/delivery-pricing";
 import { supabase } from "@/integrations/supabase/client";
 import {
   SERVICE_CITY_CONFIG,
+  findSupportedNeighborhood,
   getSupportedNeighborhoods,
   isSupportedCityCep,
 } from "@/lib/shared/city-config";
@@ -313,9 +315,17 @@ function Shell({
       void fetchCatalogExtrasServer({ data: tenantSlug })
         .then(setCatalogExtras)
         .catch(() => setCatalogExtras(null));
-      void fetchOperationalStatusServer({ data: tenantSlug })
-        .then((config) => setLojaAberta(config.loja_aberta))
-        .catch(() => setLojaAberta(true));
+      const syncStoreStatus = () => {
+        void fetchStoreOpenStatusPublicServer({ data: tenantSlug })
+          .then((status) => setLojaAberta(status.loja_aberta))
+          .catch(() => setLojaAberta(true));
+      };
+      syncStoreStatus();
+      const interval = window.setInterval(syncStoreStatus, 60_000);
+      return () => {
+        active = false;
+        window.clearInterval(interval);
+      };
     }
     return () => {
       active = false;
@@ -1172,6 +1182,10 @@ function Carrinho({
     "idle",
   );
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
+  const [bairrosEntrega, setBairrosEntrega] = useState<Array<{ nome: string; taxa: number }>>([]);
+  const [defaultDeliveryFee, setDefaultDeliveryFee] = useState<number>(
+    SERVICE_CITY_CONFIG.defaultDeliveryFee,
+  );
   const cep = customer?.cep ?? "";
   const address = customer?.address ?? "";
   const addressNumber = customer?.addressNumber ?? "";
@@ -1179,7 +1193,30 @@ function Carrinho({
   const city = customer?.city ?? "";
   const stateCode = customer?.stateCode ?? "";
   const reference = customer?.reference ?? "";
-  const entrega = mesaMode || itens.length === 0 ? 0 : getDeliveryFeeForNeighborhood(neighborhood);
+
+  useEffect(() => {
+    if (!tenantSlug) return;
+    void fetchBairrosPublicServer({ data: tenantSlug })
+      .then(setBairrosEntrega)
+      .catch(() => setBairrosEntrega([]));
+    void fetchOperationalStatusServer({ data: tenantSlug })
+      .then((config) => setDefaultDeliveryFee(config.valor_padrao_entrega))
+      .catch(() => setDefaultDeliveryFee(SERVICE_CITY_CONFIG.defaultDeliveryFee));
+  }, [tenantSlug]);
+
+  const entrega = useMemo(() => {
+    if (mesaMode || itens.length === 0) return 0;
+    const normalized = neighborhood.trim().toLowerCase();
+    const match = bairrosEntrega.find((b) => b.nome.trim().toLowerCase() === normalized);
+    if (match) return Number(match.taxa);
+    const fallback = findSupportedNeighborhood(neighborhood);
+    if (fallback) return fallback.deliveryFee;
+    if (bairrosEntrega.length === 0 && typeof window !== "undefined") {
+      return getDeliveryFeeForNeighborhood(neighborhood);
+    }
+    return defaultDeliveryFee;
+  }, [mesaMode, itens.length, neighborhood, bairrosEntrega, defaultDeliveryFee]);
+
   const totalComDesconto = Math.max(0, total - cupomDesconto);
   const totalFinal = totalComDesconto + entrega;
   const availablePaymentMethods = useMemo((): PaymentMethodOption[] => {

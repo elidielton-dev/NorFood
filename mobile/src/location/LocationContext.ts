@@ -5,6 +5,7 @@ export type LocationContextValue = {
   currentLocation: RiderRealtimeLocation | null;
   routeHistory: RiderRealtimeLocation[];
   trackingActive: boolean;
+  usingMockTracking: boolean;
   permissionsGranted: boolean;
   backgroundPermissionsGranted: boolean;
   requestPermissions: () => Promise<boolean>;

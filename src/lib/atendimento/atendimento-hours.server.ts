@@ -2,16 +2,23 @@ import { getAttendanceClosingBoundary, resolveStoreOpenStatus } from "@/lib/shar
 import { fetchHorariosConfigFromDb, fetchHorariosFromDb } from "@/lib/api/tenant/horarios.server";
 import { WABA_WORKSPACE_ID } from "@/lib/waba/types";
 
+const DEFAULT_TENANT_ID = "a0000000-0000-4000-8000-000000000001";
+
 type AttendanceCloseMarkerRow = {
   attendance_close_marker: string | null;
 };
 
-async function getAttendanceCloseMarker(): Promise<string | null> {
+function resolveConfigKey(tenantId?: string) {
+  return tenantId ?? DEFAULT_TENANT_ID;
+}
+
+async function getAttendanceCloseMarker(tenantId?: string): Promise<string | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const key = resolveConfigKey(tenantId);
   const { data, error } = await supabaseAdmin
     .from("config_operacional")
     .select("attendance_close_marker")
-    .eq("id", "default")
+    .eq("tenant_id", key)
     .maybeSingle<AttendanceCloseMarkerRow>();
 
   if (error) {
@@ -24,15 +31,16 @@ async function getAttendanceCloseMarker(): Promise<string | null> {
   return data?.attendance_close_marker ?? null;
 }
 
-async function setAttendanceCloseMarker(marker: string | null) {
+async function setAttendanceCloseMarker(marker: string | null, tenantId?: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const key = resolveConfigKey(tenantId);
   const { error } = await supabaseAdmin
     .from("config_operacional")
     .update({
       attendance_close_marker: marker,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", "default");
+    .eq("tenant_id", key);
 
   if (error) {
     if (/attendance_close_marker|does not exist|schema cache|PGRST20/i.test(error.message)) {
@@ -57,16 +65,18 @@ async function countActiveEvolutionChats() {
   return countActiveAtendimentoChats();
 }
 
-async function closeWabaConversationsForStoreClosed(boundaryIso: string) {
+async function closeWabaConversationsForStoreClosed(boundaryIso: string, tenantId?: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const now = new Date().toISOString();
   const boundaryMs = new Date(boundaryIso).getTime();
 
-  const { data, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from("waba_conversations")
     .select("id, status, attendance_opened_at, last_message_at")
     .eq("workspace_id", WABA_WORKSPACE_ID)
     .or("status.is.null,status.eq.open,status.eq.pending");
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+  const { data, error } = await query;
   if (error) throw error;
 
   const customerAfterBoundary = await getWabaConversationIdsWithCustomerMessageAfter(boundaryIso);
@@ -138,19 +148,19 @@ async function countActiveAtendimentoConversations() {
   return evolution + waba;
 }
 
-export async function isStoreOpenForAtendimento(now = new Date()) {
+export async function isStoreOpenForAtendimento(now = new Date(), tenantId?: string) {
   const [configResult, horariosResult] = await Promise.all([
-    fetchHorariosConfigFromDb(),
-    fetchHorariosFromDb(),
+    fetchHorariosConfigFromDb(tenantId),
+    fetchHorariosFromDb(tenantId),
   ]);
   const status = resolveStoreOpenStatus(configResult.config, horariosResult.horarios, now);
   return status.abertaAgora;
 }
 
-async function getEffectiveClosingBoundary(now = new Date()) {
+async function getEffectiveClosingBoundary(now = new Date(), tenantId?: string) {
   const [configResult, horariosResult] = await Promise.all([
-    fetchHorariosConfigFromDb(),
-    fetchHorariosFromDb(),
+    fetchHorariosConfigFromDb(tenantId),
+    fetchHorariosFromDb(tenantId),
   ]);
   const config = configResult.config;
   const horarios = horariosResult.horarios;
@@ -161,7 +171,7 @@ async function getEffectiveClosingBoundary(now = new Date()) {
   const boundary = getAttendanceClosingBoundary(status, config, now);
   if (!boundary) return null;
 
-  const marker = await getAttendanceCloseMarker();
+  const marker = await getAttendanceCloseMarker(tenantId);
   const markerMs = marker ? new Date(marker).getTime() : null;
   const manualClose = config.pausa_imediata || !config.horario_automatico;
   if (manualClose && markerMs != null) {
@@ -399,10 +409,10 @@ export async function repairClosedAtendimentoChatsWithRecentInbound(now = new Da
   return repaired;
 }
 
-export async function syncAtendimentoWithStoreHours(now = new Date()) {
+export async function syncAtendimentoWithStoreHours(now = new Date(), tenantId?: string) {
   const [configResult, horariosResult] = await Promise.all([
-    fetchHorariosConfigFromDb(),
-    fetchHorariosFromDb(),
+    fetchHorariosConfigFromDb(tenantId),
+    fetchHorariosFromDb(tenantId),
   ]);
 
   const config = configResult.config;
@@ -415,22 +425,30 @@ export async function syncAtendimentoWithStoreHours(now = new Date()) {
       closeWabaConversationsFromPreviousDays(now),
     ]);
 
-    const marker = await getAttendanceCloseMarker();
+    const marker = await getAttendanceCloseMarker(tenantId);
     if (marker) {
-      await setAttendanceCloseMarker(null);
+      await setAttendanceCloseMarker(null, tenantId);
     }
 
     return {
       closed: evolutionClosed + wabaClosed,
       storeOpen: true as const,
       motivo: status.motivo,
+      tenantId: tenantId ?? DEFAULT_TENANT_ID,
     };
   }
 
   const boundary = getAttendanceClosingBoundary(status, config, now);
-  if (!boundary) return { closed: 0, storeOpen: true as const, motivo: status.motivo };
+  if (!boundary) {
+    return {
+      closed: 0,
+      storeOpen: true as const,
+      motivo: status.motivo,
+      tenantId: tenantId ?? DEFAULT_TENANT_ID,
+    };
+  }
 
-  const marker = await getAttendanceCloseMarker();
+  const marker = await getAttendanceCloseMarker(tenantId);
   const markerMs = marker ? new Date(marker).getTime() : null;
 
   const manualClose = config.pausa_imediata || !config.horario_automatico;
@@ -447,14 +465,15 @@ export async function syncAtendimentoWithStoreHours(now = new Date()) {
       boundary: boundaryIso,
       motivo: status.motivo,
       activeCount,
+      tenantId: tenantId ?? DEFAULT_TENANT_ID,
     };
   }
 
   await Promise.all([
     closeEvolutionChatsForStoreClosed(boundaryIso),
-    closeWabaConversationsForStoreClosed(boundaryIso),
+    closeWabaConversationsForStoreClosed(boundaryIso, tenantId),
   ]);
-  await setAttendanceCloseMarker(boundaryIso);
+  await setAttendanceCloseMarker(boundaryIso, tenantId);
 
   return {
     closed: 1,
@@ -462,11 +481,27 @@ export async function syncAtendimentoWithStoreHours(now = new Date()) {
     boundary: boundaryIso,
     motivo: status.motivo,
     activeCount,
+    tenantId: tenantId ?? DEFAULT_TENANT_ID,
   };
 }
 
-export async function syncAtendimentoWithStoreHoursNow() {
-  return syncAtendimentoWithStoreHours();
+async function listActiveTenantIds() {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin.from("tenants").select("id");
+  if (error) throw error;
+  return (data ?? []).map((row) => row.id as string);
+}
+
+export async function syncAtendimentoWithStoreHoursNow(tenantId?: string) {
+  if (tenantId) {
+    return syncAtendimentoWithStoreHours(new Date(), tenantId);
+  }
+  const tenantIds = await listActiveTenantIds();
+  const results = [];
+  for (const id of tenantIds) {
+    results.push(await syncAtendimentoWithStoreHours(new Date(), id));
+  }
+  return results;
 }
 
 let lastSyncAt = 0;
@@ -475,7 +510,7 @@ const SYNC_INTERVAL_MS = 60_000;
 export function maybeSyncAtendimentoWithStoreHours() {
   if (Date.now() - lastSyncAt < SYNC_INTERVAL_MS) return;
   lastSyncAt = Date.now();
-  void syncAtendimentoWithStoreHours().catch((error) => {
+  void syncAtendimentoWithStoreHoursNow().catch((error) => {
     console.error("[syncAtendimentoWithStoreHours]", error);
   });
 }

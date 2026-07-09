@@ -47,8 +47,10 @@ export type Database = {
           pausa_imediata: boolean;
           pedido_minimo: number;
           pontos_por_real: number;
+          tenant_id: string | null;
           updated_at: string;
           valor_padrao_entrega: number;
+          attendance_close_marker?: string | null;
         };
         Insert: {
           fuso_horario?: string;
@@ -58,8 +60,10 @@ export type Database = {
           pausa_imediata?: boolean;
           pedido_minimo?: number;
           pontos_por_real?: number;
+          tenant_id?: string | null;
           updated_at?: string;
           valor_padrao_entrega?: number;
+          attendance_close_marker?: string | null;
         };
         Update: {
           fuso_horario?: string;
@@ -69,8 +73,10 @@ export type Database = {
           pausa_imediata?: boolean;
           pedido_minimo?: number;
           pontos_por_real?: number;
+          tenant_id?: string | null;
           updated_at?: string;
           valor_padrao_entrega?: number;
+          attendance_close_marker?: string | null;
         };
         Relationships: [];
       };
@@ -80,6 +86,7 @@ export type Database = {
           ativo: boolean;
           dia_semana: number;
           fecha: string;
+          tenant_id: string;
           updated_at: string;
         };
         Insert: {
@@ -87,6 +94,7 @@ export type Database = {
           ativo?: boolean;
           dia_semana: number;
           fecha?: string;
+          tenant_id: string;
           updated_at?: string;
         };
         Update: {
@@ -94,7 +102,98 @@ export type Database = {
           ativo?: boolean;
           dia_semana?: number;
           fecha?: string;
+          tenant_id?: string;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      tenant_integrations: {
+        Row: {
+          tenant_id: string;
+          quero_delivery_enabled: boolean;
+          quero_delivery_place_id: string | null;
+          quero_delivery_api_token: string | null;
+          quero_delivery_last_poll_at: string | null;
+          quero_delivery_last_event_cursor: string | null;
+          quero_delivery_last_error: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          tenant_id: string;
+          quero_delivery_enabled?: boolean;
+          quero_delivery_place_id?: string | null;
+          quero_delivery_api_token?: string | null;
+          quero_delivery_last_poll_at?: string | null;
+          quero_delivery_last_event_cursor?: string | null;
+          quero_delivery_last_error?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          tenant_id?: string;
+          quero_delivery_enabled?: boolean;
+          quero_delivery_place_id?: string | null;
+          quero_delivery_api_token?: string | null;
+          quero_delivery_last_poll_at?: string | null;
+          quero_delivery_last_event_cursor?: string | null;
+          quero_delivery_last_error?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      quero_delivery_order_map: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          quero_order_id: string;
+          pedido_id: string | null;
+          last_status: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          quero_order_id: string;
+          pedido_id?: string | null;
+          last_status?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          quero_order_id?: string;
+          pedido_id?: string | null;
+          last_status?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      quero_delivery_sync_logs: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          level: string;
+          message: string;
+          payload: Json | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          level?: string;
+          message: string;
+          payload?: Json | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          level?: string;
+          message?: string;
+          payload?: Json | null;
+          created_at?: string;
         };
         Relationships: [];
       };

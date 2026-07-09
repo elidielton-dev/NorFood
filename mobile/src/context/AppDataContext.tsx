@@ -19,7 +19,7 @@ import {
   updateRiderProfile,
   updateRiderOnline,
   uploadRiderAvatar,
-} from "../data/riderApi";
+} from "../data/rider";
 import { fetchRiderTenancies, fetchTenantSettings } from "../data/tenantApi";
 import { stripCacheBuster } from "../lib/avatar";
 import { loadActiveTenantId, loadAppState, saveActiveTenantId, saveAppState } from "../data/storage";
@@ -122,7 +122,7 @@ export function AppDataProvider({ children }: PropsWithChildren) {
 
     setState((current) => ({
       ...current,
-      ...(remote as unknown as AppState),
+      ...remote,
       loggedIn: true,
       rememberLogin: current.rememberLogin,
       activeTenantId: tenantId,
@@ -131,10 +131,8 @@ export function AppDataProvider({ children }: PropsWithChildren) {
       availableTenants: tenants,
       rider: {
         ...current.rider,
-        ...((remote as unknown as AppState).rider ?? {}),
-        avatar:
-          ((remote as unknown as AppState).rider?.avatar ?? "").trim() ||
-          current.rider.avatar,
+        ...remote.rider,
+        avatar: remote.rider.avatar?.trim() || current.rider.avatar,
       },
     }));
   }
@@ -147,7 +145,7 @@ export function AppDataProvider({ children }: PropsWithChildren) {
       riderIdRef.current = remote.rider.id;
       setState((current) => ({
         ...current,
-        ...(remote as unknown as AppState),
+        ...remote,
         loggedIn: current.loggedIn,
         rememberLogin: current.rememberLogin,
         activeTenantId: current.activeTenantId,
@@ -156,10 +154,8 @@ export function AppDataProvider({ children }: PropsWithChildren) {
         availableTenants: current.availableTenants,
         rider: {
           ...current.rider,
-          ...((remote as unknown as AppState).rider ?? {}),
-          avatar:
-            ((remote as unknown as AppState).rider?.avatar ?? "").trim() ||
-            current.rider.avatar,
+          ...remote.rider,
+          avatar: remote.rider.avatar?.trim() || current.rider.avatar,
         },
       }));
     } catch (error) {

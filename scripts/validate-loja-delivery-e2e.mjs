@@ -325,6 +325,29 @@ async function runDeliveryFlow(admin, anon) {
   await anon.auth.signOut();
 }
 
+async function validateTenantHorariosSave(admin) {
+  console.log("\n--- Horarios multitenant ---");
+  const payload = Array.from({ length: 7 }, (_, dia) => ({
+    tenant_id: TENANT_ID,
+    dia_semana: dia,
+    ativo: true,
+    abre: "08:00",
+    fecha: "22:00",
+    updated_at: new Date().toISOString(),
+  }));
+
+  const { error } = await admin
+    .from("horarios_funcionamento")
+    .upsert(payload, { onConflict: "tenant_id,dia_semana" });
+
+  assert(!error, "Salvar horarios por tenant (upsert PK composta)", error?.message ?? "");
+  const { count } = await admin
+    .from("horarios_funcionamento")
+    .select("dia_semana", { count: "exact", head: true })
+    .eq("tenant_id", TENANT_ID);
+  assert((count ?? 0) >= 7, "Grade semanal persistida por tenant", String(count ?? 0));
+}
+
 async function main() {
   console.log("=== Validação E2E Loja Delivery NorFood ===");
   console.log(`Site: ${BASE}`);
@@ -342,6 +365,7 @@ async function main() {
   });
 
   await checkLojaWeb();
+  await validateTenantHorariosSave(admin);
   await runDeliveryFlow(admin, anon);
 
   console.log(`\n=== Resultado: ${passed.length} OK, ${failed.length} FAIL ===`);

@@ -107,17 +107,23 @@ export const fetchTenantAdminSettingsServer = createServerFn({ method: "GET" })
     const tenantId = await resolveStaffTenantId(context.userId, tenantSlug);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const [tenantResult, settingsResult] = await Promise.all([
+    const [tenantResult, settingsResult, configResult] = await Promise.all([
       supabaseAdmin
         .from("tenants")
         .select("id,name,slug,subtitle,logo_url,primary_color,secondary_color,accent_color")
         .eq("id", tenantId)
         .single(),
       supabaseAdmin.from("tenant_settings").select("*").eq("tenant_id", tenantId).maybeSingle(),
+      supabaseAdmin
+        .from("config_operacional")
+        .select("pedido_minimo, loja_aberta, pontos_por_real, valor_padrao_entrega")
+        .eq("tenant_id", tenantId)
+        .maybeSingle(),
     ]);
     if (tenantResult.error) throw tenantResult.error;
 
     const row = settingsResult.data;
+    const configRow = configResult.data;
     const { appearance, printers, mesas } = parseStoreAppearance(row?.store_appearance);
 
     const fullPrinters = Object.fromEntries(
@@ -130,11 +136,13 @@ export const fetchTenantAdminSettingsServer = createServerFn({ method: "GET" })
         phone: row?.phone ?? null,
         address: row?.address ?? null,
         description: row?.description ?? null,
-        delivery_fee_default: Number(row?.delivery_fee_default ?? 6),
+        delivery_fee_default: Number(
+          configRow?.valor_padrao_entrega ?? row?.delivery_fee_default ?? 6,
+        ),
         delivery_time_minutes: Number(row?.delivery_time_minutes ?? 40),
-        pedido_minimo: Number(row?.pedido_minimo ?? 15),
-        loja_aberta: row?.loja_aberta ?? true,
-        pontos_por_real: Number(row?.pontos_por_real ?? 1),
+        pedido_minimo: Number(configRow?.pedido_minimo ?? row?.pedido_minimo ?? 15),
+        loja_aberta: configRow?.loja_aberta ?? row?.loja_aberta ?? true,
+        pontos_por_real: Number(configRow?.pontos_por_real ?? row?.pontos_por_real ?? 1),
         payment_methods: normalizePaymentMethods(row?.payment_methods),
         appearance,
         printers: fullPrinters,

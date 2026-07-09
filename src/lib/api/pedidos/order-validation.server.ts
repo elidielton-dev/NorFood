@@ -52,31 +52,12 @@ export async function resolveDeliveryFeeFromDb(bairro: string, tenantId?: string
 
 export async function getOperationalConfig(tenantId?: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const {
-    resolveEffectiveLojaAberta,
-    buildDefaultHorariosConfig,
-    DEFAULT_HORARIOS,
-    ensureFullWeek,
-  } = await import("@/lib/shared/horarios");
-
-  let horariosConfig = buildDefaultHorariosConfig();
-  let horarios = ensureFullWeek(DEFAULT_HORARIOS);
-  try {
-    const { fetchHorariosConfigFromDb, fetchHorariosFromDb } =
-      await import("@/lib/api/tenant/horarios.server");
-    const [horariosConfigResult, horariosResult] = await Promise.all([
-      fetchHorariosConfigFromDb(tenantId),
-      fetchHorariosFromDb(tenantId),
-    ]);
-    horariosConfig = horariosConfigResult.config;
-    horarios = horariosResult.horarios;
-  } catch {
-    // Mantem defaults se horarios ainda nao estiverem no banco.
-  }
+  const { getTenantOpenState } = await import("@/lib/api/tenant/horarios.server");
+  const openState = await getTenantOpenState(tenantId);
 
   let configQuery = supabaseAdmin
     .from("config_operacional")
-    .select("pedido_minimo, loja_aberta, valor_padrao_entrega, pontos_por_real");
+    .select("pedido_minimo, valor_padrao_entrega, pontos_por_real");
   if (tenantId) configQuery = configQuery.eq("tenant_id", tenantId);
   else configQuery = configQuery.eq("id", "default");
 
@@ -85,7 +66,10 @@ export async function getOperationalConfig(tenantId?: string) {
   if (error || !data) {
     return {
       pedido_minimo: 0,
-      loja_aberta: resolveEffectiveLojaAberta(horariosConfig, horarios),
+      loja_aberta: openState.loja_aberta_efetiva,
+      loja_aberta_efetiva: openState.loja_aberta_efetiva,
+      horario_automatico: openState.horario_automatico,
+      pausa_imediata: openState.pausa_imediata,
       valor_padrao_entrega: SERVICE_CITY_CONFIG.defaultDeliveryFee,
       pontos_por_real: 1,
     };
@@ -93,7 +77,10 @@ export async function getOperationalConfig(tenantId?: string) {
 
   return {
     pedido_minimo: Number(data.pedido_minimo),
-    loja_aberta: resolveEffectiveLojaAberta(horariosConfig, horarios),
+    loja_aberta: openState.loja_aberta_efetiva,
+    loja_aberta_efetiva: openState.loja_aberta_efetiva,
+    horario_automatico: openState.horario_automatico,
+    pausa_imediata: openState.pausa_imediata,
     valor_padrao_entrega: Number(data.valor_padrao_entrega),
     pontos_por_real: Number(data.pontos_por_real),
   };

@@ -6,6 +6,9 @@ import { resolveTenantIdBySlug } from "@/lib/api/financeiro/platform-billing.fun
 export type OperationalConfig = {
   pedido_minimo: number;
   loja_aberta: boolean;
+  loja_aberta_efetiva: boolean;
+  horario_automatico: boolean;
+  pausa_imediata: boolean;
   valor_padrao_entrega: number;
   pontos_por_real: number;
 };
@@ -33,9 +36,11 @@ export const fetchOperationalAdminServer = createServerFn({ method: "GET" })
   .handler(async ({ context, data: tenantSlug }) => {
     await assertStaffUserId(context.userId);
     const tenantId = await resolveStaffTenantId(context.userId, tenantSlug);
+    const { getTenantOpenState } = await import("@/lib/api/tenant/horarios.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const [configResult, bairrosResult] = await Promise.all([
+    const [openState, configResult, bairrosResult] = await Promise.all([
+      getTenantOpenState(tenantId),
       supabaseAdmin
         .from("config_operacional")
         .select("*")
@@ -55,7 +60,10 @@ export const fetchOperationalAdminServer = createServerFn({ method: "GET" })
     return {
       config: {
         pedido_minimo: Number(configRow?.pedido_minimo ?? 0),
-        loja_aberta: configRow?.loja_aberta ?? true,
+        loja_aberta: openState.loja_aberta_manual,
+        loja_aberta_efetiva: openState.loja_aberta_efetiva,
+        horario_automatico: openState.horario_automatico,
+        pausa_imediata: openState.pausa_imediata,
         valor_padrao_entrega: Number(configRow?.valor_padrao_entrega ?? 0),
         pontos_por_real: Number(configRow?.pontos_por_real ?? 1),
       },
@@ -83,6 +91,7 @@ export const saveOperationalConfigServer = createServerFn({ method: "POST" })
       tenant_id: tenantId,
       pedido_minimo: config.pedido_minimo,
       loja_aberta: config.loja_aberta,
+      horario_automatico: false,
       valor_padrao_entrega: config.valor_padrao_entrega,
       pontos_por_real: config.pontos_por_real,
       updated_at: new Date().toISOString(),

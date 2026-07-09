@@ -57,15 +57,17 @@ function timeToMinutes(value) {
 }
 
 async function main() {
+  const TENANT_ID = "a0000000-0000-4000-8000-000000000001";
   const { data: config, error: configErr } = await admin
     .from("config_operacional")
     .select("loja_aberta, horario_automatico, pausa_imediata, attendance_close_marker")
-    .eq("id", "default")
+    .eq("tenant_id", TENANT_ID)
     .maybeSingle();
 
   const { data: horarios, error: horErr } = await admin
     .from("horarios_funcionamento")
     .select("dia_semana, ativo, abre, fecha")
+    .eq("tenant_id", TENANT_ID)
     .order("dia_semana");
 
   const { data: activeChats, error: chatErr } = await admin

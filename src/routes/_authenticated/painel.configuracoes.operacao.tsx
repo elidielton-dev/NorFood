@@ -114,8 +114,27 @@ function ConfiguracaoOperacaoPage() {
         <Link to={tenantPath(tenantSlug, "configuracoes/horarios")} className="font-semibold underline">
           Horários de funcionamento
         </Link>
-        .
+        . Regras operacionais (pedido mínimo, taxas, abertura) são salvas em configuração operacional.
       </GestaoAlert>
+
+      {activeConfig.horario_automatico && !activeConfig.pausa_imediata ? (
+        <GestaoAlert tone="warning">
+          O horário automático está ativo. A loja abre e fecha pela grade semanal. Para controlar
+          manualmente, use o toggle abaixo (isso desativa o automático ao salvar) ou use Pausa
+          imediata em Horários.
+          {typeof activeConfig.loja_aberta_efetiva === "boolean" ? (
+            <span className="mt-1 block font-semibold">
+              Status efetivo agora: {activeConfig.loja_aberta_efetiva ? "Aberta" : "Fechada"}
+            </span>
+          ) : null}
+        </GestaoAlert>
+      ) : null}
+
+      {activeConfig.pausa_imediata ? (
+        <GestaoAlert tone="warning">
+          Pausa imediata ativa — a loja está fechada para pedidos até ser desativada em Horários.
+        </GestaoAlert>
+      ) : null}
 
       <ConfigSection
         title="Regras comerciais"
@@ -164,11 +183,17 @@ function ConfiguracaoOperacaoPage() {
           }
         />
         <ConfigSwitchRow
-          description="Abre ou fecha a loja manualmente, independente dos horários cadastrados."
+          description="Abre ou fecha a loja manualmente. Ao salvar, o horário automático é desativado."
           label="Loja aberta agora"
           checked={activeConfig.loja_aberta}
           onCheckedChange={(loja_aberta) => setConfig({ ...activeConfig, loja_aberta })}
         />
+        {typeof activeConfig.loja_aberta_efetiva === "boolean" ? (
+          <p className="text-sm text-muted-foreground">
+            Status efetivo para pedidos:{" "}
+            <strong>{activeConfig.loja_aberta_efetiva ? "Aberta" : "Fechada"}</strong>
+          </p>
+        ) : null}
       </ConfigSection>
 
       <ConfigSection title="Bairros de entrega" description="Taxas e áreas atendidas no delivery.">
